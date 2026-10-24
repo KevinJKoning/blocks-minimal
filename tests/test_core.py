@@ -1,6 +1,7 @@
 """The core without a browser: reading an app, running its graph, comparing runs, building a
 page. A tiny app is written per test; the example apps are checked in the browser
 (test_apps, `-m browser`)."""
+import io
 import json
 from pathlib import Path
 
@@ -103,6 +104,18 @@ def test_packages_follow_imports():
     assert "numpy" in build.packages(["pandas"]) and build.packages(["os", "blocks", "helpers"], {"helpers"}) == []
     with pytest.raises(ValueError, match="nosuchpackage"):
         build.packages(["nosuchpackage"])
+
+
+def test_runtime_rejects_corrupt_cache_and_download(tmp_path, monkeypatch):
+    monkeypatch.setattr(build, "CACHE", tmp_path)
+    (tmp_path / "pyodide.mjs").write_bytes(b"corrupt cache")
+    monkeypatch.setattr(build.urllib.request, "urlopen", lambda *a, **kw: io.BytesIO(b"corrupt download"))
+    with pytest.raises(ValueError, match="sha256"):
+        build.runtime_file("pyodide.mjs")
+    assert (tmp_path / "pyodide.mjs").read_bytes() == b"corrupt cache"
+    monkeypatch.setattr(build, "lock", lambda: {"packages": {}})
+    with pytest.raises(KeyError):
+        build.runtime_file("unlisted.whl")
 
 
 @pytest.mark.browser
