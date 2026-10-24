@@ -1,0 +1,81 @@
+{
+ "made": "2026-10-24T10:52:30+00:00",
+ "settings": {
+  "wind.coast_speed": 60,
+  "wind.background_speed": 25,
+  "wind.decay_km": 40,
+  "credibility.k": 0
+ },
+ "data": {
+  "policies": "9e60d3456c6fb62080517eeb34bb35a5c4269389498ad4b6d4e9740d60b87352",
+  "territories": "1cf767e51aa70f591625c97c43b2a8ac9d3008c6bf6336e1932314bce3c0f727",
+  "coast": "f23948b74c5c8a6bf1875ada64753ac28dddf697fe904748f2e4b01213e2cb22",
+  "truth": "8a040edf49e30c0194b360dbff498aa8d95c88132e952c7904a7a08ae9eb178c"
+ },
+ "nodes": {
+  "join": {
+   "status": "done",
+   "key": "dbf0a33a19c33da9c2235cabb0d4df6b1aa778e06a05bdc1570b0d36724a6020",
+   "metrics": {
+    "policies": 100000,
+    "policy_years": 86438.33000000002,
+    "claims": 2797,
+    "placed_by_nearest": 2,
+    "thin_territories": 28
+   },
+   "digest": "cefa0714c538092246066adee05a74381095f047dc64cf003070ee21320cfb6d"
+  },
+  "wind": {
+   "status": "done",
+   "key": "64a56f1faa76f2fdc19611ad822e68a4d00914825f72435aacddda0449d36bca",
+   "metrics": {
+    "mean_load": 0.5196786363757258,
+    "load_at_50km": 0.3408159771721135
+   },
+   "digest": "ed695a5284abaa784663092491eeae949675c66b5c6949bdf1313f9d2f4dd108"
+  },
+  "glm": {
+   "status": "done",
+   "key": "735d30dbc75b33287738aa5daced252282a14aef75da97fac40ed41dcee019f8",
+   "metrics": {
+    "deviance": 19188.88399433795,
+    "dispersion": 1.034136218183001,
+    "aic": 24722.02409883747
+   },
+   "digest": "98a02aa513746999e383a6b1b6b5ca4c73623179e66818eb1fcfa38c0ed6a8af"
+  },
+  "credibility": {
+   "status": "done",
+   "key": "92dbf6054b88c8765d63731d75d04bd51add4d9220bc4626bfc66551879f41fc",
+   "metrics": {
+    "k": 10.295450856406028,
+    "between_sd": 0.3116573079989507,
+    "mean": 1.0000000000000167,
+    "mostly_own": 2,
+    "mostly_glm": 86
+   },
+   "digest": "ae50f1441ab6051fe3fec27ae53e622f15013aaf39df30120b97ac77363b806f"
+  },
+  "rates": {
+   "status": "done",
+   "key": "f0b043252dde2b1a001830fbd7df08dc9f3107f740a2fa63054a984bf6a2ffe8",
+   "metrics": {
+    "lowest": 9.85597594876334,
+    "highest": 85.02324767426316,
+    "spread": 8.626568095971388
+   },
+   "digest": "12c640ec7fcd4cb0234e1cb0b20f64ae666fc42fd0a8d1c09467231a92c693e5"
+  },
+  "recovery": {
+   "status": "done",
+   "key": "1814ece55021a2f5e66a479b437cd1f12529c80356aec286fd532f2a17493317",
+   "metrics": {
+    "within_interval": 5,
+    "error_own": 0.8103899491017968,
+    "error_glm": 0.2922132118709263,
+    "error_credibility": 0.257466579117166
+   },
+   "digest": "c2f8aebf773b2c84819e189cd7dd48f1e03f637c7e91fc39b40ddb9ca2eabd1f"
+  }
+ }
+}

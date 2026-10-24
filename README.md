@@ -78,6 +78,7 @@ projects/<app>/
 | `table(rows, columns=None, title=None)` | a DataFrame, pyarrow Table, `{column: values}` or list of dicts (200 rows shown) |
 | `chart(x, series, title, x_label, y_label, kind)` | `series` is `{name: ys}`; `kind` is `line`, `scatter` or `{name: kind}` |
 | `figure(image, caption=None)` | SVG text or PNG bytes |
+| `map(shapes, values=None, names=None, title, label, lines=None, points=None)` | polygons (shapely or GeoJSON geometries) shaded by value, true to scale in their own coordinates; `lines` drawn on top (a coastline), `points` as dots |
 | `download(name, value, title=None)` | a file to take away, as a card with a Download button: a table as `.csv`, `.json` or `.parquet`, text, or bytes |
 
 A block is a dict made by a function in `src/blocks/ui.py` and drawn by the function of
@@ -86,16 +87,25 @@ The page draws a view's blocks in the order it returns them. Put a node's downlo
 what a node hands over is usually what its reader came for. The overview gathers every
 dataset and every download in one place.
 
+## Example apps
+
+| app | shows |
+|---|---|
+| `sensor-calibration` | a modelling pipeline: cleaning, features, ridge regression, held-out evaluation, delivered files |
+| `titanic` | three analyses of one dataset side by side, with their caveats |
+| `parcels` | a zipped Esri geodatabase read with GDAL in the browser, then areas and a summary |
+| `windstorm` | tabular and geospatial data joined into one dataset, a Poisson GLM with a physics offset (wind load), Bühlmann–Straub credibility by territory, and a check against the known truth of its synthetic data (`scripts/make_windstorm_data.py`) |
+
 ## Code
 
 | file | lines | role |
 |---|--:|---|
-| `src/blocks/graph.py` | 232 | the executor (in Pyodide): load nodes, keys, cache, run, metrics, digests, views; run records and `compare` |
-| `src/blocks/ui.py` | 106 | the blocks |
+| `src/blocks/graph.py` | 235 | the executor (in Pyodide): load nodes, keys, cache, run, metrics, digests, views; run records and `compare` |
+| `src/blocks/ui.py` | 130 | the blocks |
 | `src/blocktool/spec.py` | 107 | reads an app with `ast`: nodes, settings, metrics, datasets, order, imports |
 | `src/blocktool/build.py` | 107 | the page as one file; the pinned Pyodide runtime, cached in `.cache/` |
 | `src/blocktool/cli.py` | 133 | `serve`, `build`, `baseline`, `verify` (headless Chromium) |
-| `src/blocktool/templates/` | 605 | `app.js` (graph, pages, blocks, settings, worker bridge), `worker.js`, `app.css` (the one theme) |
+| `src/blocktool/templates/` | 630 | `app.js` (graph, pages, blocks, settings, worker bridge), `worker.js`, `app.css` (the one theme) |
 
 For agents, the page exposes `window.blocks`: `state()`, `set({"node.param": value})`,
 `run()`, `output(node)` and `show(node)`.
