@@ -90,12 +90,12 @@ dataset and every download in one place.
 
 | file | lines | role |
 |---|--:|---|
-| `src/blocks/graph.py` | 228 | the executor (in Pyodide): load nodes, keys, cache, run, metrics, digests, views; run records and `compare` |
+| `src/blocks/graph.py` | 232 | the executor (in Pyodide): load nodes, keys, cache, run, metrics, digests, views; run records and `compare` |
 | `src/blocks/ui.py` | 106 | the blocks |
-| `src/blocktool/spec.py` | 104 | reads an app with `ast`: nodes, settings, metrics, datasets, order, imports |
-| `src/blocktool/build.py` | 101 | the page as one file; the pinned Pyodide runtime, cached in `.cache/` |
+| `src/blocktool/spec.py` | 107 | reads an app with `ast`: nodes, settings, metrics, datasets, order, imports |
+| `src/blocktool/build.py` | 107 | the page as one file; the pinned Pyodide runtime, cached in `.cache/` |
 | `src/blocktool/cli.py` | 133 | `serve`, `build`, `baseline`, `verify` (headless Chromium) |
-| `src/blocktool/templates/` | 607 | `app.js` (graph, pages, blocks, settings, worker bridge), `worker.js`, `app.css` (the one theme) |
+| `src/blocktool/templates/` | 605 | `app.js` (graph, pages, blocks, settings, worker bridge), `worker.js`, `app.css` (the one theme) |
 
 For agents, the page exposes `window.blocks`: `state()`, `set({"node.param": value})`,
 `run()`, `output(node)` and `show(node)`.
