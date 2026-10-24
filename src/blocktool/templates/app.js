@@ -219,7 +219,7 @@ const RENDER = {
   chart,
   figure: (b) => h("figure", {}, h("img", { src: b.media === "image/png" ? `data:image/png;base64,${b.data}` : `data:image/svg+xml,${encodeURIComponent(b.data)}`, alt: b.caption || "" }),
     b.caption && h("figcaption", {}, b.caption)),
-  download: (b) => card("Output", b.name, `${size(b.size)}${b.title ? ` · ${b.title}` : ""}`,
+  download: (b, label = "Output") => card(label, b.name, `${size(b.size)}${b.title ? ` · ${b.title}` : ""}`,
     h("button", { onclick: async () => save(b.name, new Blob([await bytes(b.data)], { type: b.media })) }, "Download")),
 };
 
@@ -330,6 +330,7 @@ function results(n) {
     r.log && h("details", {}, h("summary", {}, "Log"), h("pre", {}, r.log)));
 }
 
+const offered = (n) => (state.results[n]?.status === "done" ? state.results[n].blocks.filter((b) => b.type === "download") : []);
 const link = (x) => h("a", { href: `#${x}`, onclick: (e) => { e.preventDefault(); show(x); } }, x);
 const sep = (xs) => xs.flatMap((x, i) => (i ? [", ", link(x)] : [link(x)]));
 const crumb = (x) => h("p", { class: "crumb" }, h("a", { href: "#", onclick: (e) => { e.preventDefault(); show(null); } }, M.title), " / ", x);
@@ -342,7 +343,7 @@ function dataPage(d) {
 
 function nodePage(n) {
   const node = S.nodes[n], readers = S.order.filter((m) => S.nodes[m].deps.includes(n));
-  const r = state.results[n], files = r?.status === "done" ? r.blocks.filter((b) => b.type === "download") : [];
+  const files = offered(n);
   return [
     crumb(n),
     h("h1", {}, n),
@@ -370,7 +371,12 @@ function overview() {
         h("p", {}, (S.nodes[n].doc.split("\n")[0] || "")),
         decl.length > 0 && h("p", { class: "small muted" }, decl.map((d) => `${d.label} ${fmt(m[d.key])}`).join(" · ")));
     }))),
-    Object.keys(M.data).length > 0 && h("section", {}, h("h2", {}, "Data"), h("div", { class: "cards" }, Object.keys(M.data).map(dataCard))),
+    // The app's front door: everything that goes in and everything that comes out.
+    Object.keys(M.data).length > 0 && h("section", {}, h("h2", {}, "Inputs"), h("div", { class: "cards" }, Object.keys(M.data).map(dataCard))),
+    S.order.some((n) => S.nodes[n].downloads) && h("section", {}, h("h2", {}, "Outputs"),
+      S.order.some((n) => offered(n).length) ? h("div", { class: "cards" }, S.order.map((n) => h("div", { class: `cards ${statusOf(n) === "stale" ? "dim" : ""}` },
+        offered(n).map((b) => RENDER.download(b, `Output · ${n}`)))))
+        : h("p", { class: "muted" }, "Run to make the files.")),
     state.record && h("section", {}, h("h2", {}, "This run"),
       failing === null ? h("p", { class: "muted" }, "No baseline to compare with.")
         : Object.keys(failing).length === 0 ? h("p", { class: "ok" }, "Every node matches the baseline.")

@@ -32,7 +32,8 @@ def view(out):                              # optional: how its results look
   `alpha` makes `train` and what reads it stale; Run re-runs just those.
 - **The page is blocks.** The graph is the table of contents. Each node is one page: its
   docstring, the files it offers (cards with a Download button), its settings, its
-  results (its view) and its code. Each dataset has a page too, where it can be replaced.
+  results (its view) and its code. Each dataset has a page too, where it can be replaced,
+  and the overview gathers every input and every output in one place.
 - **Verified.** Every run leaves a record (settings, data keys, every node's metrics and
   output digest). `blocks baseline` keeps one; `blocks verify` and `blocks build` compare
   against it, and the page shows each metric against it.

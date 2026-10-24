@@ -62,6 +62,7 @@ def read_node(path: Path) -> dict:
         "settings": {x.arg: _setting(x, d, f"{path}: {x.arg}") for x, d in zip(a.kwonlyargs, a.kw_defaults)},
         "metrics": [{"key": k, **({"label": m} if isinstance(m, str) else {"label": k, **m})} for k, m in metrics.items()],
         "view": "view" in fns,
+        "downloads": any(isinstance(n, ast.Attribute) and n.attr == "download" for n in ast.walk(tree)),
     }
 
 
