@@ -1,0 +1,56 @@
+{
+ "made": "2026-10-24T01:38:09+00:00",
+ "settings": {
+  "layer.name": "Parcels",
+  "areas.min_area_m2": 1000
+ },
+ "data": {
+  "parcels": "32543798bb4cc95c61b5742b1849b153c1f3e00783689fc847e303942a905182"
+ },
+ "nodes": {
+  "layer": {
+   "status": "done",
+   "key": "5a27a4743324fcec836dafb059b99482dde6601f7f5d751b7c3f198170c58eb9",
+   "metrics": {
+    "features": 2000,
+    "crs": 3857
+   },
+   "digest": "c1bd1128aa6dec0aac046f1ac5a78a2e7cf71b53faff5184df702b053358ab2b"
+  },
+  "areas": {
+   "status": "done",
+   "key": "8c6f61a3ef82250bd83b311f6d1a34a846442f6024fa09768a3f29b48d79f937",
+   "metrics": {
+    "parcels": 2000,
+    "slivers_dropped": 0,
+    "crs": 3857
+   },
+   "digest": "8df50406a03cd54248820f8fc239edac5550da8ed8a83e909f0bacc9a9a141e9"
+  },
+  "summary": {
+   "status": "done",
+   "key": "177098eb9419c6bf715109c81865ce5337f289fb74d4aa81e43802ba7a11277c",
+   "metrics": {
+    "total_area_ha": 916.0770826574048,
+    "residential_area_share": 0.5160514163739623,
+    "value_per_ha": 419170.97097996715,
+    "by_land_use.agricultural.parcels": 299,
+    "by_land_use.agricultural.area_ha": 133.6546965999547,
+    "by_land_use.agricultural.value": 59180920.510000005,
+    "by_land_use.commercial.parcels": 308,
+    "by_land_use.commercial.area_ha": 141.0096905842908,
+    "by_land_use.commercial.value": 57152295.53,
+    "by_land_use.industrial.parcels": 201,
+    "by_land_use.industrial.area_ha": 93.89614465475924,
+    "by_land_use.industrial.value": 39610683.82,
+    "by_land_use.park.parcels": 160,
+    "by_land_use.park.area_ha": 74.77367480531892,
+    "by_land_use.park.value": 30885802.98,
+    "by_land_use.residential.parcels": 1032,
+    "by_land_use.residential.area_ha": 472.7428760130812,
+    "by_land_use.residential.value": 197163217.39
+   },
+   "digest": "7567a94c2652ca38a3f02eeb5150e6abf5ea794f32c51c29497baf9f2cff5cf6"
+  }
+ }
+}

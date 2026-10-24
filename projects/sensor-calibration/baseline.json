@@ -1,0 +1,77 @@
+{
+ "made": "2026-10-24T01:38:11+00:00",
+ "settings": {
+  "prepare.test_fraction": 0.25,
+  "prepare.seed": 42,
+  "prepare.outlier_z": 3,
+  "featurize.degree": 3,
+  "train.alpha": 0.1
+ },
+ "data": {
+  "measurements": "d48e638dccc6ab4ab42584009f58426f16cc8d77a13a30c73dbf2e89c8c24c2a"
+ },
+ "nodes": {
+  "prepare": {
+   "status": "done",
+   "key": "8e24646a6410e731ba5f17f743ca8b52d94bff1095716523c8ccb8b2163b97f6",
+   "metrics": {
+    "n_raw": 400,
+    "n_missing": 8,
+    "n_outliers": 6,
+    "n_train": 290,
+    "n_test": 96
+   },
+   "digest": "f298c06e3f2c047fd17a41e379804c34c4f15579d7298ce27552eb021d1b459c"
+  },
+  "baseline": {
+   "status": "done",
+   "key": "7a9808695debfbd20df39c17458389da29a62299b80e389bd8fd14add1cc57d2",
+   "metrics": {
+    "baseline_rmse": 0.6941426542401036,
+    "slope": 1.4186827644842057,
+    "intercept": 0.6753645094416489
+   },
+   "digest": "3024d1854f6a898fa7c769691236a557d221201d1623e3878738d674c0adf2ab"
+  },
+  "featurize": {
+   "status": "done",
+   "key": "86a88fbe7d41c4a4ea5947d862e2a62e81a8a86db0f86afd6f484d5ac5b34d63",
+   "metrics": {
+    "n_features": 3,
+    "condition_number": 52.280296965319835
+   },
+   "digest": "65913c2080b9cd805f5dd70eed5b9bf0539bec09f21ce888578d904f24f16d6f"
+  },
+  "train": {
+   "status": "done",
+   "key": "14c5f1e9d259d9242caf5f1eb68742b252fea2d9236754fdfac1cdbf0c776b9e",
+   "metrics": {
+    "intercept": 7.7335348275862055,
+    "train_rmse": 0.3323270988337437
+   },
+   "digest": "e3342ee8a5d5d6960671faec48917611001c459afe3aca3298767f7976b90b6e"
+  },
+  "evaluate": {
+   "status": "done",
+   "key": "2705774ee29bce2929eee8614519cbfa0b72f7f1c17a5f959c32e84ac5be7c7d",
+   "metrics": {
+    "test_rmse": 0.35649534617614814,
+    "rmse_vs_baseline": 0.51357648748212,
+    "test_r2": 0.9930105066945937,
+    "max_abs_error": 0.8876423246406553
+   },
+   "digest": "1c97effd6b9021c8c06ddbd3b62021ebb9996b920451f38d05d61f6c11beb814"
+  },
+  "calibrated": {
+   "status": "done",
+   "key": "dd1570a17262fee5a0e129bee5bc7f2d3660078b766ea238c5b72bca0ae8ac3e",
+   "metrics": {
+    "rows": 400,
+    "quality.test_rmse": 0.35649534617614814,
+    "quality.test_r2": 0.9930105066945937,
+    "quality.max_abs_error": 0.8876423246406553
+   },
+   "digest": "99334375f61fe416e5a73f7a729e5648ecb46aff9b704a7e4ba9fae676e022eb"
+  }
+ }
+}

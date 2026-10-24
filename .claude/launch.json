@@ -1,0 +1,6 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    { "name": "blocks", "runtimeExecutable": ".venv/bin/blocks", "runtimeArgs": ["serve", "--port", "8770"], "port": 8770, "autoPort": false }
+  ]
+}

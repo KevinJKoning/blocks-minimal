@@ -1,0 +1,56 @@
+{
+ "made": "2026-10-24T01:38:18+00:00",
+ "settings": {},
+ "data": {
+  "passengers": "4a437fde05fe5264e1701a7387ac6fb75393772ba38bb2c9c566405af5af4bd7"
+ },
+ "nodes": {
+  "ingest": {
+   "status": "done",
+   "key": "3de56d506e9f9a47f6c79a81c4d247ee80fc5808d34baa9f665b0a3cd214959a",
+   "metrics": {
+    "n_passengers": 891,
+    "n_columns": 12,
+    "n_missing": 866
+   },
+   "digest": "0f6bccf3d623e4de89286683811b9f437d55775ac7f00efa8e0c9da10a961c3b"
+  },
+  "group_rates": {
+   "status": "done",
+   "key": "32f0e68fce0a07b5c537f8c06191079cdad67e6e1fae2bbde52a69c8751c82f0",
+   "metrics": {
+    "passengers": 891,
+    "n_excluded": 0
+   },
+   "digest": "859706143890fe222972a4e504606bc98496e5a704393b444fc27c2116883a8f"
+  },
+  "logistic": {
+   "status": "done",
+   "key": "dda381abaa6807f069164ac92094b51c27421362e6975a513df14d296beb3424",
+   "metrics": {
+    "n_used": 714,
+    "n_excluded": 177,
+    "n_invalid_target": 0,
+    "n_incomplete_predictors": 177,
+    "n_survivors": 290,
+    "iterations": 5,
+    "log_likelihood": -323.64156275091204
+   },
+   "digest": "d555d91b747c44ff0331948302157b2141f685354b2f46d4cf35c32f74553bbf"
+  },
+  "overall": {
+   "status": "done",
+   "key": "fffe9e6f218f9102a2ba519260a5566008ab13873d3a75c3a055fbe636d93682",
+   "metrics": {
+    "passengers": 891,
+    "survivors": 342,
+    "survival_pct": 38.38383838383838,
+    "ci95_low_pct": 35.24694250340098,
+    "ci95_high_pct": 41.620468146882914,
+    "deaths": 549,
+    "n_excluded": 0
+   },
+   "digest": "32e6996b52bd0b19b24e2afea909051ca40d3b4c525c60c7c848b4635d872caa"
+  }
+ }
+}
