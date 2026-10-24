@@ -14,6 +14,7 @@ import sys
 import threading
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
+from urllib.parse import urlsplit
 
 from blocks.graph import compare
 
@@ -24,6 +25,9 @@ PROJECTS = Path("projects")
 
 class Handler(BaseHTTPRequestHandler):
     def do_GET(self):
+        # Only this machine's own names: another site rebound to 127.0.0.1 must not read the apps.
+        if self.headers.get("Host") not in {f"{h}:{self.server.server_port}" for h in ("127.0.0.1", "localhost")}:
+            return self.send_error(403, "unexpected Host")
         path = self.path.split("?")[0].split("#")[0]
         parts = [p for p in path.split("/") if p]
         try:
@@ -69,18 +73,21 @@ def serve(port: int) -> ThreadingHTTPServer:
 
 
 def run_page(urls: list[str], offline=False) -> list[dict]:
-    """Open each page in headless Chromium, press Run, and return its run records."""
+    """Open each page in headless Chromium, press Run, and return its run records. The page runs
+    untrusted packages, so Chromium keeps its sandbox and the page reaches no server but its
+    own (offline: none at all)."""
     from playwright.sync_api import sync_playwright
     out = []
     with sync_playwright() as p:
-        browser = p.chromium.launch()
+        browser = p.chromium.launch(chromium_sandbox=True)
         for url in urls:
-            page = browser.new_page()
-            if offline:
-                page.route("**/*", lambda r: r.abort() if r.request.url.startswith("http") else r.continue_())
+            context = browser.new_context()
+            allowed = ("data:", "blob:", "file:") + (() if offline else ("{0.scheme}://{0.netloc}/".format(urlsplit(url)),))
+            context.route("**/*", lambda route, request: route.continue_() if request.url.startswith(allowed) else route.abort())
+            page = context.new_page()
             page.goto(url)
             out.append(page.evaluate("async () => { await window.blocks.ready; return await window.blocks.run(); }"))
-            page.close()
+            context.close()
         browser.close()
     return out
 

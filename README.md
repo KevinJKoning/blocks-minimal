@@ -41,13 +41,19 @@ def view(out):                              # optional: how its results look
 ## Quick start
 
 ```sh
-python3.13 -m venv .venv && .venv/bin/pip install -e '.[test]' && .venv/bin/playwright install chromium
+python3.13 -m venv .venv && .venv/bin/pip install --require-hashes -r requirements.lock
+.venv/bin/pip install --no-deps --no-build-isolation -e . && .venv/bin/playwright install chromium
 .venv/bin/blocks serve                    # http://127.0.0.1:8765/<app>/, rebuilt on every request
 .venv/bin/blocks baseline titanic         # run headlessly, keep projects/titanic/baseline.json
 .venv/bin/blocks verify                   # run every app, compare with its baseline
 .venv/bin/blocks build                    # dist/<app>.html, verified offline from file://
 .venv/bin/python -m pytest                # -m "not browser" for the fast ones
 ```
+
+The apps' code is trusted; their packages are not. The page's Content-Security-Policy keeps
+the worker off the network (a built page reaches nothing; a served one, only its dev server),
+headless Chromium keeps its sandbox, the dev server answers only to `127.0.0.1` and
+`localhost`, and the native dependencies are pinned with hashes in `requirements.lock`.
 
 ## An app
 
@@ -105,8 +111,8 @@ dataset and every download in one place.
 | `src/blocks/graph.py` | 235 | the executor (in Pyodide): load nodes, keys, cache, run, metrics, digests, views; run records and `compare` |
 | `src/blocks/ui.py` | 130 | the blocks |
 | `src/blocktool/spec.py` | 107 | reads an app with `ast`: nodes, settings, metrics, datasets, order, imports |
-| `src/blocktool/build.py` | 107 | the page as one file; the pinned Pyodide runtime, cached in `.cache/` |
-| `src/blocktool/cli.py` | 133 | `serve`, `build`, `baseline`, `verify` (headless Chromium) |
+| `src/blocktool/build.py` | 113 | the page as one file; the pinned Pyodide runtime, cached in `.cache/` |
+| `src/blocktool/cli.py` | 140 | `serve`, `build`, `baseline`, `verify` (headless Chromium) |
 | `src/blocktool/templates/` | 630 | `app.js` (graph, pages, blocks, settings, worker bridge), `worker.js`, `app.css` (the one theme) |
 
 For agents, the page exposes `window.blocks`: `state()`, `set({"node.param": value})`,

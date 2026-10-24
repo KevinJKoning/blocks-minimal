@@ -27,6 +27,10 @@ CORE = {
 }
 LIBRARY = ("__init__.py", "ui.py", "graph.py")
 CACHE = Path(".cache") / "pyodide" / PYODIDE
+# The page's Content-Security-Policy, which the worker inherits: the packages are not trusted,
+# so nothing on the page reaches the network but the dev server's /_runtime/ (linked builds).
+CSP = ("default-src 'none'; script-src 'unsafe-inline' 'wasm-unsafe-eval'; worker-src blob:; connect-src data:{self}; "
+       "img-src data: blob:; style-src 'unsafe-inline'; base-uri 'none'; form-action 'none'")
 
 
 def runtime_file(name: str) -> bytes:
@@ -91,9 +95,11 @@ def build(app_dir: Path, inline: bool) -> str:
         "baseline": json.loads(baseline.read_text()) if baseline.exists() else None,
         "runtime": None if inline else "/_runtime/",
     }
+    csp = CSP.format(self="" if inline else " 'self'")
     script = lambda type, body, attrs="": f'<script type="{type}"{attrs}>{body}</script>'
     parts = [
         "<!doctype html>", '<html lang="en">', '<meta charset="utf-8">',
+        f'<meta http-equiv="Content-Security-Policy" content="{csp}">',
         '<meta name="viewport" content="width=device-width, initial-scale=1">',
         f"<title>{html.escape(a['title'])}</title>", f"<style>{template('app.css')}</style>",
         '<body><div id="app"></div>',

@@ -94,6 +94,7 @@ def test_builds_one_page(app):
     page = build.build(app, inline=False)
     manifest = json.loads(page.split('id="manifest">')[1].split("</script>")[0])
     assert manifest["title"] == "Doubling" and manifest["runtime"] == "/_runtime/"
+    assert "connect-src data: 'self';" in page and "connect-src data:;" in build.build(app, inline=True)
     assert set(manifest["files"]) == {"README.md", "nodes/double.py", "nodes/count.py"}
     assert manifest["spec"]["datasets"] == {"numbers": "data/numbers.txt"} and set(manifest["data"]["numbers"]) == {"key", "size", "bytes"}
 
