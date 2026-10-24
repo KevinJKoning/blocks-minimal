@@ -179,7 +179,9 @@ async function run() {
 async function replaceData(d, file) {
   const buf = await file.arrayBuffer();
   await call("dataset", { path: M.data[d].path, buf });
-  state.data[d] = { key: `${file.name}:${file.size}:${file.lastModified}`, size: file.size, file: file.name, blob: file };
+  // A dataset's key is its sha256, as the build computes it: the same bytes are the same data.
+  const key = [...new Uint8Array(await crypto.subtle.digest("SHA-256", buf))].map((b) => b.toString(16).padStart(2, "0")).join("");
+  state.data[d] = { key, size: file.size, file: file.name, blob: file };
   render();
 }
 const save = async (name, blob) => h("a", { href: URL.createObjectURL(await blob), download: name }).click();
