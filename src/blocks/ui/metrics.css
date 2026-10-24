@@ -1,0 +1,9 @@
+.metrics { margin: 8px 0 20px; }
+.metrics table { min-width: 60%; }
+.metrics th:first-child { font-weight: 400; }
+.metrics tr.head th { color: var(--faint); font-size: 11px; font-weight: 400; }
+.metrics td { font-variant-numeric: tabular-nums; }
+.metrics tr.extra th { color: var(--muted); }
+.delta { color: var(--muted); }
+.delta.better { color: var(--better); }
+.delta.worse { color: var(--worse); }

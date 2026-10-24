@@ -1,0 +1,79 @@
+{
+ "made": "2026-10-24T20:22:36+00:00",
+ "settings": {
+  "periods.start_year": 2014,
+  "periods.end_year": 2024,
+  "geography.name": "Michigan",
+  "maps.measure": "65 and older"
+ },
+ "data": {
+  "census": "711a8a53672d1c2cc153f45c8cc40ff6ec2e3f39ce77883126354bcf4142d2af",
+  "boundaries": "b30bdb36fe8b6cb7b905e9592fc06c84ea4486d8537d312d07a7826ec5727193"
+ },
+ "nodes": {
+  "ingest": {
+   "status": "done",
+   "key": "54eda110a720a43ec48042e96e680960c4a0ae1c79390e504edf671246bf6b87",
+   "metrics": {
+    "records": 252,
+    "missing_moes": 337
+   },
+   "digest": "3400dc54574f98363dfaad94ba6be8291b23d84232fefe921c376208f6356820"
+  },
+  "periods": {
+   "status": "done",
+   "key": "9c38f465909da87dd7c124ee7e47b6cc6d0b622ad984fb9e14794c991f977ea3",
+   "metrics": {
+    "start_year": 2014,
+    "end_year": 2024
+   },
+   "digest": "a1d96ed61257796eb3bea49c8216c4e2fe54b43cbb1b06f2dc83e3049fa9dde5"
+  },
+  "shapes": {
+   "status": "done",
+   "key": "6b76cd53f11ae10c4eb910e4c675ce24308c283cbe6e77d4fa957966305e55a6",
+   "metrics": {},
+   "digest": "5177ad2cd6eef0172b4791227be6bad0c17b14bd55d14d8c82fb9e313dbaa4de"
+  },
+  "geography": {
+   "status": "done",
+   "key": "1398bd794c0cc75c911501b4a3efe86359b1f67f908cfaf0986f56c671c5bbec",
+   "metrics": {},
+   "digest": "2a39281ebd151c961e94a0c3c20f1181005fea86a5f3f0d6b8dde9e44c80a7fb"
+  },
+  "counties": {
+   "status": "done",
+   "key": "80a87e604e853885f1bb9632588193a1250fb5b3d5dfe3114ea4250fc548d238",
+   "metrics": {
+    "growing": 43,
+    "declining": 40
+   },
+   "digest": "34a9fad8c057bcc368192ec5ec056b70dc5e579ccacf1beffb692f02ec143a70"
+  },
+  "maps": {
+   "status": "done",
+   "key": "61d2c1f2572a4b5c99aa8acd814e80beef7657421d89291eda4d44553c2ada7f",
+   "metrics": {},
+   "digest": "4fc869cdcc54473dd7330491767932451f958acfc112ca184c5911d8fc413ae7"
+  },
+  "demographics": {
+   "status": "done",
+   "key": "299ee45cd30857197ebee66c3cb3b8d7649c2b5c8a32c57a9137887438a0f73b",
+   "metrics": {
+    "under18_pp": -1.758314382985354,
+    "older_pp": 4.035253241550654
+   },
+   "digest": "4343fe954147a9b6ea2fe84b7e4608bdf6fd1c3602130311c28695cd28e37801"
+  },
+  "population": {
+   "status": "done",
+   "key": "fbb2b071eb0d2f0c22da7681bd982a5365d14977080cdd8ce57da7d5a3dd2e73",
+   "metrics": {
+    "latest_population": 10077761,
+    "change": 188737,
+    "change_pct": 1.9085503281213612
+   },
+   "digest": "c5dda597a42856ba18c378a235aede0a7d7a720ca68d67f8f47ee162bf013f70"
+  }
+ }
+}

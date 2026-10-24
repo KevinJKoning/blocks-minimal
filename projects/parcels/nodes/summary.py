@@ -3,11 +3,7 @@ import numpy as np
 
 from blocks import ui
 
-METRICS = {
-    "residential_area_share": {"label": "residential share", "goal": "max"},
-    "total_area_ha": {"label": "total area (ha)", "goal": "max"},
-    "value_per_ha": {"label": "value per ha", "goal": "max"},
-}
+METRICS = {"residential_area_share": "residential share", "total_area_ha": "total area (ha)", "value_per_ha": "value per ha"}
 
 
 def summary(areas):

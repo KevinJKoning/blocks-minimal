@@ -15,7 +15,7 @@ from blocks import Range, ui
 METRICS = {
     "n_raw": "rows read",
     "n_train": "train rows",
-    "n_outliers": {"label": "outliers dropped", "goal": "min"},
+    "n_outliers": "outliers dropped",
 }
 
 

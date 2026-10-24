@@ -18,7 +18,6 @@ from typing import Annotated
 
 import numpy as np
 import pyarrow as pa
-import shapely
 
 from blocks import Range, ui
 
@@ -52,7 +51,7 @@ def view(out):
         ui.markdown(f"With k = {out['k']:.1f}, a territory where the GLM expects {out['k']:.0f} claims gets Z = 0.5: "
                     f"half its own experience, half the GLM. The true variation between territories is estimated "
                     f"at {out['between_sd']:.0%} of the rate."),
-        ui.map(shapely.from_wkb(t["wkb"].to_numpy(zero_copy_only=False)), Z, names=t["territory"].to_pylist(),
+        ui.map(t["wkb"], Z, names=t["territory"],
                title="Credibility by territory", label="Z"),
         ui.chart(np.log10(m[seen]), {"own experience A / m": X[seen], "credibility-weighted θ": theta[seen]}, kind="scatter",
                  title="Each territory's experience, and what credibility makes of it", x_label="log₁₀ expected claims"),

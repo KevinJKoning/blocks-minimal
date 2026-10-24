@@ -8,13 +8,12 @@ too: with no experience, Z = 0 and the GLM alone sets it.
 """
 import numpy as np
 import pyarrow as pa
-import shapely
 
 from blocks import ui
 from rating import design
 
 METRICS = {"lowest": "lowest rate per 1,000 homes", "highest": "highest rate per 1,000 homes",
-           "spread": {"label": "highest / lowest", "goal": "max"}}
+           "spread": "highest / lowest"}
 
 
 def rates(join, wind, glm, credibility):
@@ -36,7 +35,7 @@ def view(out):
     return [
         ui.download("territory_rates.csv", t, title="every territory's base rate, its GLM rate and its credibility"),
         ui.metrics(),
-        ui.map(shapely.from_wkb(out["wkb"].to_numpy(zero_copy_only=False)), t["rate"].to_numpy(), names=t["territory"].to_pylist(),
+        ui.map(out["wkb"], t["rate"], names=t["territory"],
                title="Base rate: windstorm claims per 1,000 reference homes a year", label="per 1,000"),
         ui.table(t.sort_by([("rate", "descending")]), title="Territories, highest rate first"),
     ]

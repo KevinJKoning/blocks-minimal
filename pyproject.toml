@@ -13,13 +13,13 @@ dependencies = ["playwright==1.64.0"]
 test = ["pytest>=8"]
 
 [project.scripts]
-blocks = "blocktool.cli:main"
+blocks = "blocks.core.cli:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]
 
 [tool.setuptools.package-data]
-blocktool = ["templates/*"]
+blocks = ["core/*.js", "core/page/*", "ui/*.js", "ui/*.css"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

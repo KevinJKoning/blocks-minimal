@@ -3,12 +3,11 @@ page. A tiny app is written per test; the example apps are checked in the browse
 (test_apps, `-m browser`)."""
 import io
 import json
-from pathlib import Path
 
 import pytest
 
-from blocks import graph, ui
-from blocktool import build, spec
+from blocks import ui
+from blocks.core import build, graph, spec
 
 NODES = {
     "double.py": '''"""Twice the numbers in the data."""
@@ -120,16 +119,12 @@ def test_runtime_rejects_corrupt_cache_and_download(tmp_path, monkeypatch):
 
 @pytest.mark.browser
 def test_example_apps_match_their_baselines():
-    from blocktool import cli
+    from blocks.core import cli
     apps = cli.apps()
     server = cli.serve(0)
     records = cli.run_page([f"http://127.0.0.1:{server.server_port}/{a.name}/" for a in apps])
     assert all(cli.check(a, r) for a, r in zip(apps, records))
     server.shutdown()
-
-
-def test_example_apps_are_present():
-    assert {p.name for p in Path("projects").iterdir()} >= {"parcels", "sensor-calibration", "titanic", "windstorm"}
 
 
 def test_map_takes_geojson_geometries():

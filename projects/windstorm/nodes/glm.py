@@ -34,8 +34,8 @@ def glm(join, wind):
 
 
 def view(out):
-    rows = [{"term": c["term"], "estimate": round(c["estimate"], 4), "95% low": round(c["low"], 4), "95% high": round(c["high"], 4),
-             "relativity": round(float(np.exp(c["estimate"])), 3)} for c in out["coefficients"]]
+    rows = [{"term": c["term"], "estimate": c["estimate"], "95% low": c["low"], "95% high": c["high"],
+             "relativity": float(np.exp(c["estimate"]))} for c in out["coefficients"]]
     return [
         ui.download("coefficients.csv", out["coefficients"], title="the fitted coefficients with standard errors and 95% intervals"),
         ui.metrics(),

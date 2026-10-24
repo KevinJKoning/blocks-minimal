@@ -7,9 +7,9 @@ page (`blocks serve`) or headless (`blocks verify`).
 
 Edit node files, then reload `/<app>/` and drive it with `window.blocks`: `set({...})`
 marks what is stale, `run()` computes it and returns the run record, `output(node)` reads
-an output, `state()` has every result and its blocks, `show(node)` opens a page. Changes to apps, `src/blocks/` and
-the templates show on reload; after changing the rest of `src/blocktool/`, restart
-`blocks serve`.
+an output, `state()` has every result and its blocks, `show(node)` opens a page. Changes
+to apps, `src/blocks/ui/`, `graph.py`, `worker.js` and `page/` show on reload; after
+changing `spec.py`, `build.py` or `cli.py`, restart `blocks serve`.
 
 - One node per file in `nodes/`, named after the file. Keep nodes small, one concern
   each; a helper several nodes use goes outside `nodes/`.
@@ -24,8 +24,17 @@ the templates show on reload; after changing the rest of `src/blocktool/`, resta
 
 ## Keeping the core small
 
-The core is `graph.py`, `spec.py`, `build.py`, `cli.py` and the page. Add to it only what
-every app needs. Anything else is a block (`ui.py` + its renderer in `app.js`) or a node.
+The core is `src/blocks/core/`: the executor, the build and the page's shell. Add to it only
+what every app needs; anything else is a block or a node. A block is its files in
+`src/blocks/ui/`, and growing it stays out of the core:
+
+- The core never names a content block: it draws whatever `RENDER[type]` is, and knows only
+  that the overview gathers `download`s.
+- `<name>.py` settles every choice (a colour scale, its centre); the page never guesses what
+  data means. `<name>.js` only lays out and paints, with the kit (`h`, `fmt`, `card`, ...).
+- `ui` exports only blocks. A helper stays private to its block (each script gets its own
+  scope) and moves to `_kit.py`, or into the page's kit, only once a second block needs it.
+- Block CSS uses the theme's colours (`--ink`, `--ramp-hi`, ...), never its own.
 
 ## Checks
 

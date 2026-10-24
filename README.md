@@ -43,7 +43,7 @@ def view(out):                              # optional: how its results look
 python3.13 -m venv .venv && .venv/bin/pip install --require-hashes -r requirements.lock
 .venv/bin/pip install --no-deps --no-build-isolation -e . && .venv/bin/playwright install chromium
 .venv/bin/blocks serve                    # http://127.0.0.1:8765/<app>/, rebuilt on every request
-.venv/bin/blocks baseline titanic         # run headlessly, keep projects/titanic/baseline.json
+.venv/bin/blocks baseline parcels         # run headlessly, keep projects/parcels/baseline.json
 .venv/bin/blocks verify                   # run every app, compare with its baseline
 .venv/bin/blocks build                    # dist/<app>.html, verified offline from file://
 .venv/bin/python -m pytest                # -m "not browser" for the fast ones
@@ -61,7 +61,7 @@ projects/<app>/
   README.md          "# Title", then what the app is for (the overview page)
   nodes/<name>.py    one node: def <name>(inputs..., *, settings...)
   data/<name>.*      a dataset; a node reads it with a parameter <name> and gets its path
-  *.py, lib/...      helpers the nodes import
+  *.py               helpers the nodes import
   baseline.json      the run every check compares with
 ```
 
@@ -79,37 +79,37 @@ projects/<app>/
 | `blocks.ui` | draws |
 |---|---|
 | `markdown(text)` | Markdown |
-| `metrics(values=None, title=None)` | the node's metrics, labelled, with the change since the last run and the baseline's value |
-| `table(rows, columns=None, title=None)` | a DataFrame, pyarrow Table, `{column: values}` or list of dicts (200 rows shown) |
+| `metrics()` | the node's metrics, labelled, with the change since the last run and the baseline's value |
+| `table(rows, title=None)` | a DataFrame, pyarrow Table, `{column: values}` or list of dicts (200 rows shown) |
 | `chart(x, series, title, x_label, y_label, kind)` | `series` is `{name: ys}`; `kind` is `line`, `scatter` or `{name: kind}` |
 | `figure(image, caption=None)` | SVG text or PNG bytes |
-| `map(shapes, values=None, names=None, title, label, lines=None, points=None)` | polygons (shapely or GeoJSON geometries) shaded by value, in their own coordinates; `lines` drawn on top (a coastline), `points` as dots |
+| `map(shapes, values=None, names=None, title, label, lines=None, center=None)` | polygons (shapely, WKB or GeoJSON geometries) shaded by value, in their own coordinates, diverging from `center` if given; `lines` drawn on top (a coastline) |
 | `download(name, value, title=None)` | a file to take away, as a card with a Download button: a table as `.csv`, `.json` or `.parquet`, text, or bytes |
 
-A block is a dict made by a function in `src/blocks/ui.py` and drawn by the function of
-the same name in `RENDER` (`src/blocktool/templates/app.js`). A new block is one of each,
-plus a few CSS rules only if it draws something new. A block that shades by value uses the
-theme's ramp: `ramp(v, lo, hi)` for a colour and `scale(lo, hi, label)` for its legend.
+A block is the files of one name in `src/blocks/ui/`: `<name>.py` makes the dict and every
+choice in it (a colour, a scale's centre), `<name>.js` only paints it (`RENDER.<name>`, with
+the page's kit), and `<name>.css`, if it needs one, lays it out in the theme's colours. A new
+block is a new set of those files; no core file changes.
 
 ## Example apps
 
 | app | shows |
 |---|---|
 | `sensor-calibration` | a modelling pipeline: cleaning, features, ridge regression, held-out evaluation, delivered files |
-| `titanic` | three analyses of one dataset side by side, with their caveats |
 | `parcels` | a zipped Esri geodatabase read with GDAL in the browser, then areas and a summary |
 | `windstorm` | geodata joined to policies; a Poisson GLM with a wind-load offset and Bühlmann–Straub credibility, checked against its synthetic truth |
+| `michigan-census` | official Census data fetched natively and analysed offline; settings shared through small nodes, county maps that diverge from zero |
 
 ## Code
 
-| file | role |
+| path | role |
 |---|---|
-| `src/blocks/graph.py` | the executor (in Pyodide): load nodes, keys, cache, run, metrics, digests, views; run records and `compare` |
-| `src/blocks/ui.py` | the blocks |
-| `src/blocktool/spec.py` | reads an app with `ast`: nodes, settings, metrics, datasets, order, imports |
-| `src/blocktool/build.py` | the page as one file; the pinned Pyodide runtime, cached in `.cache/` |
-| `src/blocktool/cli.py` | `serve`, `build`, `baseline`, `verify` (headless Chromium) |
-| `src/blocktool/templates/` | `app.js` (graph, pages, blocks, settings, worker bridge), `worker.js`, `app.css` (the one theme) |
+| `src/blocks/core/graph.py`, `worker.js` | the executor in Pyodide (load nodes, keys, cache, run, metrics, digests, views; run records and `compare`) and the page's bridge to it |
+| `src/blocks/core/spec.py` | reads an app with `ast`: nodes, settings, metrics, datasets, order, imports |
+| `src/blocks/core/build.py` | the page as one file, with every block's script and styles; the pinned Pyodide runtime, cached in `.cache/` |
+| `src/blocks/core/cli.py` | `serve`, `build`, `baseline`, `verify` (headless Chromium) |
+| `src/blocks/core/page/` | `app.js` (the graph, pages, settings and the kit blocks draw with), `app.css` (the one theme) |
+| `src/blocks/ui/` | the blocks, each a `.py`, a `.js` and maybe a `.css` |
 
 Derived from `blocks`: the same idea with its run browser, plugins, sandboxed views,
 schemas, themes, integrity manifest and dev-server APIs left out.
