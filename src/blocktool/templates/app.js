@@ -13,6 +13,7 @@ const state = {
   data: Object.fromEntries(Object.entries(M.data).map(([d, v]) => [d, { key: v.key, size: v.size, file: null }])),
   results: {},   // node -> its result in the last run
   record: null,  // the last run's record
+  differs: null, // {node: [what differs]} from the baseline (blocks.graph.compare); null without one
   previous: null,
   ran: {},       // node -> {settings, data} it last ran with
   status: "Starting Python…",
@@ -124,7 +125,7 @@ async function startWorker() {
   state.status = `Loading Python and ${M.packages.length} packages…`; render();
   await call("init", {
     base: M.runtime && new URL(M.runtime, location.href).href, runtime, packages: M.packages,
-    files: await decode(M.files), library: await decode(M.library), data, spec: S,
+    files: await decode(M.files), library: await decode(M.library), data, spec: S, baseline: M.baseline,
   }, transfer);
   state.status = "";
   state.busy = false;
@@ -159,9 +160,10 @@ async function run() {
   const data = Object.fromEntries(Object.entries(state.data).map(([d, v]) => [d, v.key]));
   try {
     const t0 = performance.now();
-    const { nodes, record } = await call("run", { settings: state.settings, data });
+    const { nodes, record, differs } = await call("run", { settings: state.settings, data });
     state.previous = state.record;
     state.record = record;
+    state.differs = differs;
     state.results = nodes;
     for (const [n, r] of Object.entries(nodes)) if (r.status === "done") state.ran[n] = { settings: r.settings, data };
     const ran = Object.values(nodes).filter((r) => r.status === "done" && !r.cached).length;
@@ -360,7 +362,7 @@ function nodePage(n) {
 }
 
 function overview() {
-  const failing = state.record && M.baseline ? differs(state.record, M.baseline) : null;
+  const failing = state.differs;
   return [
     h("h1", {}, M.title),
     M.about && markdown(M.about),
@@ -384,21 +386,6 @@ function overview() {
       h("p", {}, h("a", { href: "#", onclick: (e) => { e.preventDefault(); h("a", { href: URL.createObjectURL(new Blob([JSON.stringify(state.record, null, 1)], { type: "application/json" })), download: "run.json" }).click(); } }, "↓ run.json"),
         h("span", { class: "muted" }, " the run's record: settings, data and every node's metrics and digest"))),
   ];
-}
-
-// The same rule as blocks.graph.compare, for the page.
-function differs(run, ref) {
-  const out = {}, same = (a, b) => (typeof a === "number" && typeof b === "number" ? Math.abs(a - b) <= Math.max(1e-12, 1e-9 * Math.abs(b)) : a === b);
-  for (const n of new Set([...Object.keys(run.nodes), ...Object.keys(ref.nodes)])) {
-    const a = run.nodes[n], b = ref.nodes[n];
-    if (!a || !b) { out[n] = [b ? "only in the baseline" : "not in the baseline"]; continue; }
-    if (a.status !== "done") { out[n] = [a.status]; continue; }
-    const bad = [...new Set([...Object.keys(a.metrics), ...Object.keys(b.metrics)])].filter((k) => !same(a.metrics[k], b.metrics[k]))
-      .map((k) => `${k} ${fmt(b.metrics[k])} → ${fmt(a.metrics[k])}`);
-    if (a.digest !== b.digest) bad.push("output differs");
-    if (bad.length) out[n] = bad;
-  }
-  return out;
 }
 
 // ------------------------------------------------------------------ render

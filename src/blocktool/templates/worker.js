@@ -23,7 +23,7 @@ const write = (root, files) => {
 };
 
 const handlers = {
-  async init({ base, runtime, packages, files, library, data, spec }) {
+  async init({ base, runtime, packages, files, library, data, spec, baseline }) {
     for (const [name, buf] of Object.entries(runtime || {})) embedded.set(name, new Uint8Array(buf));
     base = base || EMBED;
     py = await __pyodide.loadPyodide({
@@ -38,7 +38,7 @@ const handlers = {
     write("/app", data);
     py.runPython("import sys; sys.path.insert(0, '/lib')");
     graph = py.pyimport("blocks.graph");
-    graph.start("/app", JSON.stringify(spec));
+    graph.start("/app", JSON.stringify(spec), JSON.stringify(baseline));
     return py.runPython("import sys; sys.version.split()[0]");
   },
   dataset({ path, buf }) { write("/app", { [path]: buf }); },

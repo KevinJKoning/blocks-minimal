@@ -195,15 +195,16 @@ def compare(run: dict, ref: dict, rel_tol=1e-9, abs_tol=1e-12) -> dict:
         if isinstance(a, (int, float)) and isinstance(b, (int, float)):
             return math.isclose(a, b, rel_tol=rel_tol, abs_tol=abs_tol)
         return a == b or (a == b == "NaN")
+    show = lambda v: f"{v:.6g}" if isinstance(v, float) else v
     out = {}
     for n in set(run["nodes"]) | set(ref["nodes"]):
         a, b = run["nodes"].get(n), ref["nodes"].get(n)
         if not a or not b:
             out[n] = ["only in the baseline" if b else "not in the baseline"]
         elif a["status"] != "done":
-            out[n] = [a.get("error") or a["status"]]
+            out[n] = [(a.get("error") or a["status"]).strip().splitlines()[-1]]
         else:
-            bad = [f"{k}: {b['metrics'].get(k)} → {a['metrics'].get(k)}" for k in set(a["metrics"]) | set(b["metrics"])
+            bad = [f"{k}: {show(b['metrics'].get(k))} → {show(a['metrics'].get(k))}" for k in set(a["metrics"]) | set(b["metrics"])
                    if not same(a["metrics"].get(k), b["metrics"].get(k))]
             out[n] = bad + (["output differs"] if a["digest"] != b["digest"] else [])
     return {n: v for n, v in out.items() if v}
@@ -211,17 +212,20 @@ def compare(run: dict, ref: dict, rel_tol=1e-9, abs_tol=1e-12) -> dict:
 
 # ------------------------------------------------------------------ what the worker calls
 _graph: Graph | None = None
+_baseline: dict | None = None
 
 
-def start(root, spec_json):
-    global _graph
-    _graph = Graph(root, json.loads(spec_json))
+def start(root, spec_json, baseline_json):
+    global _graph, _baseline
+    _graph, _baseline = Graph(root, json.loads(spec_json)), json.loads(baseline_json)
 
 
 def run_json(settings_json, data_json):
+    """The run's results, its record, and how it differs from the baseline (None: no baseline)."""
     settings, data = json.loads(settings_json), json.loads(data_json)
     results = _graph.run(settings, data)
-    return to_json({"nodes": results, "record": record(results, settings, data)})
+    rec = json.loads(to_json(record(results, settings, data)))   # as a baseline file holds it
+    return to_json({"nodes": results, "record": rec, "differs": _baseline and compare(rec, _baseline)})
 
 
 def output_json(name):
