@@ -72,8 +72,23 @@ def serve(port: int) -> ThreadingHTTPServer:
     return server
 
 
+# Run, then open every node's page: a block that failed to draw is a failed view.
+RUN = """async () => {
+  await window.blocks.ready;
+  const rec = await window.blocks.run();
+  for (const n of Object.keys(rec.nodes)) {
+    window.blocks.show(n);
+    const failed = [...document.querySelectorAll("[data-failed]")].map((e) => e.textContent);
+    if (failed.length) rec.nodes[n].view_error ??= failed.join("\\n");
+  }
+  window.blocks.show(null);
+  return rec;
+}"""
+
+
 def run_page(urls: list[str], offline=False) -> list[dict]:
-    """Open each page in headless Chromium, press Run, and return its run records. The page runs
+    """Open each page in headless Chromium, press Run, draw every node's page and return its
+    run records. The page runs
     untrusted packages, so Chromium keeps its sandbox and the page reaches no server but its
     own (offline: none at all)."""
     from playwright.sync_api import sync_playwright
@@ -86,7 +101,7 @@ def run_page(urls: list[str], offline=False) -> list[dict]:
             context.route("**/*", lambda route, request: route.continue_() if request.url.startswith(allowed) else route.abort())
             page = context.new_page()
             page.goto(url)
-            out.append(page.evaluate("async () => { await window.blocks.ready; return await window.blocks.run(); }"))
+            out.append(page.evaluate(RUN))
             context.close()
         browser.close()
     return out
@@ -131,7 +146,8 @@ def main(argv=None):
     if a.command == "baseline":
         for app, record in zip(targets, records):
             (app / "baseline.json").write_text(json.dumps(record, indent=1) + "\n")
-            print(f"{app.name}: baseline recorded" + "".join(f"\n  {n} failed" for n, r in record["nodes"].items() if r["status"] != "done"))
+            print(f"{app.name}: baseline recorded" + "".join(f"\n  {n} failed" for n, r in record["nodes"].items() if r["status"] != "done")
+                  + "".join(f"\n  {n}: its view failed" for n, r in record["nodes"].items() if r.get("view_error")))
     else:
         sys.exit(0 if all([check(app, r) for app, r in zip(targets, records)]) else 1)
 

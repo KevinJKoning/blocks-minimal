@@ -3,6 +3,7 @@ page. A tiny app is written per test; the example apps are checked in the browse
 (test_apps, `-m browser`)."""
 import io
 import json
+from pathlib import Path
 
 import pytest
 
@@ -67,7 +68,7 @@ def test_runs_only_what_changed(app):
     g = graph.Graph(str(app), graph_spec(spec.load(app)))
     first = g.run({}, {"numbers": "k1"})
     assert first["double"]["metrics"] == {"total": 12} and first["count"]["metrics"] == {"n": 3}
-    assert first["double"]["blocks"][0]["items"][0] == {"key": "total", "label": "sum", "goal": "max", "value": 12}
+    assert first["double"]["blocks"][0] == {"type": "metrics"} and first["count"]["blocks"] == [{"type": "metrics"}]
     again = g.run({}, {"numbers": "k1"})
     assert again["double"]["cached"] and again["count"]["cached"]
     changed = g.run({"double.factor": 3}, {"numbers": "k1"})
@@ -88,6 +89,10 @@ def test_compare_with_the_baseline(app):
     assert graph.compare(base, base) == {}
     other = graph.record(g.run({"double.factor": 3}, {}), {}, {})
     assert set(graph.compare(other, base)) == {"double"}
+    (app / "nodes" / "count.py").write_text(NODES["count.py"] + "\n\ndef view(out):\n    return out['nope']\n")
+    broken = graph.Graph(str(app), graph_spec(spec.load(app))).run({}, {})
+    assert broken["count"]["blocks"] == [] and "KeyError" in broken["count"]["view_error"]
+    assert graph.compare(graph.record(broken, {}, {}), base) == {"count": ["view failed: KeyError: 'nope'"]}
 
 
 def test_builds_one_page(app):
@@ -125,6 +130,39 @@ def test_example_apps_match_their_baselines():
     records = cli.run_page([f"http://127.0.0.1:{server.server_port}/{a.name}/" for a in apps])
     assert all(cli.check(a, r) for a, r in zip(apps, records))
     server.shutdown()
+
+
+def blocks_are_their_files(folder, names):
+    assert {p.stem for p in folder.glob("*.js") if not p.name.startswith("_")} == set(names)
+    for name in names:
+        assert f"RENDER.{name} = " in (folder / f"{name}.js").read_text()
+        css = folder / f"{name}.css"
+        selectors = [s.strip() for rule in (css.read_text().split("}") if css.exists() else []) if "{" in rule
+                     for s in rule.split("{")[0].split(",")]
+        assert all(s == f".{name}" or s.startswith((f".{name} ", f".{name}:")) for s in selectors), (name, selectors)
+
+
+def test_every_block_is_its_files():
+    """Each block made in Python, the library's or an app's, has a renderer of its name, and
+    its CSS stays under its class."""
+    blocks_are_their_files(build.PACKAGE / "ui", ui.__all__)
+    for folder in (Path(__file__).parent.parent / "projects").glob("*/ui"):
+        blocks_are_their_files(folder, {p.stem for p in folder.glob("*.py") if not p.name.startswith("_")})
+
+
+def test_an_app_brings_its_own_block(app):
+    (app / "ui").mkdir()
+    (app / "ui" / "badge.py").write_text('def badge(text):\n    return {"type": "badge", "text": text}\n')
+    (app / "ui" / "badge.js").write_text('RENDER.badge = (b) => h("span", { class: "badge" }, b.text);\n')
+    (app / "ui" / "badge.css").write_text(".badge { color: var(--ink); }\n")
+    (app / "nodes" / "count.py").write_text(NODES["count.py"] + "\n\ndef view(out):\n    from ui.badge import badge\n    return [badge(f\"{out['n']} values\")]\n")
+    page = build.build(app, inline=False)
+    assert "RENDER.badge = " in page and ".badge { color" in page and "ticks(" in page
+    assert graph.Graph(str(app), graph_spec(spec.load(app))).run({}, {})["count"]["blocks"] == [{"type": "badge", "text": "3 values"}]
+    (app / "ui" / "chart.js").write_text("")
+    with pytest.raises(ValueError, match="redefines a library block"):
+        build.build(app, inline=False)
+
 
 
 def test_map_takes_geojson_geometries():

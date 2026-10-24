@@ -2,10 +2,11 @@
 of them and the page draws each with the renderer of the same name.
 
 Every name here is a block, and a block is the files of its name in this folder:
-<name>.py makes every choice (a colour, a scale's centre) and returns the dict; <name>.js
-only paints it (`RENDER.<name> = (b, n) => ...`, using the page's kit); an optional
-<name>.css lays it out in the theme's colours. A helper stays private to its block, or
-moves to _kit.py once a second block needs it.
+<name>.py decides what the data means (a colour, a scale's centre) and returns the dict;
+<name>.js lays it out and draws it (`RENDER.<name> = (b, n) => ...`, with the page's kit);
+an optional <name>.css styles it under .<name>, in the theme's colours. A helper stays
+private to its block, or moves to _kit.py or _kit.js once a second block needs it. An app's
+own blocks are the same files in its ui/ folder.
 """
 from .chart import chart
 from .download import download

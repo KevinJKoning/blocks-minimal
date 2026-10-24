@@ -11,7 +11,7 @@ TYPES = {".csv": "text/csv", ".json": "application/json", ".md": "text/markdown"
 
 def download(name, value, title=None):
     """A file to take away, by extension: a table as .csv, .json or .parquet; text; bytes.
-    The overview gathers every node's downloads (the one block type the core names)."""
+    The overview gathers every node's downloads (one of the two blocks the core names)."""
     ext = os.path.splitext(name)[1].lower()
     if isinstance(value, (bytes, bytearray)):
         data = bytes(value)

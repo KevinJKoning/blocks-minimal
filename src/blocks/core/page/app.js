@@ -199,11 +199,13 @@ const dataCard = (d) => card("Input", state.data[d].file || S.datasets[d].split(
   h("button", { class: "secondary", onclick: () => save(state.data[d].file || S.datasets[d].split("/").pop(), dataBlob(d)) }, "Download"));
 
 // ------------------------------------------------------------------ blocks
-// The kit a block's renderer (src/blocks/ui/<name>.js) may use: h, fmt, num, size, markdown,
-// card, save and bytes, and records() for the page's last run and baseline. Each renderer
-// adds itself as RENDER.<name>; the build puts each file, in its own scope, at the marker.
+// The kit a block's renderer (ui/<name>.js, the library's or an app's) may use, all of it here:
+// h, fmt, num, size, markdown, card, save, bytes; S, the app's spec; records(), the page's run,
+// last run and baseline; the classes muted, small, note and error; and ui/_kit.js, the blocks'
+// own shared helpers. Each renderer adds itself as RENDER.<name>; the build puts ui/_kit.js and
+// then each block's file, in its own scope, at the marker. Block helpers never go in this file.
 const RENDER = {};
-const records = () => ({ last: state.previous, baseline: M.baseline });
+const records = () => ({ run: state.record, last: state.previous, baseline: M.baseline });
 // @blocks
 
 // ------------------------------------------------------------------ the graph
@@ -265,6 +267,16 @@ function control(n, p, s) {
   return h("label", { class: `setting ${v !== s.default ? "changed" : ""}` }, h("span", {}, p), input);
 }
 
+// A block, or why it could not be drawn (marked, so that verify finds it).
+function paint(b, n) {
+  try {
+    if (!RENDER[b.type]) throw new Error(`no renderer for "${b.type}"`);
+    return RENDER[b.type](b, n);
+  } catch (e) {
+    return h("pre", { class: "error", "data-failed": b.type }, `The ${b.type} block failed: ${e.message}`);
+  }
+}
+
 function results(n) {
   const r = state.results[n], st = statusOf(n);
   if (!r) return h("p", { class: "muted" }, "Not run yet.");
@@ -272,7 +284,8 @@ function results(n) {
   if (r.status === "error") return h("pre", { class: "error" }, r.error);
   if (r.status === "blocked") return h("p", { class: "muted" }, `Blocked: ${r.error}.`);
   return h("div", { class: st === "stale" ? "dim" : null }, note && h("p", { class: "note" }, note),
-    r.blocks.map((b) => (RENDER[b.type] ? RENDER[b.type](b, n) : h("pre", {}, JSON.stringify(b)))),
+    r.view_error && [h("p", {}, "The node ran; its view failed:"), h("pre", { class: "error" }, r.view_error)],
+    r.blocks.map((b) => paint(b, n)),
     h("p", { class: "muted small" }, `${r.cached ? "From the cache" : `Ran in ${r.seconds} s`} · ${r.key.slice(0, 10)}`),
     r.log && h("details", {}, h("summary", {}, "Log"), h("pre", {}, r.log)));
 }

@@ -1,8 +1,7 @@
 {
- "made": "2026-10-24T20:22:36+00:00",
+ "made": "2026-10-24T20:33:30+00:00",
  "settings": {
-  "periods.start_year": 2014,
-  "periods.end_year": 2024,
+  "periods.comparison": "2010\u20132014 \u2192 2020\u20132024",
   "geography.name": "Michigan",
   "maps.measure": "65 and older"
  },
@@ -22,7 +21,7 @@
   },
   "periods": {
    "status": "done",
-   "key": "9c38f465909da87dd7c124ee7e47b6cc6d0b622ad984fb9e14794c991f977ea3",
+   "key": "f5d80a236dcc43294b1c5ed180e50b91b2698c86c354aa9b6fc959c39e342ebb",
    "metrics": {
     "start_year": 2014,
     "end_year": 2024
@@ -43,7 +42,7 @@
   },
   "counties": {
    "status": "done",
-   "key": "80a87e604e853885f1bb9632588193a1250fb5b3d5dfe3114ea4250fc548d238",
+   "key": "5620a33ac5c6675be74290faa689db8f27554599a4b379b973ba8cf8c274501a",
    "metrics": {
     "growing": 43,
     "declining": 40
@@ -52,13 +51,13 @@
   },
   "maps": {
    "status": "done",
-   "key": "61d2c1f2572a4b5c99aa8acd814e80beef7657421d89291eda4d44553c2ada7f",
+   "key": "763573436610ef8be8636f21f986f01b0c4d51362a841814103c5a97099418ab",
    "metrics": {},
    "digest": "4fc869cdcc54473dd7330491767932451f958acfc112ca184c5911d8fc413ae7"
   },
   "demographics": {
    "status": "done",
-   "key": "299ee45cd30857197ebee66c3cb3b8d7649c2b5c8a32c57a9137887438a0f73b",
+   "key": "2f467c9e501fdde004b7392c3fd7e49df5854f107ca652e92910b5aa294e6fef",
    "metrics": {
     "under18_pp": -1.758314382985354,
     "older_pp": 4.035253241550654
@@ -67,7 +66,7 @@
   },
   "population": {
    "status": "done",
-   "key": "fbb2b071eb0d2f0c22da7681bd982a5365d14977080cdd8ce57da7d5a3dd2e73",
+   "key": "47424a6fe99e9934a78f00e0f601c307fee1370cb3c0a182cb81c210de5a9410",
    "metrics": {
     "latest_population": 10077761,
     "change": 188737,

@@ -1,2 +1,2 @@
-.scroll { overflow: auto; max-height: 420px; }
+.table .scroll { overflow: auto; max-height: 420px; }
 .table th { position: sticky; top: 0; background: var(--paper); border-bottom-color: var(--ink); white-space: nowrap; }

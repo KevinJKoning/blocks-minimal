@@ -2,5 +2,5 @@
 .map .area { fill: var(--wash); stroke: var(--paper); stroke-width: .6; }
 .map .area:hover { stroke: var(--ink); stroke-width: 1.2; }
 .map .line { fill: none; stroke: var(--ink); stroke-width: 1.2; }
-.scale { display: flex; align-items: center; gap: 8px; font: 12px var(--mono); color: var(--muted); margin: 6px 0 0; }
-.scale i { width: 120px; height: 8px; }
+.map .scale { display: flex; align-items: center; gap: 8px; font: 12px var(--mono); color: var(--muted); margin: 6px 0 0; }
+.map .scale i { width: 120px; height: 8px; }

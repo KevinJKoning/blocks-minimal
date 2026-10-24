@@ -76,18 +76,31 @@ def template(name: str) -> str:
     return (PACKAGE / "core" / name).read_text()
 
 
-def blocks(ext: str) -> str:
-    """Every block's .js or .css (src/blocks/ui/<name>.<ext>); each script in its own scope,
-    so a block's helpers stay its own."""
-    files = sorted((PACKAGE / "ui").glob(f"*{ext}"))
-    return "\n".join(f"{{ // {p.name}\n{p.read_text()}}}" if ext == ".js" else p.read_text() for p in files)
+def block_files(app_dir: Path, ext: str) -> list[Path]:
+    """The library's blocks (src/blocks/ui/<name>.<ext>), then the app's own (<app>/ui/), whose
+    names must be new."""
+    ours = sorted(p for p in (PACKAGE / "ui").glob(f"*{ext}") if not p.name.startswith("_"))
+    theirs = sorted(p for p in (Path(app_dir) / "ui").glob(f"*{ext}") if not p.name.startswith("_"))
+    clash = {p.stem for p in ours} & {p.stem for p in theirs}
+    if clash:
+        raise ValueError(f"{', '.join(sorted(clash))}: the app's ui/ redefines a library block")
+    return ours + theirs
 
 
-def page_script() -> str:
+def blocks(app_dir: Path, ext: str) -> str:
+    """Every block's .js or .css, the library's kit first. Each script is in its own scope, so
+    a block's helpers stay its own; the kit's are every block's."""
+    kit = PACKAGE / "ui" / f"_kit{ext}"
+    files = block_files(app_dir, ext)
+    parts = [f"{{ // {p.name}\n{p.read_text()}}}" if ext == ".js" else p.read_text() for p in files]
+    return "\n".join(([kit.read_text()] if kit.exists() else []) + parts)
+
+
+def page_script(app_dir: Path) -> str:
     app = template("page/app.js")
     if app.count("// @blocks\n") != 1:
         raise ValueError("page/app.js must mark once where the blocks' renderers go (// @blocks)")
-    return app.replace("// @blocks\n", blocks(".js"))
+    return app.replace("// @blocks\n", blocks(app_dir, ".js"))
 
 
 def b64(data: bytes) -> str:
@@ -115,7 +128,7 @@ def build(app_dir: Path, inline: bool) -> str:
         "<!doctype html>", '<html lang="en">', '<meta charset="utf-8">',
         f'<meta http-equiv="Content-Security-Policy" content="{csp}">',
         '<meta name="viewport" content="width=device-width, initial-scale=1">',
-        f"<title>{html.escape(a['title'])}</title>", f"<style>{template('page/app.css')}\n{blocks('.css')}</style>",
+        f"<title>{html.escape(a['title'])}</title>", f"<style>{template('page/app.css')}\n{blocks(app_dir, '.css')}</style>",
         '<body><div id="app"></div>',
         script("application/json", json.dumps(manifest).replace("<", "\\u003c"), ' id="manifest"'),
         script("text/plain", template("worker.js"), ' id="worker"'),
@@ -123,5 +136,5 @@ def build(app_dir: Path, inline: bool) -> str:
     if inline:
         names = [*CORE, *(lock()["packages"][p]["file_name"] for p in pkgs)]
         parts += [script("application/octet-stream", b64(runtime_file(n)), f' data-runtime="{n}"') for n in names]
-    parts.append(script("module", page_script()))
+    parts.append(script("module", page_script(app_dir)))
     return "\n".join(parts) + "\n"

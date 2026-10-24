@@ -35,7 +35,8 @@ def view(out):                              # optional: how its results look
   datasets and downloads.
 - **Verified.** Every run leaves a record (settings, data keys, every node's metrics and
   output digest). `blocks baseline` keeps one; `blocks verify` and `blocks build` compare
-  against it, and the page shows each metric against it.
+  against it, and the page shows each metric against it. A view that fails, in Python or
+  on the page, fails them too.
 
 ## Quick start
 
@@ -62,6 +63,7 @@ projects/<app>/
   nodes/<name>.py    one node: def <name>(inputs..., *, settings...)
   data/<name>.*      a dataset; a node reads it with a parameter <name> and gets its path
   *.py               helpers the nodes import
+  ui/<name>.py|js|css  a block only this app draws (see Blocks)
   baseline.json      the run every check compares with
 ```
 
@@ -86,10 +88,14 @@ projects/<app>/
 | `map(shapes, values=None, names=None, title, label, lines=None, center=None)` | polygons (shapely, WKB or GeoJSON geometries) shaded by value, in their own coordinates, diverging from `center` if given; `lines` drawn on top (a coastline) |
 | `download(name, value, title=None)` | a file to take away, as a card with a Download button: a table as `.csv`, `.json` or `.parquet`, text, or bytes |
 
-A block is the files of one name in `src/blocks/ui/`: `<name>.py` makes the dict and every
-choice in it (a colour, a scale's centre), `<name>.js` only paints it (`RENDER.<name>`, with
-the page's kit), and `<name>.css`, if it needs one, lays it out in the theme's colours. A new
-block is a new set of those files; no core file changes.
+A block is the files of one name in `src/blocks/ui/`, or in an app's `ui/` when only that app
+draws it. Python determines meaning, JavaScript presentation: `<name>.py` returns the dict
+`{"type": "<name>", ...}` and decides what the data means (a colour scale, its centre, what is
+missing); `<name>.js` lays it out and draws it (`RENDER.<name>`, with the page's kit and
+`ui/_kit.js`); `<name>.css`, if it needs one, styles it under `.<name>` in the theme's colours.
+A node uses an app's block with `from ui.<name> import <name>`. A new block, or a new
+parameter on one (the same picture with more on it, like a band on a chart), never changes
+the core.
 
 ## Example apps
 
@@ -106,10 +112,10 @@ block is a new set of those files; no core file changes.
 |---|---|
 | `src/blocks/core/graph.py`, `worker.js` | the executor in Pyodide (load nodes, keys, cache, run, metrics, digests, views; run records and `compare`) and the page's bridge to it |
 | `src/blocks/core/spec.py` | reads an app with `ast`: nodes, settings, metrics, datasets, order, imports |
-| `src/blocks/core/build.py` | the page as one file, with every block's script and styles; the pinned Pyodide runtime, cached in `.cache/` |
-| `src/blocks/core/cli.py` | `serve`, `build`, `baseline`, `verify` (headless Chromium) |
+| `src/blocks/core/build.py` | the page as one file, with every block's script and styles (the library's, then the app's); the pinned Pyodide runtime, cached in `.cache/` |
+| `src/blocks/core/cli.py` | `serve`, `build`, `baseline`, `verify` (headless Chromium: Run, then every node's page drawn) |
 | `src/blocks/core/page/` | `app.js` (the graph, pages, settings and the kit blocks draw with), `app.css` (the one theme) |
-| `src/blocks/ui/` | the blocks, each a `.py`, a `.js` and maybe a `.css` |
+| `src/blocks/ui/` | the blocks, each a `.py`, a `.js` and maybe a `.css`; `_kit.py` and `_kit.js`, what they share |
 
 Derived from `blocks`: the same idea with its run browser, plugins, sandboxed views,
 schemas, themes, integrity manifest and dev-server APIs left out.

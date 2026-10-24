@@ -6,7 +6,7 @@ spec (core/spec.py): {order, datasets: {name: path}, nodes: {name: {file, deps, 
 {param: {default}}, metrics: [{key, label, goal}], view}}}
 
 A run record is what a run leaves: {made, settings, data, nodes: {name: {status, key,
-metrics, digest, error}}}. Verification compares one with the baseline (compare).
+metrics, digest, error, view_error}}}. Verification compares one with the baseline (compare).
 """
 from __future__ import annotations
 
@@ -23,8 +23,18 @@ import time
 import traceback
 import types
 
-from .. import ui
-from ..ui._kit import plain
+
+def plain(v):
+    """numpy, pandas and pyarrow values as plain Python (JSON) values."""
+    if hasattr(v, "to_pylist"):
+        return v.to_pylist()
+    if hasattr(v, "tolist"):
+        return v.tolist()
+    if isinstance(v, dict):
+        return {str(k): plain(x) for k, x in v.items()}
+    if isinstance(v, (list, tuple)):
+        return [plain(x) for x in v]
+    return v
 
 
 def numbers(o, prefix=""):
@@ -145,38 +155,27 @@ class Graph:
                 self.cache.pop(name, None)
                 results[name] = {"status": "error", "key": key, "error": traceback.format_exc(), "log": log.getvalue()[-20000:]}
                 continue
+            blocks, view_error = self.blocks(name, value)
             result = {"status": "done", "key": key, "seconds": round(time.perf_counter() - t0, 4), "settings": mine,
-                      "metrics": dict(numbers(value)), "digest": digest(value), "blocks": self.blocks(name, value),
+                      "metrics": dict(numbers(value)), "digest": digest(value), "blocks": blocks, "view_error": view_error,
                       "log": log.getvalue()[-20000:]}
             self.cache[name] = (key, value, result)
             results[name] = {**result, "cached": False}
         return results
 
     def blocks(self, name, value):
-        """The node's view of its output, metrics labelled; without a view, its metrics and
-        (when it is a table) the output itself."""
+        """The node's view of its output (without a view, its metrics), and the traceback when
+        the view failed."""
         node = self.spec["nodes"][name]
         try:
             with contextlib.chdir(self.root):
                 if node["view"]:
                     raw = list(self.module(name).view(value) or [])
                 else:
-                    raw = [ui.metrics()] if node["metrics"] or any(numbers(value)) else []
-                    if hasattr(value, "to_pydict") or hasattr(value, "itertuples"):
-                        raw.append(ui.table(value, title="Output"))
+                    raw = [{"type": "metrics"}] if node["metrics"] or any(numbers(value)) else []
         except Exception:  # noqa: BLE001 - the node ran; only its view failed
-            return [ui.markdown("The view failed:\n\n```\n" + traceback.format_exc() + "```")]
-        for b in raw:
-            if b["type"] == "metrics":
-                b["items"] = self.metric_items(node, value)
-        return raw
-
-    @staticmethod
-    def metric_items(node, value):
-        found = dict(numbers(value))
-        items = [{**m, "value": found.get(m["key"])} for m in node["metrics"]]
-        declared = {m["key"] for m in node["metrics"]}
-        return items + [{"key": k, "label": k, "value": v, "extra": True} for k, v in found.items() if k not in declared]
+            return [], traceback.format_exc()
+        return raw, None
 
     def output(self, name):
         if name not in self.cache:
@@ -185,7 +184,7 @@ class Graph:
 
 
 def record(results: dict, settings: dict, data: dict) -> dict:
-    keep = ("status", "key", "metrics", "digest", "error")
+    keep = ("status", "key", "metrics", "digest", "error", "view_error")
     return {"made": datetime.datetime.now(datetime.timezone.utc).isoformat(timespec="seconds"),
             "settings": settings, "data": data,
             "nodes": {n: {k: r[k] for k in keep if k in r} for n, r in results.items()}}
@@ -209,6 +208,8 @@ def compare(run: dict, ref: dict, rel_tol=1e-9, abs_tol=1e-12) -> dict:
             bad = [f"{k}: {show(b['metrics'].get(k))} → {show(a['metrics'].get(k))}" for k in set(a["metrics"]) | set(b["metrics"])
                    if not same(a["metrics"].get(k), b["metrics"].get(k))]
             out[n] = bad + (["output differs"] if a["digest"] != b["digest"] else [])
+            if a.get("view_error"):   # a failed view fails the run, whatever the baseline holds
+                out[n].append("view failed: " + a["view_error"].strip().splitlines()[-1])
     return {n: v for n, v in out.items() if v}
 
 

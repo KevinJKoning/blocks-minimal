@@ -1,17 +1,15 @@
-"""The two ACS five-year periods every comparison runs between, named by their final year.
+"""The two ACS five-year periods every comparison runs between.
 
 The periods do not overlap; population and demographics still show all three for context.
 """
 from typing import Annotated
 from blocks import Choices, ui
-from demography import period
 
 
-def periods(*, start_year: Annotated[int, Choices(2014, 2019)] = 2014,
-            end_year: Annotated[int, Choices(2019, 2024)] = 2024):
-    if start_year >= end_year:
-        raise ValueError('The start period must come before the end period')
-    return {'start_year': start_year, 'end_year': end_year, 'span': f'{period(start_year)} → {period(end_year)}'}
+def periods(*, comparison: Annotated[str, Choices(
+        '2010–2014 → 2020–2024', '2010–2014 → 2015–2019', '2015–2019 → 2020–2024')] = '2010–2014 → 2020–2024'):
+    start, end = (int(p.split('–')[1]) for p in comparison.split(' → '))
+    return {'start_year': start, 'end_year': end, 'span': comparison}
 
 
 def view(out):

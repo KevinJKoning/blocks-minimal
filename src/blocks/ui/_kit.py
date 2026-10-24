@@ -1,21 +1,10 @@
 """What the blocks share: plain values, tables of anything, and the block dict itself."""
 from __future__ import annotations
 
+from ..core.graph import plain  # noqa: F401 - the blocks import it from here
+
 MAX_ROWS = 200      # a table shows at most this many rows (the total is kept)
 MAX_POINTS = 5000   # a chart series keeps at most this many points
-
-
-def plain(v):
-    """numpy, pandas and pyarrow values as plain Python (JSON) values."""
-    if hasattr(v, "to_pylist"):
-        return v.to_pylist()
-    if hasattr(v, "tolist"):
-        return v.tolist()
-    if isinstance(v, dict):
-        return {str(k): plain(x) for k, x in v.items()}
-    if isinstance(v, (list, tuple)):
-        return [plain(x) for x in v]
-    return v
 
 
 def tabulate(rows) -> tuple[list[str], list[list]]:
