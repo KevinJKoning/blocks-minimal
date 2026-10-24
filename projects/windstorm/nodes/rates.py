@@ -39,7 +39,9 @@ def view(out):
         ui.metrics(),
         tiles(t["territory"].to_pylist(), t["rate"].to_pylist(), out["z"].tolist(),
               title="Every territory, highest rate first, with how credible its experience is"),
-        ui.map(out["wkb"], t["rate"], names=t["territory"],
-               title="Base rate: windstorm claims per 1,000 reference homes a year", label="per 1,000"),
+        ui.map(out["wkb"], {"base rate": t["rate"], "GLM alone": t["glm_rate"], "credibility Z": out["z"]}, names=t["territory"],
+               title="Windstorm claims per 1,000 reference homes a year: the base rate, what the GLM alone gives, "
+                     "and how far each territory's own experience moves it",
+               label={"base rate": "per 1,000", "GLM alone": "per 1,000", "credibility Z": "Z"}),
         ui.table(t.sort_by([("rate", "descending")]), title="Territories, highest rate first", limit=t.num_rows),
     ]

@@ -176,7 +176,18 @@ def test_map_takes_geojson_geometries():
     square = {"type": "Polygon", "coordinates": [[[0, 0], [10, 0], [10, 10], [0, 10], [0, 0]]]}
     b = ui.map([square], [1.5], names=["a"], lines=[{"type": "LineString", "coordinates": [[0, 0], [20, 20]]}])
     assert b["bounds"] == [0, 0, 10, 10] and b["shapes"] == [[[[0, 0], [10, 0], [10, 10], [0, 10], [0, 0]]]]
-    assert b["lines"] == [[[[0, 0], [20, 20]]]] and (b["values"], b["names"]) == ([1.5], ["a"])
+    assert b["lines"] == [[[[0, 0], [20, 20]]]] and (b["layers"][0]["values"], b["names"]) == ([1.5], ["a"])
+
+
+def test_map_layers_each_get_their_own_shading():
+    square = {"type": "Polygon", "coordinates": [[[0, 0], [1, 0], [1, 1], [0, 1], [0, 0]]]}
+    b = ui.map([square] * 2, {"rate": [1, 3], "change": [-1, 2]}, center={"change": 0}, label="x")
+    rate, change = b["layers"]
+    assert (rate["name"], rate["label"], rate["legend"]["lo"]) == ("rate", "x", 1) and change["legend"]["center"] == 0
+    with pytest.raises(ValueError, match="by layer"):
+        ui.map([square], [1], label={"rate": "x"})
+    with pytest.raises(ValueError, match="2 shapes but 1 values in 'rate'"):
+        ui.map([square] * 2, {"rate": [1]})
 
 
 def test_histogram_bins_on_round_edges():
@@ -189,8 +200,9 @@ def test_histogram_bins_on_round_edges():
 def test_map_shades_a_log_scale_and_leaves_zero_out():
     square = {"type": "Polygon", "coordinates": [[[0, 0], [1, 0], [1, 1], [0, 1], [0, 0]]]}
     b = ui.map([square] * 4, [10, 100, 1000, 0], scale="log")
-    assert b["fills"][1] == "color-mix(in oklab, var(--ramp-hi) 50%, var(--ramp-lo))" and b["fills"][3] is None
-    assert (b["legend"]["lo"], b["legend"]["hi"], b["legend"]["unshaded"]) == (10, 1000, 1)
+    layer = b["layers"][0]
+    assert layer["fills"][1] == "color-mix(in oklab, var(--ramp-hi) 50%, var(--ramp-lo))" and layer["fills"][3] is None
+    assert (layer["legend"]["lo"], layer["legend"]["hi"], layer["legend"]["unshaded"]) == (10, 1000, 1)
     with pytest.raises(ValueError, match="no center"):
         ui.map([square], [1], scale="log", center=0)
 

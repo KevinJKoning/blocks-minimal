@@ -49,6 +49,8 @@ def _shade(values, center=None, scale="linear"):
 def map(shapes, values=None, names=None, title=None, label=None, lines=None, center=None, scale="linear"):  # noqa: A001 - ui.map reads best
     """Polygons (shapely geometries, WKB, or GeoJSON geometry dicts; a pyarrow column of WKB
     too) coloured by values, in their own coordinates (a projected CRS draws true to scale).
+    values: one value per shape, or layers {name: values}, which the reader switches between.
+    label, center and scale then apply to every layer, or take {name: ...} for each.
     center: the value meaning "no change" (0 for a change); colours then diverge from it.
     scale: "log" for values spread over orders of magnitude (policy-years, populations).
     lines: geometries drawn on top, such as a coastline."""
@@ -57,6 +59,18 @@ def map(shapes, values=None, names=None, title=None, label=None, lines=None, cen
     bounds = [min(xs), min(ys), max(xs), max(ys)]
     digits = max(0, 4 - len(str(int(max(bounds[2] - bounds[0], bounds[3] - bounds[1], 1)))))   # about 1/10,000 of the extent
     rnd = lambda rings: [[[round(x, digits), round(y, digits)] for x, y in r] for r in rings]
-    fills, legend = _shade(values, center, scale) if values is not None else (None, None)
-    return block("map", title=title, label=label, bounds=bounds, fills=fills, legend=legend, shapes=[rnd(s) for s in shapes], lines=[rnd(g) for g in lines],
-                 values=list(plain(values)) if values is not None else None, names=[str(n) for n in plain(names)] if names is not None else None)
+    named = isinstance(values, dict)
+    given = values if named else {} if values is None else {None: values}
+    for arg, what in ((label, "label"), (center, "center"), (scale, "scale")):
+        if isinstance(arg, dict) and (not named or set(arg) - set(given)):
+            raise ValueError(f"ui.map: {what} by layer needs values by layer, and only names those layers")
+    pick = lambda arg, name, default=None: arg.get(name, default) if isinstance(arg, dict) else arg
+    layers = []
+    for name, vals in given.items():
+        vals = list(plain(vals))
+        if len(vals) != len(shapes):
+            raise ValueError(f"ui.map: {len(shapes)} shapes but {len(vals)} values" + (f" in {name!r}" if named else ""))
+        fills, legend = _shade(vals, pick(center, name), pick(scale, name, "linear"))
+        layers.append({"name": None if name is None else str(name), "label": pick(label, name), "values": vals, "fills": fills, "legend": legend})
+    return block("map", title=title, bounds=bounds, layers=layers, shapes=[rnd(s) for s in shapes], lines=[rnd(g) for g in lines],
+                 names=[str(n) for n in plain(names)] if names is not None else None)

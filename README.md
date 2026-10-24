@@ -87,7 +87,7 @@ projects/<app>/
 | `bars(categories, series, title, label, kind="bar", intervals=None, reference=None)` | a row per named category: bars, or dots (`kind="dot"`) with `intervals` `{name: (lows, highs)}` as error bars (a forest plot); a dashed line at `reference` |
 | `figure(image, caption=None)` | SVG text or PNG bytes |
 | `histogram(values, bins=None, title, x_label, mark=None)` | counts in equal bins of a round width (about √n of them unless `bins` says), a dashed line at `mark` (0 for residuals) |
-| `map(shapes, values=None, names=None, title, label, lines=None, center=None, scale="linear")` | polygons (shapely, WKB or GeoJSON geometries) shaded by value, in their own coordinates, diverging from `center` if given, or on a `"log"` scale (0 or less left unshaded); `lines` drawn on top (a coastline) |
+| `map(shapes, values=None, names=None, title, label, lines=None, center=None, scale="linear")` | polygons (shapely, WKB or GeoJSON geometries) shaded by value, in their own coordinates, diverging from `center` if given, or on a `"log"` scale (0 or less left unshaded); `lines` drawn on top (a coastline). `values` may be layers `{name: values}` the reader switches between, with `label`, `center` and `scale` given once or `{name: ...}`. Hovering reads a region out; pinch, ctrl + scroll, double-click or + / − zoom, and dragging pans |
 | `row(*blocks, title=None)` | blocks side by side, to compare (they wrap on a narrow page) |
 | `download(name, value, title=None)` | a file to take away, as a card with a Download button: a table as `.csv`, `.json` or `.parquet`, text, or bytes |
 
