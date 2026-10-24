@@ -9,7 +9,6 @@ outputs.
 # projects/sensor-calibration/nodes/train.py
 """Closed-form ridge regression of the reference value on the standardized features."""
 from typing import Annotated
-import numpy as np
 from blocks import Range, ui
 
 METRICS = {"train_rmse": {"label": "train RMSE", "goal": "min"}}
@@ -21,7 +20,7 @@ def train(featurize, *, alpha: Annotated[float, Range(0.0001, 10, log=True)] = 0
 
 
 def view(out):                              # optional: how its results look
-    return [ui.metrics(), ui.chart(out["x"], {"fit": out["y"]})]
+    return [ui.metrics()]
 ```
 
 - **The graph is the functions' signatures.** Positional parameters are inputs: another
@@ -32,8 +31,8 @@ def view(out):                              # optional: how its results look
   `alpha` makes `train` and what reads it stale; Run re-runs just those.
 - **The page is blocks.** The graph is the table of contents. Each node is one page: its
   docstring, its settings, its results (its view, in the order the view gives) and its
-  code. Each dataset has a page too, where it can be replaced,
-  and the overview gathers every input and every output in one place.
+  code. Each dataset has a page too, where it can be replaced, and the overview gathers
+  datasets and downloads.
 - **Verified.** Every run leaves a record (settings, data keys, every node's metrics and
   output digest). `blocks baseline` keeps one; `blocks verify` and `blocks build` compare
   against it, and the page shows each metric against it.
@@ -84,16 +83,13 @@ projects/<app>/
 | `table(rows, columns=None, title=None)` | a DataFrame, pyarrow Table, `{column: values}` or list of dicts (200 rows shown) |
 | `chart(x, series, title, x_label, y_label, kind)` | `series` is `{name: ys}`; `kind` is `line`, `scatter` or `{name: kind}` |
 | `figure(image, caption=None)` | SVG text or PNG bytes |
-| `map(shapes, values=None, names=None, title, label, lines=None, points=None)` | polygons (shapely or GeoJSON geometries) shaded by value, true to scale in their own coordinates; `lines` drawn on top (a coastline), `points` as dots |
+| `map(shapes, values=None, names=None, title, label, lines=None, points=None)` | polygons (shapely or GeoJSON geometries) shaded by value, in their own coordinates; `lines` drawn on top (a coastline), `points` as dots |
 | `download(name, value, title=None)` | a file to take away, as a card with a Download button: a table as `.csv`, `.json` or `.parquet`, text, or bytes |
 
 A block is a dict made by a function in `src/blocks/ui.py` and drawn by the function of
 the same name in `RENDER` (`src/blocktool/templates/app.js`). A new block is one of each,
 plus a few CSS rules only if it draws something new. A block that shades by value uses the
 theme's ramp: `ramp(v, lo, hi)` for a colour and `scale(lo, hi, label)` for its legend.
-The page draws a view's blocks in the order it returns them. Put a node's downloads first:
-what a node hands over is usually what its reader came for. The overview gathers every
-dataset and every download in one place.
 
 ## Example apps
 
@@ -102,21 +98,18 @@ dataset and every download in one place.
 | `sensor-calibration` | a modelling pipeline: cleaning, features, ridge regression, held-out evaluation, delivered files |
 | `titanic` | three analyses of one dataset side by side, with their caveats |
 | `parcels` | a zipped Esri geodatabase read with GDAL in the browser, then areas and a summary |
-| `windstorm` | tabular and geospatial data joined into one dataset, a Poisson GLM with a physics offset (wind load), Bühlmann–Straub credibility by territory, and a check against the known truth of its synthetic data (`projects/windstorm/data/generate.py`) |
+| `windstorm` | geodata joined to policies; a Poisson GLM with a wind-load offset and Bühlmann–Straub credibility, checked against its synthetic truth |
 
 ## Code
 
-| file | lines | role |
-|---|--:|---|
-| `src/blocks/graph.py` | 235 | the executor (in Pyodide): load nodes, keys, cache, run, metrics, digests, views; run records and `compare` |
-| `src/blocks/ui.py` | 130 | the blocks |
-| `src/blocktool/spec.py` | 107 | reads an app with `ast`: nodes, settings, metrics, datasets, order, imports |
-| `src/blocktool/build.py` | 113 | the page as one file; the pinned Pyodide runtime, cached in `.cache/` |
-| `src/blocktool/cli.py` | 140 | `serve`, `build`, `baseline`, `verify` (headless Chromium) |
-| `src/blocktool/templates/` | 630 | `app.js` (graph, pages, blocks, settings, worker bridge), `worker.js`, `app.css` (the one theme) |
-
-For agents, the page exposes `window.blocks`: `state()`, `set({"node.param": value})`,
-`run()`, `output(node)` and `show(node)`.
+| file | role |
+|---|---|
+| `src/blocks/graph.py` | the executor (in Pyodide): load nodes, keys, cache, run, metrics, digests, views; run records and `compare` |
+| `src/blocks/ui.py` | the blocks |
+| `src/blocktool/spec.py` | reads an app with `ast`: nodes, settings, metrics, datasets, order, imports |
+| `src/blocktool/build.py` | the page as one file; the pinned Pyodide runtime, cached in `.cache/` |
+| `src/blocktool/cli.py` | `serve`, `build`, `baseline`, `verify` (headless Chromium) |
+| `src/blocktool/templates/` | `app.js` (graph, pages, blocks, settings, worker bridge), `worker.js`, `app.css` (the one theme) |
 
 Derived from `blocks`: the same idea with its run browser, plugins, sandboxed views,
 schemas, themes, integrity manifest and dev-server APIs left out.

@@ -8,7 +8,7 @@
         return {"rmse": rmse, "coef": w}
 
     def view(out):
-        return [ui.metrics(), ui.chart(out["x"], {"fit": out["y"]})]
+        return [ui.metrics()]
 
 Range and Choices are read from the source to draw a setting's control; at run time they
 are plain metadata.

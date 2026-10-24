@@ -7,15 +7,15 @@ page (`blocks serve`) or headless (`blocks verify`).
 
 Edit node files, then reload `/<app>/` and drive it with `window.blocks`: `set({...})`
 marks what is stale, `run()` computes it and returns the run record, `output(node)` reads
-an output, `state()` has every result and its blocks. Changes to apps, `src/blocks/` and
+an output, `state()` has every result and its blocks, `show(node)` opens a page. Changes to apps, `src/blocks/` and
 the templates show on reload; after changing the rest of `src/blocktool/`, restart
 `blocks serve`.
 
-- One function per file in `nodes/`, named after the file. Keep nodes small, one concern
+- One node per file in `nodes/`, named after the file. Keep nodes small, one concern
   each; a helper several nodes use goes outside `nodes/`.
-- Return plain values (dicts of numbers and arrays, pandas or pyarrow tables). Numbers at
-  the top of a dict are metrics; label the ones that matter in `METRICS`.
-- The docstring tops the node's page: what it does and why.
+- Return plain values (dicts of numbers and arrays, pandas or pyarrow tables). A dict's
+  numbers are metrics; label the ones that matter in `METRICS`.
+- The module docstring tops the node's page: what it does and why.
 - A view sees only its own node's output: return what it needs to draw (a territory's
   geometry for a map, say), not just the numbers.
 - `view(out)` returns blocks in the order a reader should see them, and the page keeps that
@@ -29,8 +29,7 @@ every app needs. Anything else is a block (`ui.py` + its renderer in `app.js`) o
 
 ## Checks
 
-- `blocks baseline APP` once it runs; `blocks verify` after every change. Re-record the
-  baseline only when results changed on purpose.
-- `blocks build` writes `dist/<app>.html` and verifies it offline.
+- `blocks baseline APP` once it runs; `blocks verify` after every change (`blocks build`
+  also verifies). Re-record the baseline only when results changed on purpose.
 - `.venv/bin/python -m pytest` (`-m "not browser"` for the fast tests).
 - Packages must have a Pyodide build; they are found from the imports.

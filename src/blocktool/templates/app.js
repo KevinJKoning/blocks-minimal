@@ -64,7 +64,7 @@ function markdown(src) {
       out.push(`<pre><code>${esc(code.join("\n"))}</code></pre>`);
     } else if (/^#{1,4} /.test(l)) {
       const n = l.indexOf(" ");
-      out.push(`<h${n + 1}>${inline(l.slice(n + 1))}</h${n + 1}>`); i++;
+      out.push(`<h${n}>${inline(l.slice(n + 1))}</h${n}>`); i++;
     } else if (/^\s*([-*]|\d+\.) /.test(l)) {
       const start = parseInt(l.trim(), 10), items = [];
       while (i < lines.length && /^\s*([-*]|\d+\.) /.test(lines[i])) {
@@ -272,7 +272,7 @@ function chart(b) {
 const ramp = (v, lo, hi) => (Number.isFinite(v) ? `color-mix(in oklab, var(--ramp-hi) ${Math.round((100 * (v - lo)) / (hi - lo || 1))}%, var(--ramp-lo))` : null);
 const scale = (lo, hi, label) => h("p", { class: "scale" }, h("span", {}, fmt(lo)), h("i"), h("span", {}, fmt(hi)), label && h("span", { class: "muted" }, label));
 
-// Polygons in their own coordinates, true to scale, shaded by value on the ramp.
+// Polygons in their own coordinates, shaded by value on the ramp.
 function mapBlock(b) {
   const [x0, y0, x1, y1] = b.bounds, W = 640, s = Math.min(W / (x1 - x0 || 1), 480 / (y1 - y0 || 1)), H = (y1 - y0) * s;
   const P = ([x, y]) => `${((x - x0) * s).toFixed(1)},${((y1 - y) * s).toFixed(1)}`;

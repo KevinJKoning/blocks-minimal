@@ -197,7 +197,7 @@ def compare(run: dict, ref: dict, rel_tol=1e-9, abs_tol=1e-12) -> dict:
     def same(a, b):
         if isinstance(a, (int, float)) and isinstance(b, (int, float)):
             return math.isclose(a, b, rel_tol=rel_tol, abs_tol=abs_tol)
-        return a == b or (a == b == "NaN")
+        return a == b
     show = lambda v: f"{v:.6g}" if isinstance(v, float) else v
     out = {}
     for n in set(run["nodes"]) | set(ref["nodes"]):
