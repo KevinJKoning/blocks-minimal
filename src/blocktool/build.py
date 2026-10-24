@@ -86,7 +86,7 @@ def build(app_dir: Path, inline: bool) -> str:
         "spec": {"order": a["order"], "nodes": a["nodes"], "datasets": {d: v["path"] for d, v in a["datasets"].items()}},
         "files": {p: b64(b) for p, b in a["files"].items()},
         "library": {p: b64(b) for p, b in library.items()},
-        "data": {d: {"path": v["path"], "key": spec.sha256(v["bytes"]), "size": len(v["bytes"]), "bytes": b64(v["bytes"])}
+        "data": {d: {"key": spec.sha256(v["bytes"]), "size": len(v["bytes"]), "bytes": b64(v["bytes"])}
                  for d, v in a["datasets"].items()},
         "baseline": json.loads(baseline.read_text()) if baseline.exists() else None,
         "runtime": None if inline else "/_runtime/",

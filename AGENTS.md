@@ -7,7 +7,9 @@ page (`blocks serve`) or headless (`blocks verify`).
 
 Edit node files, then reload `/<app>/` and drive it with `window.blocks`: `set({...})`
 marks what is stale, `run()` computes it and returns the run record, `output(node)` reads
-an output, `state()` has every result and its blocks.
+an output, `state()` has every result and its blocks. Changes to apps, `src/blocks/` and
+the templates show on reload; after changing the rest of `src/blocktool/`, restart
+`blocks serve`.
 
 - One function per file in `nodes/`, named after the file. Keep nodes small, one concern
   each; a helper several nodes use goes outside `nodes/`.

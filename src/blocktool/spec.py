@@ -84,6 +84,8 @@ def load(app_dir: Path) -> dict:
     head, _, about = readme.partition("\n")
     nodes = {p.stem: read_node(p) for p in sorted((app_dir / "nodes").glob("*.py"))}
     data = {p.name.split(".")[0]: p for p in sorted((app_dir / "data").glob("*")) if p.is_file()} if (app_dir / "data").is_dir() else {}
+    if set(nodes) & set(data):
+        raise ValueError(f"{', '.join(sorted(set(nodes) & set(data)))}: both a node and a file in data/")
     datasets = {}
     for n, node in nodes.items():
         for d in node["deps"]:

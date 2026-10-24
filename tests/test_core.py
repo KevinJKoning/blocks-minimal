@@ -95,7 +95,7 @@ def test_builds_one_page(app):
     manifest = json.loads(page.split('id="manifest">')[1].split("</script>")[0])
     assert manifest["title"] == "Doubling" and manifest["runtime"] == "/_runtime/"
     assert set(manifest["files"]) == {"README.md", "nodes/double.py", "nodes/count.py"}
-    assert manifest["data"]["numbers"]["path"] == "data/numbers.txt"
+    assert manifest["spec"]["datasets"] == {"numbers": "data/numbers.txt"} and set(manifest["data"]["numbers"]) == {"key", "size", "bytes"}
 
 
 def test_packages_follow_imports():

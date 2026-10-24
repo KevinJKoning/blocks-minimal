@@ -121,7 +121,7 @@ async function startWorker() {
     transfer.push(runtime[el.dataset.runtime]);
   }
   const decode = async (o) => Object.fromEntries(await Promise.all(Object.entries(o).map(async ([p, b]) => [p, (await bytes(b)).buffer])));
-  const data = Object.fromEntries(await Promise.all(Object.values(M.data).map(async (d) => [d.path, (await bytes(d.bytes)).buffer])));
+  const data = Object.fromEntries(await Promise.all(Object.entries(M.data).map(async ([d, v]) => [S.datasets[d], (await bytes(v.bytes)).buffer])));
   state.status = `Loading Python and ${M.packages.length} packages…`; render();
   await call("init", {
     base: M.runtime && new URL(M.runtime, location.href).href, runtime, packages: M.packages,
@@ -134,6 +134,9 @@ async function startWorker() {
 
 // ------------------------------------------------------------------ running
 const datasets = (n) => S.nodes[n].deps.filter((d) => d in S.datasets);
+// What Run would compute. The worker keys each output by its code, settings and inputs; in a
+// built page the code is fixed, so a node is stale exactly when its settings or data changed
+// since it ran, or a node it reads is stale.
 function stale() {
   const out = new Set();
   for (const n of S.order) {
@@ -178,7 +181,7 @@ async function run() {
 
 async function replaceData(d, file) {
   const buf = await file.arrayBuffer();
-  await call("dataset", { path: M.data[d].path, buf });
+  await call("dataset", { path: S.datasets[d], buf });
   // A dataset's key is its sha256, as the build computes it: the same bytes are the same data.
   const key = [...new Uint8Array(await crypto.subtle.digest("SHA-256", buf))].map((b) => b.toString(16).padStart(2, "0")).join("");
   state.data[d] = { key, size: file.size, file: file.name, blob: file };
@@ -190,10 +193,10 @@ const dataBlob = async (d) => state.data[d].blob || new Blob([await bytes(M.data
 // Data in and files out: a card with what the file is and a button that acts on it.
 const card = (label, name, detail, ...buttons) => h("div", { class: "card" },
   h("div", {}, h("span", { class: "card-label" }, label), h("strong", {}, name), h("span", { class: "muted small" }, detail)), buttons);
-const dataCard = (d) => card("Input", state.data[d].file || M.data[d].path.split("/").pop(),
+const dataCard = (d) => card("Input", state.data[d].file || S.datasets[d].split("/").pop(),
   `${size(state.data[d].size)}${state.data[d].file ? " · replaced" : ""}`,
   h("label", { class: `button secondary ${state.busy ? "disabled" : ""}` }, "Replace…", h("input", { type: "file", disabled: state.busy, onchange: (e) => e.target.files[0] && replaceData(d, e.target.files[0]) })),
-  h("button", { class: "secondary", onclick: () => save(state.data[d].file || M.data[d].path.split("/").pop(), dataBlob(d)) }, "Download"));
+  h("button", { class: "secondary", onclick: () => save(state.data[d].file || S.datasets[d].split("/").pop(), dataBlob(d)) }, "Download"));
 
 // ------------------------------------------------------------------ blocks
 const COLORS = ["var(--s1)", "var(--s2)", "var(--s3)", "var(--s4)"];
@@ -285,7 +288,7 @@ function dag() {
     const p = pos[id], isData = !S.nodes[id], st = isData ? "data" : statusOf(id);
     const label = id, fits = Math.floor((p.w - 8) / 6.4);
     return h("svg:g", { class: `box ${st} ${state.page === id ? "sel" : ""}`, onclick: () => show(id) },
-      h("svg:title", {}, isData ? `${M.data[id].path}` : `${id}: ${st}`),
+      h("svg:title", {}, isData ? `${S.datasets[id]}` : `${id}: ${st}`),
       h("svg:rect", { x: p.x, y: p.y, width: p.w, height: BH, rx: isData ? 15 : 3 }),
       h("svg:text", { x: p.x + p.w / 2, y: p.y + BH / 2 + 4, "text-anchor": "middle" }, label.length > fits ? label.slice(0, fits - 1) + "…" : label));
   });
@@ -342,7 +345,7 @@ const crumb = (x) => h("p", { class: "crumb" }, h("a", { href: "#", onclick: (e)
 function dataPage(d) {
   const readers = S.order.filter((m) => S.nodes[m].deps.includes(d));
   return [crumb(d), h("h1", {}, d), h("div", { class: "cards" }, dataCard(d)),
-    h("p", { class: "muted" }, `${M.data[d].path} in the app. Read by `, sep(readers), ". A replacement is used from the next Run.")];
+    h("p", { class: "muted" }, `${S.datasets[d]} in the app. Read by `, sep(readers), ". A replacement is used from the next Run.")];
 }
 
 function nodePage(n) {
