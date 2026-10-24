@@ -9,6 +9,7 @@ from __future__ import annotations
 import base64
 import html
 import json
+import sys
 import urllib.request
 from importlib import resources
 from pathlib import Path
@@ -49,10 +50,15 @@ def lock() -> dict:
     return json.loads(runtime_file("pyodide-lock.json"))
 
 
-def packages(imports: list[str]) -> list[str]:
-    """The Pyodide packages the app's imports need, with their dependencies."""
+def packages(imports: list[str], local=()) -> list[str]:
+    """The Pyodide packages the app's imports need, with their dependencies. An import that
+    is none of these, nor the standard library or the app's own module, is an error now
+    rather than in the browser."""
     pk = lock()["packages"]
     by_import = {i: n for n, p in pk.items() for i in p.get("imports", [])}
+    unknown = set(imports) - set(by_import) - sys.stdlib_module_names - {"blocks", "pyodide", "js", *local}
+    if unknown:
+        raise ValueError(f"no Pyodide {PYODIDE} package provides {', '.join(sorted(unknown))}")
     want, todo = set(), [by_import[i] for i in imports if i in by_import]
     while todo:
         n = todo.pop()
@@ -72,7 +78,7 @@ def b64(data: bytes) -> str:
 
 def build(app_dir: Path, inline: bool) -> str:
     a = spec.load(app_dir)
-    pkgs = packages(a["imports"])
+    pkgs = packages(a["imports"], {p.split("/")[0].removesuffix(".py") for p in a["files"]})
     library = {f"blocks/{f}": resources.files("blocks").joinpath(f).read_bytes() for f in LIBRARY}
     baseline = Path(app_dir) / "baseline.json"
     manifest = {

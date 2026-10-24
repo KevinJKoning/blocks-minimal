@@ -99,7 +99,9 @@ def test_builds_one_page(app):
 
 
 def test_packages_follow_imports():
-    assert "numpy" in build.packages(["pandas"]) and build.packages(["os", "blocks"]) == []
+    assert "numpy" in build.packages(["pandas"]) and build.packages(["os", "blocks", "helpers"], {"helpers"}) == []
+    with pytest.raises(ValueError, match="nosuchpackage"):
+        build.packages(["nosuchpackage"])
 
 
 @pytest.mark.browser
