@@ -1,6 +1,6 @@
 """How close the app gets to the truth: possible only because the data is synthetic.
 
-`scripts/make_windstorm_data.py` drew the claims from known coefficients and a known effect
+`data/generate.py` drew the claims from known coefficients and a known effect
 for every territory (`data/truth.json`). Here the GLM's coefficients are set against the
 true ones, and three estimates of each territory's effect are scored against the truth:
 its own experience alone, the GLM alone (no territory effect), and credibility. Each is

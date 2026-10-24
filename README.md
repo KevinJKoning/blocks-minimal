@@ -94,7 +94,7 @@ dataset and every download in one place.
 | `sensor-calibration` | a modelling pipeline: cleaning, features, ridge regression, held-out evaluation, delivered files |
 | `titanic` | three analyses of one dataset side by side, with their caveats |
 | `parcels` | a zipped Esri geodatabase read with GDAL in the browser, then areas and a summary |
-| `windstorm` | tabular and geospatial data joined into one dataset, a Poisson GLM with a physics offset (wind load), Bühlmann–Straub credibility by territory, and a check against the known truth of its synthetic data (`scripts/make_windstorm_data.py`) |
+| `windstorm` | tabular and geospatial data joined into one dataset, a Poisson GLM with a physics offset (wind load), Bühlmann–Straub credibility by territory, and a check against the known truth of its synthetic data (`projects/windstorm/data/generate.py`) |
 
 ## Code
 

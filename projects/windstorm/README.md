@@ -3,7 +3,7 @@
 What should a homeowners windstorm policy cost in each of 300 coastal territories, when most
 territories have too little experience to rate on their own?
 
-The data is synthetic, made by `scripts/make_windstorm_data.py` from known parameters
+The data is synthetic, made by `data/generate.py` from known parameters
 (`data/truth.json`) so the app can show how close it gets:
 
 - `data/policies.csv.gz`: 100,000 policies as points, with exposure (years), construction,

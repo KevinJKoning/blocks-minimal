@@ -1,6 +1,6 @@
 """Write the windstorm app's synthetic data, from known true parameters (standard library only).
 
-    python3 scripts/make_windstorm_data.py
+    python3 projects/windstorm/data/generate.py
 
 A stretch of coast 200 km wide and 150 km deep, in metres on a local projection, cut into
 300 territories (a jittered grid; the bottom row follows the coastline). 100,000 homeowners
@@ -12,8 +12,9 @@ and each one's windstorm claims are drawn from a Poisson model:
 
 where the wind load is (v(d) / v_coast)^2 with v(d) = v_background + (v_coast - v_background)
 * exp(-d / decay), d the distance inland. The territory effects are what the GLM cannot see
-and credibility has to find. Writes projects/windstorm/data/: policies.csv.gz,
-territories.geojson, coast.geojson and truth.json (every true parameter).
+and credibility has to find. Writes, next to this script: policies.csv.gz,
+territories.geojson, coast.geojson and truth.json (every true parameter). Living in data/,
+it is not part of the app: no node reads it, so the page never embeds it.
 """
 import bisect
 import csv
@@ -24,7 +25,7 @@ import math
 import random
 from pathlib import Path
 
-OUT = Path(__file__).resolve().parent.parent / "projects" / "windstorm" / "data"
+OUT = Path(__file__).resolve().parent   # this folder: the app's data/
 R = random.Random(2026)
 NX, NY, WIDTH, DEPTH, ROW0 = 20, 15, 200_000, 150_000, 20_000
 POLICIES = 100_000
