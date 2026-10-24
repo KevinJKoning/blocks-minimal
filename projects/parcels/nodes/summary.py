@@ -28,6 +28,6 @@ def rows(out):
 
 
 def view(out):
-    return [ui.metrics(), ui.table(rows(out), title="By land use"),
-            ui.download("land_use_summary.csv", rows(out), title="parcels, area and assessed value per land use")]
+    return [ui.download("land_use_summary.csv", rows(out), title="parcels, area and assessed value per land use"),
+            ui.metrics(), ui.table(rows(out), title="By land use")]
 

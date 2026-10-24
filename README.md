@@ -31,8 +31,8 @@ def view(out):                              # optional: how its results look
 - **Cached.** Each output is keyed by its node's code, settings and inputs' keys. Changing
   `alpha` makes `train` and what reads it stale; Run re-runs just those.
 - **The page is blocks.** The graph is the table of contents. Each node is one page: its
-  docstring, the files it offers (cards with a Download button), its settings, its
-  results (its view) and its code. Each dataset has a page too, where it can be replaced,
+  docstring, its settings, its results (its view, in the order the view gives) and its
+  code. Each dataset has a page too, where it can be replaced,
   and the overview gathers every input and every output in one place.
 - **Verified.** Every run leaves a record (settings, data keys, every node's metrics and
   output digest). `blocks baseline` keeps one; `blocks verify` and `blocks build` compare
@@ -78,10 +78,13 @@ projects/<app>/
 | `table(rows, columns=None, title=None)` | a DataFrame, pyarrow Table, `{column: values}` or list of dicts (200 rows shown) |
 | `chart(x, series, title, x_label, y_label, kind)` | `series` is `{name: ys}`; `kind` is `line`, `scatter` or `{name: kind}` |
 | `figure(image, caption=None)` | SVG text or PNG bytes |
-| `download(name, value, title=None)` | a file to take away, as a card at the top of the node's page: a table as `.csv`, `.json` or `.parquet`, text, or bytes |
+| `download(name, value, title=None)` | a file to take away, as a card with a Download button: a table as `.csv`, `.json` or `.parquet`, text, or bytes |
 
 A block is a dict made by a function in `src/blocks/ui.py` and drawn by the function of
 the same name in `RENDER` (`src/blocktool/templates/app.js`). A new block is one of each.
+The page draws a view's blocks in the order it returns them. Put a node's downloads first:
+what a node hands over is usually what its reader came for. The overview gathers every
+dataset and every download in one place.
 
 ## Code
 

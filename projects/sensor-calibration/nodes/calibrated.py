@@ -31,11 +31,11 @@ def equation(coef) -> str:
 
 def view(out):
     return [
+        ui.download("calibrated.csv", out["table"], title="every reading with its calibrated value and residual"),
+        ui.download("calibration.md", report(out), title="the curve's equation, coefficients and quality"),
         ui.markdown(f"The calibration curve, for a raw reading `r`:\n\n`{equation(out['coefficients'])}`\n\n"
                     f"Applied to all {out['rows']} recorded readings (rows with a missing value give no calibrated value)."),
         ui.table(out["table"], title="Calibrated readings"),
-        ui.download("calibrated.csv", out["table"], title="every reading with its calibrated value and residual"),
-        ui.download("calibration.md", report(out), title="the curve's equation, coefficients and quality"),
     ]
 
 

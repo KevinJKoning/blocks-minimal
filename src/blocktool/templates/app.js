@@ -226,7 +226,7 @@ const RENDER = {
   chart,
   figure: (b) => h("figure", {}, h("img", { src: b.media === "image/png" ? `data:image/png;base64,${b.data}` : `data:image/svg+xml,${encodeURIComponent(b.data)}`, alt: b.caption || "" }),
     b.caption && h("figcaption", {}, b.caption)),
-  download: (b, label = "Output") => card(label, b.name, `${size(b.size)}${b.title ? ` · ${b.title}` : ""}`,
+  download: (b, n, label = "Output") => card(label, b.name, `${size(b.size)}${b.title ? ` · ${b.title}` : ""}`,
     h("button", { onclick: async () => save(b.name, new Blob([await bytes(b.data)], { type: b.media })) }, "Download")),
 };
 
@@ -332,7 +332,7 @@ function results(n) {
   if (r.status === "error") return h("pre", { class: "error" }, r.error);
   if (r.status === "blocked") return h("p", { class: "muted" }, `Blocked: ${r.error}.`);
   return h("div", { class: st === "stale" ? "dim" : null }, note && h("p", { class: "note" }, note),
-    r.blocks.filter((b) => b.type !== "download").map((b) => (RENDER[b.type] ? RENDER[b.type](b, n) : h("pre", {}, JSON.stringify(b)))),
+    r.blocks.map((b) => (RENDER[b.type] ? RENDER[b.type](b, n) : h("pre", {}, JSON.stringify(b)))),
     h("p", { class: "muted small" }, `${r.cached ? "From the cache" : `Ran in ${r.seconds} s`} · ${r.key.slice(0, 10)}`),
     r.log && h("details", {}, h("summary", {}, "Log"), h("pre", {}, r.log)));
 }
@@ -350,13 +350,11 @@ function dataPage(d) {
 
 function nodePage(n) {
   const node = S.nodes[n], readers = S.order.filter((m) => S.nodes[m].deps.includes(n));
-  const files = offered(n);
   return [
     crumb(n),
     h("h1", {}, n),
     node.doc ? markdown(node.doc) : null,
     datasets(n).length > 0 && h("p", { class: "muted" }, "Reads ", sep(datasets(n)), "."),
-    h("div", { class: `cards ${statusOf(n) === "stale" ? "dim" : ""}` }, files.map((b) => RENDER.download(b))),
     Object.keys(node.settings).length > 0 && h("section", { class: "settings" }, h("h2", {}, "Settings"),
       Object.entries(node.settings).map(([p, s]) => control(n, p, s))),
     h("section", {}, h("h2", {}, "Results"), results(n)),
@@ -382,7 +380,7 @@ function overview() {
     Object.keys(M.data).length > 0 && h("section", {}, h("h2", {}, "Inputs"), h("div", { class: "cards" }, Object.keys(M.data).map(dataCard))),
     S.order.some((n) => S.nodes[n].downloads) && h("section", {}, h("h2", {}, "Outputs"),
       S.order.some((n) => offered(n).length) ? h("div", { class: "cards" }, S.order.map((n) => h("div", { class: `cards ${statusOf(n) === "stale" ? "dim" : ""}` },
-        offered(n).map((b) => RENDER.download(b, `Output · ${n}`)))))
+        offered(n).map((b) => RENDER.download(b, n, `Output · ${n}`)))))
         : h("p", { class: "muted" }, "Run to make the files.")),
     state.record && h("section", {}, h("h2", {}, "This run"),
       failing === null ? h("p", { class: "muted" }, "No baseline to compare with.")

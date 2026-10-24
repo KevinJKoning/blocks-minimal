@@ -16,8 +16,9 @@ the templates show on reload; after changing the rest of `src/blocktool/`, resta
 - Return plain values (dicts of numbers and arrays, pandas or pyarrow tables). Numbers at
   the top of a dict are metrics; label the ones that matter in `METRICS`.
 - The docstring tops the node's page: what it does and why.
-- `view(out)` returns blocks in the order a reader should see them. Anything meant to leave
-  the app is a `ui.download`.
+- `view(out)` returns blocks in the order a reader should see them, and the page keeps that
+  order. Anything meant to leave the app is a `ui.download`; put a node's downloads first
+  in its view, since what a node hands over is usually what its reader came for.
 
 ## Keeping the core small
 
