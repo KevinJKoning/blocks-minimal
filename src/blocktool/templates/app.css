@@ -26,6 +26,7 @@ button:disabled { background: var(--faint); cursor: default; }
 .secondary { color: var(--ink); background: none; box-shadow: inset 0 0 0 1px var(--ink); }
 .secondary:hover { background: var(--wash); }
 .button input { display: none; }
+.button.disabled { color: var(--faint); box-shadow: inset 0 0 0 1px var(--faint); cursor: default; }
 
 nav { position: sticky; top: 49px; align-self: start; padding: 24px 12px; border-right: 1px solid var(--rule);
   min-height: calc(100vh - 49px); }

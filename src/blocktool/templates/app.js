@@ -192,7 +192,7 @@ const card = (label, name, detail, ...buttons) => h("div", { class: "card" },
   h("div", {}, h("span", { class: "card-label" }, label), h("strong", {}, name), h("span", { class: "muted small" }, detail)), buttons);
 const dataCard = (d) => card("Input", state.data[d].file || M.data[d].path.split("/").pop(),
   `${size(state.data[d].size)}${state.data[d].file ? " · replaced" : ""}`,
-  h("label", { class: "button secondary" }, "Replace…", h("input", { type: "file", onchange: (e) => e.target.files[0] && replaceData(d, e.target.files[0]) })),
+  h("label", { class: `button secondary ${state.busy ? "disabled" : ""}` }, "Replace…", h("input", { type: "file", disabled: state.busy, onchange: (e) => e.target.files[0] && replaceData(d, e.target.files[0]) })),
   h("button", { class: "secondary", onclick: () => save(state.data[d].file || M.data[d].path.split("/").pop(), dataBlob(d)) }, "Download"));
 
 // ------------------------------------------------------------------ blocks
