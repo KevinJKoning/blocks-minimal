@@ -43,7 +43,8 @@ def view(out):
     return [ui.download('county-map-values.csv', rows),
             ui.map(shapes, [r['population_change_pct'] for r in rows], names=names,
                    title=f'Population change · {span}', label='Population change (%)', center=0),
-            ui.map(shapes, [r['end_share_pct'] for r in rows], names=names,
-                   title=f"{out['measure']} · {out['end']}", label='Share of population (%)'),
-            ui.map(shapes, [r['share_change_pp'] for r in rows], names=names,
-                   title=f"{out['measure']}: share change · {span}", label='Share change (percentage points)', center=0)]
+            ui.row(ui.map(shapes, [r['end_share_pct'] for r in rows], names=names,
+                          title=f"{out['measure']} · {out['end']}", label='Share (%)'),
+                   ui.map(shapes, [r['share_change_pp'] for r in rows], names=names,
+                          title=f"Share change · {span}", label='Change (pp)', center=0),
+                   title=f"{out['measure']}: where the share is, and how it moved")]

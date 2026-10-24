@@ -82,11 +82,13 @@ projects/<app>/
 |---|---|
 | `markdown(text)` | Markdown |
 | `metrics()` | the node's metrics, labelled, with the change since the last run and the baseline's value |
-| `table(rows, title=None, text=())` | a DataFrame, pyarrow Table, `{column: values}` or list of dicts (200 rows shown); `text` names the columns whose numbers name something (a year), read as written |
+| `table(rows, title=None, text=(), limit=200)` | a DataFrame, pyarrow Table, `{column: values}` or list of dicts (`limit` rows shown; a table shown whole sorts by its headers); `text` names the columns whose numbers name something (a year), read as written |
 | `chart(x, series, title, x_label, y_label, kind, bands=None, x_text=False)` | `series` is `{name: ys}`; `kind` is `line`, `scatter` or `{name: kind}`; `bands` is `{name: (lows, highs)}`, shaded around a line or as error bars on dots; `x_text` when x is years |
+| `bars(categories, series, title, label, kind="bar", intervals=None, reference=None)` | a row per named category: bars, or dots (`kind="dot"`) with `intervals` `{name: (lows, highs)}` as error bars (a forest plot); a dashed line at `reference` |
 | `figure(image, caption=None)` | SVG text or PNG bytes |
 | `histogram(values, bins=None, title, x_label, mark=None)` | counts in equal bins of a round width (about √n of them unless `bins` says), a dashed line at `mark` (0 for residuals) |
 | `map(shapes, values=None, names=None, title, label, lines=None, center=None, scale="linear")` | polygons (shapely, WKB or GeoJSON geometries) shaded by value, in their own coordinates, diverging from `center` if given, or on a `"log"` scale (0 or less left unshaded); `lines` drawn on top (a coastline) |
+| `row(*blocks, title=None)` | blocks side by side, to compare (they wrap on a narrow page) |
 | `download(name, value, title=None)` | a file to take away, as a card with a Download button: a table as `.csv`, `.json` or `.parquet`, text, or bytes |
 
 A block is the files of one name in `src/blocks/ui/`, or in an app's `ui/` when only that app

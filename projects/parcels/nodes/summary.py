@@ -25,5 +25,8 @@ def rows(out):
 
 def view(out):
     return [ui.download("land_use_summary.csv", rows(out), title="parcels, area and assessed value per land use"),
-            ui.metrics(), ui.table(rows(out), title="By land use")]
+            ui.metrics(),
+            ui.bars([r["land use"] for r in rows(out)], {"area": [r["area (ha)"] for r in rows(out)]}, title="Area by land use",
+                    label="hectares"),
+            ui.table(rows(out), title="By land use")]
 

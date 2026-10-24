@@ -41,5 +41,5 @@ def view(out):
               title="Every territory, highest rate first, with how credible its experience is"),
         ui.map(out["wkb"], t["rate"], names=t["territory"],
                title="Base rate: windstorm claims per 1,000 reference homes a year", label="per 1,000"),
-        ui.table(t.sort_by([("rate", "descending")]), title="Territories, highest rate first"),
+        ui.table(t.sort_by([("rate", "descending")]), title="Territories, highest rate first", limit=t.num_rows),
     ]

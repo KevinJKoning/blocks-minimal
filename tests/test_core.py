@@ -195,6 +195,17 @@ def test_map_shades_a_log_scale_and_leaves_zero_out():
         ui.map([square], [1], scale="log", center=0)
 
 
+def test_bars_and_rows_check_what_they_are_given():
+    b = ui.bars(["a", "b"], {"est": [1, 2]}, kind="dot", intervals={"est": ([0, 1], [2, 3])}, reference=0)
+    assert b["series"] == [{"name": "est", "values": [1, 2], "interval": [[0, 1], [2, 3]]}] and b["reference"] == 0
+    with pytest.raises(ValueError, match="1 values for 2 categories"):
+        ui.bars(["a", "b"], {"est": [1]})
+    assert ui.row(ui.markdown("x"), ui.metrics())["blocks"] == [{"type": "markdown", "text": "x"}, {"type": "metrics"}]
+    with pytest.raises(ValueError, match="takes blocks"):
+        ui.row([ui.markdown("x")])
+    assert ui.table([{"n": i} for i in range(5)], limit=2)["rows"] == [[0], [1]]
+
+
 def test_digest_ignores_memory_addresses():
     class Thing:
         pass

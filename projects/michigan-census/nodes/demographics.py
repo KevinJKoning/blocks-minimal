@@ -48,5 +48,9 @@ def view(out):
                                           for y in years] for g in groups},
                                title=f"{out['name']}: {family.lower()} shares", x_label='ACS five-year period ending',
                                y_label='Share of population (%)', x_text=True))
-        blocks.append(ui.table([r for r in out['changes'] if r['family'] == family], title=f'{family}: selected-period changes'))
+        changes = [r for r in out['changes'] if r['family'] == family]
+        blocks.append(ui.bars([r['group'] for r in changes], {'share change': [r['change_pp'] for r in changes]}, reference=0,
+                              title=f"{family}: share change · {out['start_period']} → {out['end_period']}",
+                              label='Share change (percentage points)'))
+        blocks.append(ui.table(changes, title=f'{family}: selected-period changes'))
     return blocks

@@ -39,6 +39,8 @@ what every app needs; anything else is a block or a node. A block is its files i
   picture: a new block. A block only one app draws goes in `projects/<app>/ui/`, the same
   files, used as `from ui.<name> import <name>`; it moves to `src/blocks/ui/` when a second
   app wants it.
+- A block that holds blocks keeps them in its `blocks` field (as `ui.row` does) and draws
+  each with `paint` from the kit; the page looks there for downloads too.
 - `ui` exports only blocks. A helper stays private to its block (each script gets its own
   scope) and moves to `ui/_kit.py` or `ui/_kit.js` once a second block needs it; block
   helpers never go in `core/`.

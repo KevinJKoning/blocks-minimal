@@ -6,6 +6,7 @@ function ticks(lo, hi, n = 5) {
   const step = 10 ** Math.floor(Math.log10((hi - lo) / n || 1)), err = (hi - lo) / n / step;
   const s = step * (err >= 7.5 ? 10 : err >= 3.5 ? 5 : err >= 1.5 ? 2 : 1);
   const out = [];
-  for (let t = Math.ceil(lo / s) * s; t <= hi + s * 1e-9; t += s) out.push(+t.toPrecision(12));
+  // Each tick from its index, not a running sum, so zero is exactly 0 (a sum leaves -5.6e-17).
+  for (let k = Math.ceil(lo / s - 1e-9); k * s <= hi + s * 1e-9; k++) out.push(+(k * s).toPrecision(12));
   return out;
 }

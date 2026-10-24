@@ -65,6 +65,9 @@ def view(out):
     return [
         ui.download("coefficients.csv", out["coefficients"], title="the fitted coefficients with standard errors and 95% intervals"),
         ui.metrics(),
+        ui.bars([r["term"] for r in rows[1:]], {"relativity": [r["relativity"] for r in rows[1:]]}, kind="dot",
+                intervals={"relativity": ([np.exp(r["95% low"]) for r in rows[1:]], [np.exp(r["95% high"]) for r in rows[1:]])},
+                reference=1, title="Relativities with 95% intervals (the intercept left out)", label="× the base level"),
         ui.table(rows, title="Coefficients (relativity = exp(estimate), against the base levels)"),
         ui.chart([r["predicted"] for r in out["calibration"]],
                  {"observed": [r["observed"] for r in out["calibration"]],

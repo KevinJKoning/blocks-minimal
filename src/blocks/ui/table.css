@@ -1,2 +1,6 @@
 .table .scroll { overflow: auto; max-height: 420px; }
 .table th { position: sticky; top: 0; background: var(--paper); border-bottom-color: var(--ink); white-space: nowrap; }
+.table th.sortable { cursor: pointer; }
+.table th.sortable:hover { color: var(--accent); }
+.table th[data-sort="up"]::after { content: " ↑"; }
+.table th[data-sort="down"]::after { content: " ↓"; }

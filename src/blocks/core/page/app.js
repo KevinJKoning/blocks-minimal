@@ -202,7 +202,8 @@ const dataCard = (d) => card("Input", state.data[d].file || S.datasets[d].split(
 
 // ------------------------------------------------------------------ blocks
 // The kit a block's renderer (ui/<name>.js, the library's or an app's) may use, all of it here:
-// h, fmt, num, size, markdown, card, save, bytes; S, the app's spec; records(), the page's run,
+// h, fmt, num, size, markdown, card, save, bytes; paint(block, node), to draw a block's own
+// blocks (in its "blocks" field); S, the app's spec; records(), the page's run,
 // last run and baseline; the classes muted, small, note and error; and ui/_kit.js, the blocks'
 // own shared helpers. Each renderer adds itself as RENDER.<name>; the build puts ui/_kit.js and
 // then each block's file, in its own scope, at the marker. Block helpers never go in this file.
@@ -292,7 +293,9 @@ function results(n) {
     r.log && h("details", {}, h("summary", {}, "Log"), h("pre", {}, r.log)));
 }
 
-const offered = (n) => (state.results[n]?.status === "done" ? state.results[n].blocks.filter((b) => b.type === "download") : []);
+// A block's own blocks are in its "blocks" field (ui.row's); downloads inside them count too.
+const within = (b) => [b, ...(b.blocks || []).flatMap(within)];
+const offered = (n) => (state.results[n]?.status === "done" ? state.results[n].blocks.flatMap(within).filter((b) => b.type === "download") : []);
 const link = (x) => h("a", { href: `#${x}`, onclick: (e) => { e.preventDefault(); show(x); } }, x);
 const sep = (xs) => xs.flatMap((x, i) => (i ? [", ", link(x)] : [link(x)]));
 const crumb = (x) => h("p", { class: "crumb" }, h("a", { href: "#", onclick: (e) => { e.preventDefault(); show(null); } }, M.title), " / ", x);
