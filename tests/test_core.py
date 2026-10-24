@@ -224,6 +224,14 @@ def test_digest_ignores_memory_addresses():
     assert graph.digest({"x": Thing()}) == graph.digest({"x": Thing()})
 
 
+    class Objects:  # a numpy array of Python objects, whose bytes are their addresses
+        dtype, shape = type("dtype", (), {"hasobject": True, "str": "|O"}), (2,)
+        def __init__(self, *xs): self.xs = xs
+        def tolist(self): return list(self.xs)
+        def tobytes(self): return str(id(self)).encode()
+    assert graph.digest(Objects("a", None)) == graph.digest(Objects("a", None)) != graph.digest(Objects("b", None))
+
+
 def test_chart_band_rides_on_its_series():
     b = ui.chart([0, 1], {"a": [1, 2], "b": [3, 4]}, bands={"b": ([2, 3], [4, 5])})
     assert "band" not in b["series"][0] and b["series"][1]["band"] == [[2, 3], [4, 5]]

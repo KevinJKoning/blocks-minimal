@@ -46,7 +46,7 @@ python3.13 -m venv .venv && .venv/bin/pip install --require-hashes -r requiremen
 .venv/bin/blocks serve                    # http://127.0.0.1:8765/<app>/, rebuilt on every request
 .venv/bin/blocks baseline parcels         # run headlessly, keep projects/parcels/baseline.json
 .venv/bin/blocks verify                   # run every app, compare with its baseline
-.venv/bin/blocks build                    # dist/<app>.html, verified offline from file://
+.venv/bin/blocks build                    # dist/<app>.html (git-ignored, mostly Pyodide: 20-80 MB), verified offline from file://
 .venv/bin/python -m pytest                # -m "not browser" for the fast ones
 ```
 
@@ -62,6 +62,7 @@ projects/<app>/
   README.md          "# Title", then what the app is for (the overview page)
   nodes/<name>.py    one node: def <name>(inputs..., *, settings...)
   data/<name>.*      a dataset; a node reads it with a parameter <name> and gets its path
+  data/*.py          a script that makes or fetches a dataset; it runs natively, by hand, never in the app
   *.py               helpers the nodes import
   ui/<name>.py|js|css  a block only this app draws (see Blocks)
   baseline.json      the run every check compares with
@@ -70,8 +71,8 @@ projects/<app>/
 | in a node file | means |
 |---|---|
 | positional parameters | what it reads: a node's output, or a dataset's path |
-| keyword-only parameters | its settings: literal defaults, `Annotated[type, Range(min, max, step, log=)]` or `Choices(...)` |
-| the return value | its output, any Python value, passed in memory to the nodes that read it; the numbers in it are its metrics |
+| keyword-only parameters | its settings, each a literal default: a bool is a checkbox; `Annotated[int \| float, Range(min, max, step=None, log=False)]` a slider (`step` defaults to 1 for an int and any value for a float; `log` slides evenly in orders of magnitude, and ignores `step`); `Annotated[str, Choices("a", "b")]` a menu of those literals (numbers too); any other number a number box, any other string a text box |
+| the return value | its output, any Python value, passed in memory to the nodes that read it. Every number in it (in nested dicts too) is a metric: recorded, compared with the baseline and shown, the unlabelled ones folded under "more numbers" (a setting the view needs to mention comes back this way too) |
 | the docstring | the top of its page (Markdown) |
 | `METRICS = {key: "label" \| {label, goal}}` | labels for its numbers, in order; `goal: "min" \| "max"` colours changes |
 | `def view(out)` | its results: a list of blocks |

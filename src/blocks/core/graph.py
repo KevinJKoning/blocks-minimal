@@ -72,6 +72,8 @@ def canon(h, v):
         h.update(b"]")
     elif hasattr(v, "__dataclass_fields__"):
         canon(h, {f: getattr(v, f) for f in v.__dataclass_fields__})
+    elif hasattr(v, "dtype") and getattr(v.dtype, "hasobject", False):     # numpy of Python objects: their bytes are addresses
+        h.update(f"nd{v.shape}".encode()); canon(h, v.tolist())
     elif hasattr(v, "dtype") and hasattr(v, "tobytes"):                   # numpy
         h.update(f"nd{v.dtype.str}{v.shape}".encode() + v.tobytes())
     elif hasattr(v, "to_pydict"):                                         # pyarrow table

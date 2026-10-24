@@ -1,7 +1,8 @@
 # Working in this repo (for agents)
 
-Read `README.md` first. Never run node code with native Python; it runs in Pyodide, in the
-page (`blocks serve`) or headless (`blocks verify`).
+Read `README.md` first. Never run node code with native Python, its helpers included; it runs
+in Pyodide, in the page (`blocks serve`) or headless (`blocks verify`), and the venv has none of
+its packages. A script in `data/` that makes or fetches a dataset is the exception: run it natively.
 
 ## Iterating on an app
 
@@ -13,8 +14,9 @@ changing `spec.py`, `build.py` or `cli.py`, restart `blocks serve`.
 
 - One node per file in `nodes/`, named after the file. Keep nodes small, one concern
   each; a helper several nodes use goes outside `nodes/`.
-- Return plain values (dicts of numbers and arrays, pandas or pyarrow tables). A dict's
-  numbers are metrics; label the ones that matter in `METRICS`.
+- Return plain values (dicts of numbers and arrays, pandas or pyarrow tables). Every number
+  in a dict is a metric, checked against the baseline; label the ones that matter in
+  `METRICS`; the rest, settings a view needs among them, fold under "more numbers".
 - The module docstring tops the node's page: what it does and why.
 - A view sees only its own node's output: return what it needs to draw (a territory's
   geometry for a map, say), not just the numbers.

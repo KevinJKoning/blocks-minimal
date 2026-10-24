@@ -127,8 +127,11 @@ def main(argv=None):
     ap.add_argument("--no-verify", action="store_true", help="build only")
     a = ap.parse_args(argv)
     if a.command == "serve":
+        try:
+            serve(a.port)
+        except OSError as e:
+            sys.exit(f"blocks serve: port {a.port} is taken ({e.strerror}); pick another with --port")
         print(f"http://127.0.0.1:{a.port}/")
-        serve(a.port)
         threading.Event().wait()
     targets = apps(a.apps)
     if a.command == "build":
