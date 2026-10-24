@@ -177,9 +177,19 @@ async function run() {
 async function replaceData(d, file) {
   const buf = await file.arrayBuffer();
   await call("dataset", { path: M.data[d].path, buf });
-  state.data[d] = { key: `${file.name}:${file.size}:${file.lastModified}`, size: file.size, file: file.name };
+  state.data[d] = { key: `${file.name}:${file.size}:${file.lastModified}`, size: file.size, file: file.name, blob: file };
   render();
 }
+const save = async (name, blob) => h("a", { href: URL.createObjectURL(await blob), download: name }).click();
+const dataBlob = async (d) => state.data[d].blob || new Blob([await bytes(M.data[d].bytes)]);
+
+// Data in and files out: a card with what the file is and a button that acts on it.
+const card = (label, name, detail, ...buttons) => h("div", { class: "card" },
+  h("div", {}, h("span", { class: "card-label" }, label), h("strong", {}, name), h("span", { class: "muted small" }, detail)), buttons);
+const dataCard = (d) => card("Input", state.data[d].file || M.data[d].path.split("/").pop(),
+  `${size(state.data[d].size)}${state.data[d].file ? " · replaced" : ""}`,
+  h("label", { class: "button secondary" }, "Replace…", h("input", { type: "file", onchange: (e) => e.target.files[0] && replaceData(d, e.target.files[0]) })),
+  h("button", { class: "secondary", onclick: () => save(state.data[d].file || M.data[d].path.split("/").pop(), dataBlob(d)) }, "Download"));
 
 // ------------------------------------------------------------------ blocks
 const COLORS = ["var(--s1)", "var(--s2)", "var(--s3)", "var(--s4)"];
@@ -209,13 +219,8 @@ const RENDER = {
   chart,
   figure: (b) => h("figure", {}, h("img", { src: b.media === "image/png" ? `data:image/png;base64,${b.data}` : `data:image/svg+xml,${encodeURIComponent(b.data)}`, alt: b.caption || "" }),
     b.caption && h("figcaption", {}, b.caption)),
-  download: (b) => h("p", { class: "download" }, h("a", {
-    href: "#", onclick: async (e) => {
-      e.preventDefault();
-      const a = h("a", { href: URL.createObjectURL(new Blob([await bytes(b.data)], { type: b.media })), download: b.name });
-      a.click();
-    },
-  }, `↓ ${b.name}`), h("span", { class: "muted" }, ` ${size(b.size)}${b.title ? ` · ${b.title}` : ""}`)),
+  download: (b) => card("Output", b.name, `${size(b.size)}${b.title ? ` · ${b.title}` : ""}`,
+    h("button", { onclick: async () => save(b.name, new Blob([await bytes(b.data)], { type: b.media })) }, "Download")),
 };
 
 function ticks(lo, hi, n = 5) {
@@ -262,7 +267,6 @@ function dag() {
   for (const id of nodeIds) layer[id] = deps(id).length ? Math.max(...deps(id).map((d) => layer[d])) + 1 : 0;
   const rows = [];
   for (const id of nodeIds) (rows[layer[id]] ||= []).push(id);
-  // Rows of boxes between two side channels, where edges that skip a row run.
   const W = 260, BH = 30, GAP = 34, M0 = 14, pos = {};
   rows.forEach((row, r) => row.forEach((id, i) => {
     const w = Math.min(180, (W - 2 * M0 - 8 * (row.length - 1)) / row.length);
@@ -271,15 +275,12 @@ function dag() {
   const H = 10 + rows.length * (BH + GAP) - GAP + 10;
   const edges = nodeIds.flatMap((id) => deps(id).map((d) => {
     const a = pos[d], b = pos[id], ax = a.x + a.w / 2, ay = a.y + BH, bx = b.x + b.w / 2, by = b.y, m = (ay + by) / 2;
-    const side = ax + bx < W ? 5 : W - 5, g = GAP / 2;
-    const d_ = layer[id] - layer[d] === 1 ? `M${ax},${ay} C${ax},${m} ${bx},${m} ${bx},${by}`
-      : `M${ax},${ay} C${ax},${ay + g} ${side},${ay} ${side},${ay + g} L${side},${by - g} C${side},${by} ${bx},${by - g} ${bx},${by}`;
-    return h("svg:path", { d: d_, class: `edge ${state.page === id || state.page === d ? "on" : ""}` });
+    return h("svg:path", { d: `M${ax},${ay} C${ax},${m} ${bx},${m} ${bx},${by}`, class: `edge ${state.page === id || state.page === d ? "on" : ""}` });
   }));
   const boxes = nodeIds.map((id) => {
     const p = pos[id], isData = !S.nodes[id], st = isData ? "data" : statusOf(id);
     const label = id, fits = Math.floor((p.w - 8) / 6.4);
-    return h("svg:g", { class: `box ${st} ${state.page === id ? "sel" : ""}`, onclick: isData ? () => show(null) : () => show(id) },
+    return h("svg:g", { class: `box ${st} ${state.page === id ? "sel" : ""}`, onclick: () => show(id) },
       h("svg:title", {}, isData ? `${M.data[id].path}` : `${id}: ${st}`),
       h("svg:rect", { x: p.x, y: p.y, width: p.w, height: BH, rx: isData ? 15 : 3 }),
       h("svg:text", { x: p.x + p.w / 2, y: p.y + BH / 2 + 4, "text-anchor": "middle" }, label.length > fits ? label.slice(0, fits - 1) + "…" : label));
@@ -324,19 +325,29 @@ function results(n) {
   if (r.status === "error") return h("pre", { class: "error" }, r.error);
   if (r.status === "blocked") return h("p", { class: "muted" }, `Blocked: ${r.error}.`);
   return h("div", { class: st === "stale" ? "dim" : null }, note && h("p", { class: "note" }, note),
-    r.blocks.map((b) => (RENDER[b.type] ? RENDER[b.type](b, n) : h("pre", {}, JSON.stringify(b)))),
+    r.blocks.filter((b) => b.type !== "download").map((b) => (RENDER[b.type] ? RENDER[b.type](b, n) : h("pre", {}, JSON.stringify(b)))),
     h("p", { class: "muted small" }, `${r.cached ? "From the cache" : `Ran in ${r.seconds} s`} · ${r.key.slice(0, 10)}`),
     r.log && h("details", {}, h("summary", {}, "Log"), h("pre", {}, r.log)));
 }
 
+const link = (x) => h("a", { href: `#${x}`, onclick: (e) => { e.preventDefault(); show(x); } }, x);
+const sep = (xs) => xs.flatMap((x, i) => (i ? [", ", link(x)] : [link(x)]));
+const crumb = (x) => h("p", { class: "crumb" }, h("a", { href: "#", onclick: (e) => { e.preventDefault(); show(null); } }, M.title), " / ", x);
+
+function dataPage(d) {
+  const readers = S.order.filter((m) => S.nodes[m].deps.includes(d));
+  return [crumb(d), h("h1", {}, d), h("div", { class: "cards" }, dataCard(d)),
+    h("p", { class: "muted" }, `${M.data[d].path} in the app. Read by `, sep(readers), ". A replacement is used from the next Run.")];
+}
+
 function nodePage(n) {
   const node = S.nodes[n], readers = S.order.filter((m) => S.nodes[m].deps.includes(n));
-  const link = (x) => (S.nodes[x] ? h("a", { href: `#${x}`, onclick: (e) => { e.preventDefault(); show(x); } }, x) : h("span", { class: "dataset" }, M.data[x].path));
-  const sep = (xs) => xs.flatMap((x, i) => (i ? [", ", link(x)] : [link(x)]));
+  const r = state.results[n], files = r?.status === "done" ? r.blocks.filter((b) => b.type === "download") : [];
   return [
-    h("p", { class: "crumb" }, h("a", { href: "#", onclick: (e) => { e.preventDefault(); show(null); } }, M.title), " / ", n),
+    crumb(n),
     h("h1", {}, n),
     node.doc ? markdown(node.doc) : null,
+    h("div", { class: `cards ${statusOf(n) === "stale" ? "dim" : ""}` }, datasets(n).map(dataCard), files.map((b) => RENDER.download(b))),
     Object.keys(node.settings).length > 0 && h("section", { class: "settings" }, h("h2", {}, "Settings"),
       Object.entries(node.settings).map(([p, s]) => control(n, p, s))),
     h("section", {}, h("h2", {}, "Results"), results(n)),
@@ -358,9 +369,7 @@ function overview() {
         h("p", {}, (S.nodes[n].doc.split("\n")[0] || "")),
         decl.length > 0 && h("p", { class: "small muted" }, decl.map((d) => `${d.label} ${fmt(m[d.key])}`).join(" · ")));
     }))),
-    Object.keys(M.data).length > 0 && h("section", {}, h("h2", {}, "Data"), Object.entries(M.data).map(([d, v]) => h("p", { class: "dataset-row" },
-      h("strong", {}, d), " ", h("span", { class: "muted" }, `${state.data[d].file || v.path} · ${size(state.data[d].size)}`), " ",
-      h("label", { class: "replace" }, "replace…", h("input", { type: "file", onchange: (e) => e.target.files[0] && replaceData(d, e.target.files[0]) }))))),
+    Object.keys(M.data).length > 0 && h("section", {}, h("h2", {}, "Data"), h("div", { class: "cards" }, Object.keys(M.data).map(dataCard))),
     state.record && h("section", {}, h("h2", {}, "This run"),
       failing === null ? h("p", { class: "muted" }, "No baseline to compare with.")
         : Object.keys(failing).length === 0 ? h("p", { class: "ok" }, "Every node matches the baseline.")
@@ -396,7 +405,7 @@ function chrome() {
 }
 function render() {
   chrome();
-  document.querySelector("main article").replaceChildren(...[state.page && S.nodes[state.page] ? nodePage(state.page) : overview()].flat(Infinity).filter(Boolean));
+  document.querySelector("main article").replaceChildren(...[S.nodes[state.page] ? nodePage(state.page) : M.data[state.page] ? dataPage(state.page) : overview()].flat(Infinity).filter(Boolean));
 }
 
 window.addEventListener("hashchange", () => { state.page = decodeURIComponent(location.hash.slice(1)) || null; render(); });
