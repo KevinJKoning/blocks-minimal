@@ -239,7 +239,7 @@ function ticks(lo, hi, n = 5) {
   return out;
 }
 function chart(b) {
-  const W = 640, H = 300, L = 52, R = 12, T = 12, B = 40;
+  const W = 640, H = 300, R = 12, T = 12, B = 40;
   const xs = b.x.map(num), ys = b.series.flatMap((s) => s.y.map(num)).filter(Number.isFinite);
   const fx = xs.filter(Number.isFinite);
   if (!fx.length || !ys.length) return h("p", { class: "muted" }, "Nothing to plot.");
@@ -247,9 +247,12 @@ function chart(b) {
   if (x0 === x1) { x0 -= 1; x1 += 1; }
   if (y0 === y1) { y0 -= 1; y1 += 1; }
   const pad = (y1 - y0) * 0.05; y0 -= pad; y1 += pad;
+  const yTicks = ticks(y0, y1);
+  // Room for the widest y tick (~6.5px a character at 11px) and the axis title beside it.
+  const L = Math.max(52, 6.5 * Math.max(...yTicks.map((t) => fmt(t).length)) + (b.y_label ? 38 : 14));
   const X = (v) => L + ((v - x0) / (x1 - x0)) * (W - L - R), Y = (v) => T + (1 - (v - y0) / (y1 - y0)) * (H - T - B);
   const grid = [
-    ...ticks(y0, y1).map((t) => [h("svg:line", { x1: L, x2: W - R, y1: Y(t), y2: Y(t), class: "grid" }),
+    ...yTicks.map((t) => [h("svg:line", { x1: L, x2: W - R, y1: Y(t), y2: Y(t), class: "grid" }),
       h("svg:text", { x: L - 6, y: Y(t) + 4, "text-anchor": "end" }, fmt(t))]),
     ...ticks(x0, x1).map((t) => h("svg:text", { x: X(t), y: H - B + 16, "text-anchor": "middle" }, fmt(t))),
     h("svg:line", { x1: L, x2: W - R, y1: H - B, y2: H - B, class: "axis" }),
