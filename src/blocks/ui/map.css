@@ -2,5 +2,8 @@
 .map .area { fill: var(--wash); stroke: var(--paper); stroke-width: .6; }
 .map .area:hover { stroke: var(--ink); stroke-width: 1.2; }
 .map .line { fill: none; stroke: var(--ink); stroke-width: 1.2; }
-.map .scale { display: flex; align-items: center; gap: 8px; font: 12px var(--mono); color: var(--muted); margin: 6px 0 0; }
-.map .scale i { width: 120px; height: 8px; }
+.map .scale { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 4px 16px; font: 11px var(--mono); color: var(--muted); margin: 6px 0 0; }
+.map .scale .bar { position: relative; width: 240px; height: 26px; margin: 0 12px; }
+.map .scale .bar i { display: block; height: 8px; }
+.map .scale .bar span { position: absolute; top: 11px; transform: translateX(-50%); white-space: nowrap; }
+.map .scale .none { display: inline-block; width: 10px; height: 8px; margin-right: 6px; background: var(--wash); border: 1px solid var(--rule); }

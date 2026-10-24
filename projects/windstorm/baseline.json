@@ -1,5 +1,5 @@
 {
- "made": "2026-10-24T21:16:36+00:00",
+ "made": "2026-10-24T21:35:49+00:00",
  "settings": {
   "wind.coast_speed": 60,
   "wind.background_speed": 25,
@@ -15,7 +15,7 @@
  "nodes": {
   "join": {
    "status": "done",
-   "key": "65ff072e2cd698c96c3d4b1b0dcb4de26ae5a3807858770aacdfbe20b913c9e1",
+   "key": "2fd30bb67255369ebf07151a0da11d32edaa9281470695a7cd34ace54d9a7812",
    "metrics": {
     "policies": 100000,
     "policy_years": 86438.33000000002,
@@ -27,7 +27,7 @@
   },
   "wind": {
    "status": "done",
-   "key": "ebd000ad85f4931eba70c2f3ce6a292b1b8b343943e00554fd836db218ef8dd1",
+   "key": "7dc86de308a0d8dc542901e7966c54eed713ac5e31340f9d105ee9529106718d",
    "metrics": {
     "mean_load": 0.5196786363757258,
     "load_at_50km": 0.3408159771721135
@@ -36,17 +36,18 @@
   },
   "glm": {
    "status": "done",
-   "key": "b1a411079d992dcea43a15fd62702e100da9b3126e93aaeea9bfcaa39f8f7072",
+   "key": "1c17357fb04c063a61b78e8d7b0de4b2659f4741bfc28b81a01daaa2ba94a72a",
    "metrics": {
     "deviance": 19188.88399433795,
     "dispersion": 1.034136218183001,
-    "aic": 24722.02409883747
+    "aic": 24722.02409883747,
+    "calibration_gap": 0.16367739498105083
    },
-   "digest": "98a02aa513746999e383a6b1b6b5ca4c73623179e66818eb1fcfa38c0ed6a8af"
+   "digest": "42ff03374b13d5d441287e1fc67c0f964b8dc5be17594b0a2b89cb682516e642"
   },
   "credibility": {
    "status": "done",
-   "key": "d838cdfbbe7db3edc71ef3d7df798c730850dc55e6063887dfce3431fe96855b",
+   "key": "689e79669fb6d14069aa40f381795af908881dbc8206dd14666b6980ec91a259",
    "metrics": {
     "k": 10.295450856406028,
     "between_sd": 0.3116573079989507,
@@ -58,7 +59,7 @@
   },
   "rates": {
    "status": "done",
-   "key": "4c887009f1178729581b4b48b0850d925b2684053e0b2651c5d1831cf7407641",
+   "key": "3ad8c83bf7e6d0de6b8e3b2ee2e40ef9c589e86811f4ecd7dd8b7294a545038b",
    "metrics": {
     "lowest": 9.85597594876334,
     "highest": 85.02324767426316,
@@ -68,7 +69,7 @@
   },
   "recovery": {
    "status": "done",
-   "key": "61b3f8bd920e8833b39e5d6753bb277d61a462c3778dee91b0832173c35ab606",
+   "key": "40dc29b856e8937b792a5852c29a3ed55904a0b4b23ccf5412e1956aa58bd7cd",
    "metrics": {
     "within_interval": 5,
     "error_own": 0.8103899491017968,

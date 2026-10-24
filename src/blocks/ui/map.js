@@ -1,6 +1,21 @@
-// The legend for colours ui.map chose: its stops as a gradient from lo to hi.
-const scale = (g, label) => g && h("p", { class: "scale" }, h("span", {}, fmt(g.lo)),
-  h("i", { style: `background: linear-gradient(to right, ${g.stops.join(", ")})` }), h("span", {}, fmt(g.hi)), label && h("span", { class: "muted" }, label));
+// The legend for the colours ui.map chose: its stops as a gradient from lo to hi, labelled on
+// round values (powers of ten on a log scale), with the centre marked on a diverging one.
+const place = (g, v) => (g.scale === "log"
+  ? (Math.log10(v) - Math.log10(g.lo)) / (Math.log10(g.hi) - Math.log10(g.lo) || 1) : (v - g.lo) / (g.hi - g.lo || 1));
+function marks(g) {
+  if (g.scale === "log") {
+    const out = [];
+    for (let e = Math.ceil(Math.log10(g.lo) - 1e-9); 10 ** e <= g.hi * (1 + 1e-9); e++) out.push(10 ** e);
+    return out.length >= 2 ? out : [g.lo, ...out, g.hi];
+  }
+  const t = ticks(g.lo, g.hi, 4);
+  return g.center == null || t.includes(g.center) ? t : [...t, g.center];
+}
+const scale = (g, label) => g && h("div", { class: "scale" },
+  h("div", { class: "bar" }, h("i", { style: `background: linear-gradient(to right, ${g.stops.join(", ")})` }),
+    marks(g).map((v) => h("span", { style: `left: ${(100 * place(g, v)).toFixed(1)}%` }, fmt(v)))),
+  label && h("span", {}, label),
+  g.unshaded && h("span", {}, h("b", { class: "none" }), `${fmt(g.unshaded)} at 0 or less, unshaded`));
 
 // Polygons in their own coordinates, filled with the colours ui.map chose.
 RENDER.map = (b) => {

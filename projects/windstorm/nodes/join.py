@@ -64,7 +64,7 @@ def view(out):
         ui.markdown(f"Territories range from {years.min():,.0f} to {years.max():,.0f} policy-years (median "
                     f"{np.median(years):,.0f}): a few are large enough to rate on their own experience, and "
                     f"{out['thin_territories']} have under 25 policy-years, too few to say anything alone."),
-        ui.map(t["wkb"], np.log10(1 + years), names=t["territory"], lines=[out["coast"]],
-               title="Policy-years by territory", label="log₁₀ policy-years"),
+        ui.map(t["wkb"], years, names=t["territory"], lines=[out["coast"]], scale="log",
+               title="Policy-years by territory", label="policy-years"),
         ui.table(out["table"], title="The joined data, one row per policy"),
     ]

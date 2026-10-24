@@ -186,6 +186,15 @@ def test_histogram_bins_on_round_edges():
     assert abs(w - 0.1) < 1e-12 and all(abs(e / w - round(e / w)) < 1e-9 for e in b["edges"]) and b["mark"] == 0.0
 
 
+def test_map_shades_a_log_scale_and_leaves_zero_out():
+    square = {"type": "Polygon", "coordinates": [[[0, 0], [1, 0], [1, 1], [0, 1], [0, 0]]]}
+    b = ui.map([square] * 4, [10, 100, 1000, 0], scale="log")
+    assert b["fills"][1] == "color-mix(in oklab, var(--ramp-hi) 50%, var(--ramp-lo))" and b["fills"][3] is None
+    assert (b["legend"]["lo"], b["legend"]["hi"], b["legend"]["unshaded"]) == (10, 1000, 1)
+    with pytest.raises(ValueError, match="no center"):
+        ui.map([square], [1], scale="log", center=0)
+
+
 def test_digest_ignores_memory_addresses():
     class Thing:
         pass
