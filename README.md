@@ -82,7 +82,9 @@ projects/<app>/
 | `download(name, value, title=None)` | a file to take away, as a card with a Download button: a table as `.csv`, `.json` or `.parquet`, text, or bytes |
 
 A block is a dict made by a function in `src/blocks/ui.py` and drawn by the function of
-the same name in `RENDER` (`src/blocktool/templates/app.js`). A new block is one of each.
+the same name in `RENDER` (`src/blocktool/templates/app.js`). A new block is one of each,
+plus a few CSS rules only if it draws something new. A block that shades by value uses the
+theme's ramp: `ramp(v, lo, hi)` for a colour and `scale(lo, hi, label)` for its legend.
 The page draws a view's blocks in the order it returns them. Put a node's downloads first:
 what a node hands over is usually what its reader came for. The overview gathers every
 dataset and every download in one place.

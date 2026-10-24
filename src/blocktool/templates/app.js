@@ -267,21 +267,25 @@ function chart(b) {
     b.series.length > 1 && h("p", { class: "legend" }, b.series.map((s, i) => h("span", {}, h("i", { style: `background:${COLORS[i % COLORS.length]}` }), s.name))));
 }
 
-// Polygons in their own coordinates, true to scale, shaded from --map-lo to --map-hi by value.
+// The theme's ramp, for any block that shades by value: a value's colour between lo and hi,
+// and the legend that explains it.
+const ramp = (v, lo, hi) => (Number.isFinite(v) ? `color-mix(in oklab, var(--ramp-hi) ${Math.round((100 * (v - lo)) / (hi - lo || 1))}%, var(--ramp-lo))` : null);
+const scale = (lo, hi, label) => h("p", { class: "scale" }, h("span", {}, fmt(lo)), h("i"), h("span", {}, fmt(hi)), label && h("span", { class: "muted" }, label));
+
+// Polygons in their own coordinates, true to scale, shaded by value on the ramp.
 function mapBlock(b) {
   const [x0, y0, x1, y1] = b.bounds, W = 640, s = Math.min(W / (x1 - x0 || 1), 480 / (y1 - y0 || 1)), H = (y1 - y0) * s;
   const P = ([x, y]) => `${((x - x0) * s).toFixed(1)},${((y1 - y) * s).toFixed(1)}`;
   const d = (rings, close) => rings.map((r) => `M${r.map(P).join("L")}${close ? "Z" : ""}`).join("");
   const vals = (b.values || []).map(num), known = vals.filter(Number.isFinite);
   const [lo, hi] = [Math.min(...known), Math.max(...known)];
-  const shade = (v) => (Number.isFinite(v) ? `fill: color-mix(in oklab, var(--map-hi) ${Math.round((100 * (v - lo)) / (hi - lo || 1))}%, var(--map-lo))` : null);
   return h("figure", { class: "map" }, b.title && h("figcaption", {}, b.title),
     h("svg:svg", { viewBox: `0 0 ${(x1 - x0) * s} ${H}` },
-      b.shapes.map((rings, i) => h("svg:path", { d: d(rings, true), class: "area", style: shade(vals[i]) },
+      b.shapes.map((rings, i) => h("svg:path", { d: d(rings, true), class: "area", style: ramp(vals[i], lo, hi) && `fill: ${ramp(vals[i], lo, hi)}` },
         h("svg:title", {}, [b.names?.[i], b.values && fmt(vals[i])].filter((x) => x != null).join(": ")))),
       b.lines.map((rings) => h("svg:path", { d: d(rings, false), class: "line" })),
       (b.points || []).map((p) => { const [cx, cy] = P(p).split(","); return h("svg:circle", { cx, cy, r: 0.8, class: "point" }); })),
-    known.length > 0 && h("p", { class: "scale" }, h("span", {}, fmt(lo)), h("i"), h("span", {}, fmt(hi)), b.label && h("span", { class: "muted" }, b.label)));
+    known.length > 0 && scale(lo, hi, b.label));
 }
 
 // ------------------------------------------------------------------ the graph

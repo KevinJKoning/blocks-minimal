@@ -2,7 +2,8 @@
 :root {
   --paper: #fbfaf7; --ink: #1a1a1a; --muted: #6b6862; --faint: #a19d95; --rule: #e4e2dc; --wash: #f2f0eb;
   --accent: #1f3a5f; --better: #2f6b3a; --worse: #a3402a; --stale: #8a6a1f;
-  --s1: #1a1a1a; --s2: #a3402a; --s3: #1f3a5f; --s4: #8a8578; --map-lo: #efece4; --map-hi: #1f3a5f;
+  --s1: #1a1a1a; --s2: #a3402a; --s3: #1f3a5f; --s4: #8a8578;
+  --ramp-lo: #efece4; --ramp-hi: #1f3a5f;   /* the ramp: any block that shades by value */
   --serif: Charter, "Iowan Old Style", "Source Serif Pro", Georgia, serif;
   --sans: ui-sans-serif, -apple-system, "Helvetica Neue", Arial, sans-serif;
   --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
@@ -104,7 +105,7 @@ figure img { max-width: 100%; }
 .map .line { fill: none; stroke: var(--ink); stroke-width: 1.2; }
 .map .point { fill: var(--worse); opacity: .5; }
 .scale { display: flex; align-items: center; gap: 8px; font: 12px var(--mono); color: var(--muted); margin: 6px 0 0; }
-.scale i { width: 120px; height: 8px; background: linear-gradient(to right, var(--map-lo), var(--map-hi)); }
+.scale i { width: 120px; height: 8px; background: linear-gradient(to right, var(--ramp-lo), var(--ramp-hi)); }
 
 .settings { display: grid; gap: 10px; }
 .setting { display: grid; grid-template-columns: 140px minmax(0, 260px) 64px; align-items: center; gap: 12px; font-size: 13px; }
