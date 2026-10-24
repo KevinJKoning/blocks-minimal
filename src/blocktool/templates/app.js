@@ -122,11 +122,11 @@ async function startWorker() {
   const decode = async (o) => Object.fromEntries(await Promise.all(Object.entries(o).map(async ([p, b]) => [p, (await bytes(b)).buffer])));
   const data = Object.fromEntries(await Promise.all(Object.values(M.data).map(async (d) => [d.path, (await bytes(d.bytes)).buffer])));
   state.status = `Loading Python and ${M.packages.length} packages…`; render();
-  const version = await call("init", {
+  await call("init", {
     base: M.runtime && new URL(M.runtime, location.href).href, runtime, packages: M.packages,
     files: await decode(M.files), library: await decode(M.library), data, spec: S,
   }, transfer);
-  state.status = `Python ${version}`;
+  state.status = "";
   state.busy = false;
   render();
 }
@@ -396,11 +396,10 @@ function differs(run, ref) {
 
 // ------------------------------------------------------------------ render
 function chrome() {
-  const todo = stale().size;
   document.querySelector("header").replaceChildren(
     h("a", { class: "title", href: "#", onclick: (e) => { e.preventDefault(); show(null); } }, M.title),
     h("span", { class: "status-text" }, state.status),
-    h("button", { onclick: run, disabled: state.busy }, todo ? `Run ${todo}` : "Run"));
+    h("button", { onclick: run, disabled: state.busy }, "Run"));
   document.querySelector("nav").replaceChildren(dag());
 }
 function render() {

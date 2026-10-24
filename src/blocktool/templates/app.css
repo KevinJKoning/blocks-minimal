@@ -31,7 +31,7 @@ nav { position: sticky; top: 49px; align-self: start; padding: 24px 12px; border
   min-height: calc(100vh - 49px); }
 .dag { display: block; font: 11.5px var(--sans); }
 .dag .edge { fill: none; stroke: var(--faint); stroke-width: 1; }
-.dag .edge.on { stroke: var(--ink); }
+.dag .edge.on { stroke: var(--ink); stroke-width: 1.5; }
 .dag .box { cursor: pointer; }
 .dag .box rect { fill: var(--paper); stroke: var(--ink); stroke-width: 1; }
 .dag .box text { fill: var(--ink); }
