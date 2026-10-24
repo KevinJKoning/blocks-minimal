@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pytest
 
-from blocks import graph
+from blocks import graph, ui
 from blocktool import build, spec
 
 NODES = {
@@ -115,4 +115,17 @@ def test_example_apps_match_their_baselines():
 
 
 def test_example_apps_are_present():
-    assert {p.name for p in Path("projects").iterdir()} >= {"parcels", "sensor-calibration", "titanic"}
+    assert {p.name for p in Path("projects").iterdir()} >= {"parcels", "sensor-calibration", "titanic", "windstorm"}
+
+
+def test_map_takes_geojson_geometries():
+    square = {"type": "Polygon", "coordinates": [[[0, 0], [10, 0], [10, 10], [0, 10], [0, 0]]]}
+    b = ui.map([square], [1.5], names=["a"], lines=[{"type": "LineString", "coordinates": [[0, 0], [20, 20]]}])
+    assert b["bounds"] == [0, 0, 10, 10] and b["shapes"] == [[[[0, 0], [10, 0], [10, 10], [0, 10], [0, 0]]]]
+    assert b["lines"] == [[[[0, 0], [20, 20]]]] and (b["values"], b["names"]) == ([1.5], ["a"])
+
+
+def test_digest_ignores_memory_addresses():
+    class Thing:
+        pass
+    assert graph.digest({"x": Thing()}) == graph.digest({"x": Thing()})

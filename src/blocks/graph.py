@@ -17,6 +17,7 @@ import io
 import json
 import math
 import os
+import re
 import sys
 import time
 import traceback
@@ -62,14 +63,16 @@ def canon(h, v):
         canon(h, {f: getattr(v, f) for f in v.__dataclass_fields__})
     elif hasattr(v, "dtype") and hasattr(v, "tobytes"):                   # numpy
         h.update(f"nd{v.dtype.str}{v.shape}".encode() + v.tobytes())
-    elif hasattr(v, "to_pydict"):                                         # pyarrow
+    elif hasattr(v, "to_pydict"):                                         # pyarrow table
         canon(h, v.to_pydict())
+    elif hasattr(v, "to_pylist"):                                         # pyarrow array
+        canon(h, v.to_pylist())
     elif hasattr(v, "columns") and hasattr(v, "to_numpy"):                # pandas
         canon(h, {str(c): v[c].to_numpy() for c in v.columns})
     elif hasattr(v, "item"):
         canon(h, v.item())
-    else:
-        h.update(repr(v).encode())
+    else:   # an object's default repr holds its address, which differs from run to run
+        h.update(re.sub(r" at 0x[0-9a-fA-F]+", "", repr(v)).encode())
 
 
 def digest(v) -> str:

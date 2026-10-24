@@ -2,7 +2,7 @@
 :root {
   --paper: #fbfaf7; --ink: #1a1a1a; --muted: #6b6862; --faint: #a19d95; --rule: #e4e2dc; --wash: #f2f0eb;
   --accent: #1f3a5f; --better: #2f6b3a; --worse: #a3402a; --stale: #8a6a1f;
-  --s1: #1a1a1a; --s2: #a3402a; --s3: #1f3a5f; --s4: #8a8578;
+  --s1: #1a1a1a; --s2: #a3402a; --s3: #1f3a5f; --s4: #8a8578; --map-lo: #efece4; --map-hi: #1f3a5f;
   --serif: Charter, "Iowan Old Style", "Source Serif Pro", Georgia, serif;
   --sans: ui-sans-serif, -apple-system, "Helvetica Neue", Arial, sans-serif;
   --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
@@ -84,7 +84,7 @@ figcaption { font: 600 13px var(--sans); margin-bottom: 8px; }
 .metrics { margin: 8px 0 20px; }
 .metrics table { min-width: 60%; }
 .metrics th:first-child { font-weight: 400; }
-.metrics tr:first-child th { color: var(--faint); font-size: 11px; font-weight: 400; }
+.metrics tr.head th { color: var(--faint); font-size: 11px; font-weight: 400; }
 .metrics td { font-variant-numeric: tabular-nums; }
 .metrics tr.extra th { color: var(--muted); }
 .delta { color: var(--muted); }
@@ -98,6 +98,13 @@ figcaption { font: 600 13px var(--sans); margin-bottom: 8px; }
 .legend { display: flex; gap: 16px; font-size: 12px; color: var(--muted); margin: 4px 0 0; }
 .legend i { display: inline-block; width: 10px; height: 2px; margin-right: 6px; vertical-align: middle; }
 figure img { max-width: 100%; }
+.map svg { width: 100%; height: auto; display: block; background: var(--paper); }
+.map .area { fill: var(--wash); stroke: var(--paper); stroke-width: .6; }
+.map .area:hover { stroke: var(--ink); stroke-width: 1.2; }
+.map .line { fill: none; stroke: var(--ink); stroke-width: 1.2; }
+.map .point { fill: var(--worse); opacity: .5; }
+.scale { display: flex; align-items: center; gap: 8px; font: 12px var(--mono); color: var(--muted); margin: 6px 0 0; }
+.scale i { width: 120px; height: 8px; background: linear-gradient(to right, var(--map-lo), var(--map-hi)); }
 
 .settings { display: grid; gap: 10px; }
 .setting { display: grid; grid-template-columns: 140px minmax(0, 260px) 64px; align-items: center; gap: 12px; font-size: 13px; }

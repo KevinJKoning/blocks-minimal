@@ -215,7 +215,7 @@ const RENDER = {
       M.baseline && h("td", { class: "muted" }, fmt(base[it.key])));
     const main = b.items.filter((it) => !it.extra), extra = b.items.filter((it) => it.extra);
     return h("div", { class: "metrics" }, b.title && h("h3", {}, b.title),
-      h("table", {}, (state.previous || M.baseline) && h("tr", {}, h("th"), h("th"), h("th", {}, state.previous && "Δ last run"), M.baseline && h("th", {}, "baseline")),
+      h("table", {}, (state.previous || M.baseline) && h("tr", { class: "head" }, h("th"), h("th"), h("th", {}, state.previous && "Δ last run"), M.baseline && h("th", {}, "baseline")),
         main.map(row)),
       extra.length > 0 && h("details", {}, h("summary", {}, `${extra.length} more numbers`), h("table", {}, extra.map(row))));
   },
@@ -224,6 +224,7 @@ const RENDER = {
       b.rows.map((r) => h("tr", {}, r.map((v) => h("td", { class: typeof num(v) === "number" ? "num" : null }, fmt(v))))))),
     h("p", { class: "muted small" }, b.total > b.rows.length ? `${b.rows.length} of ${fmt(b.total)} rows` : `${fmt(b.total)} rows × ${b.columns.length} columns`)),
   chart,
+  map: mapBlock,
   figure: (b) => h("figure", {}, h("img", { src: b.media === "image/png" ? `data:image/png;base64,${b.data}` : `data:image/svg+xml,${encodeURIComponent(b.data)}`, alt: b.caption || "" }),
     b.caption && h("figcaption", {}, b.caption)),
   download: (b, n, label = "Output") => card(label, b.name, `${size(b.size)}${b.title ? ` · ${b.title}` : ""}`,
@@ -264,6 +265,23 @@ function chart(b) {
   return h("figure", { class: "chart" }, b.title && h("figcaption", {}, b.title),
     h("svg:svg", { viewBox: `0 0 ${W} ${H}` }, grid, marks),
     b.series.length > 1 && h("p", { class: "legend" }, b.series.map((s, i) => h("span", {}, h("i", { style: `background:${COLORS[i % COLORS.length]}` }), s.name))));
+}
+
+// Polygons in their own coordinates, true to scale, shaded from --map-lo to --map-hi by value.
+function mapBlock(b) {
+  const [x0, y0, x1, y1] = b.bounds, W = 640, s = Math.min(W / (x1 - x0 || 1), 480 / (y1 - y0 || 1)), H = (y1 - y0) * s;
+  const P = ([x, y]) => `${((x - x0) * s).toFixed(1)},${((y1 - y) * s).toFixed(1)}`;
+  const d = (rings, close) => rings.map((r) => `M${r.map(P).join("L")}${close ? "Z" : ""}`).join("");
+  const vals = (b.values || []).map(num), known = vals.filter(Number.isFinite);
+  const [lo, hi] = [Math.min(...known), Math.max(...known)];
+  const shade = (v) => (Number.isFinite(v) ? `fill: color-mix(in oklab, var(--map-hi) ${Math.round((100 * (v - lo)) / (hi - lo || 1))}%, var(--map-lo))` : null);
+  return h("figure", { class: "map" }, b.title && h("figcaption", {}, b.title),
+    h("svg:svg", { viewBox: `0 0 ${(x1 - x0) * s} ${H}` },
+      b.shapes.map((rings, i) => h("svg:path", { d: d(rings, true), class: "area", style: shade(vals[i]) },
+        h("svg:title", {}, [b.names?.[i], b.values && fmt(vals[i])].filter((x) => x != null).join(": ")))),
+      b.lines.map((rings) => h("svg:path", { d: d(rings, false), class: "line" })),
+      (b.points || []).map((p) => { const [cx, cy] = P(p).split(","); return h("svg:circle", { cx, cy, r: 0.8, class: "point" }); })),
+    known.length > 0 && h("p", { class: "scale" }, h("span", {}, fmt(lo)), h("i"), h("span", {}, fmt(hi)), b.label && h("span", { class: "muted" }, b.label)));
 }
 
 // ------------------------------------------------------------------ the graph

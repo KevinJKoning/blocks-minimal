@@ -74,6 +74,30 @@ def figure(image, caption=None):
     return _block("figure", media="image/svg+xml", data=str(image), caption=caption)
 
 
+def _rings(geometry):
+    """The rings (polygons) or paths (lines) of a shapely geometry or a GeoJSON geometry dict."""
+    g = getattr(geometry, "__geo_interface__", geometry)
+    kind, c = g["type"], g["coordinates"]
+    parts = {"Polygon": [c], "MultiPolygon": c, "LineString": [[c]], "MultiLineString": [[line] for line in c]}.get(kind)
+    if parts is None:
+        raise ValueError(f"ui.map draws polygons and lines, not {kind}")
+    return [[(float(p[0]), float(p[1])) for p in ring] for part in parts for ring in part]
+
+
+def map(shapes, values=None, names=None, title=None, label=None, lines=None, points=None):  # noqa: A001 - ui.map reads best
+    """Polygons (shapely geometries or GeoJSON geometry dicts) coloured by values, in their
+    own coordinates (a projected CRS draws true to scale). lines: geometries drawn on top,
+    such as a coastline; points: (xs, ys) drawn as dots (at most MAX_POINTS)."""
+    shapes, lines = [_rings(s) for s in shapes], [_rings(g) for g in lines or []]
+    xs, ys = zip(*(p for s in shapes for r in s for p in r))
+    bounds = [min(xs), min(ys), max(xs), max(ys)]
+    digits = max(0, 4 - len(str(int(max(bounds[2] - bounds[0], bounds[3] - bounds[1], 1)))))   # about 1/10,000 of the extent
+    rnd = lambda rings: [[[round(x, digits), round(y, digits)] for x, y in r] for r in rings]
+    return _block("map", title=title, label=label, bounds=bounds, shapes=[rnd(s) for s in shapes], lines=[rnd(g) for g in lines],
+                  values=plain(list(values)) if values is not None else None, names=[str(n) for n in names] if names is not None else None,
+                  points=[[round(float(x), digits), round(float(y), digits)] for x, y in zip(*points)][:MAX_POINTS] if points is not None else None)
+
+
 TYPES = {".csv": "text/csv", ".json": "application/json", ".md": "text/markdown", ".txt": "text/plain",
          ".parquet": "application/vnd.apache.parquet", ".svg": "image/svg+xml", ".png": "image/png"}
 
