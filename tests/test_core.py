@@ -165,6 +165,13 @@ def test_an_app_brings_its_own_block(app):
 
 
 
+def test_numbers_that_name_something_read_as_written():
+    b = ui.table([{"year": 2024, "people": 1256}, {"year": None, "people": 2}], text=["year"])
+    assert b["rows"] == [["2024", 1256], [None, 2]]
+    with pytest.raises(ValueError, match="no column yr"):
+        ui.table([{"year": 2024}], text=["yr"])
+
+
 def test_map_takes_geojson_geometries():
     square = {"type": "Polygon", "coordinates": [[[0, 0], [10, 0], [10, 10], [0, 10], [0, 0]]]}
     b = ui.map([square], [1.5], names=["a"], lines=[{"type": "LineString", "coordinates": [[0, 0], [20, 20]]}])
@@ -172,7 +179,19 @@ def test_map_takes_geojson_geometries():
     assert b["lines"] == [[[[0, 0], [20, 20]]]] and (b["values"], b["names"]) == ([1.5], ["a"])
 
 
+def test_histogram_bins_on_round_edges():
+    b = ui.histogram([-0.3, -0.1, 0.0, 0.05, 0.2, float("nan"), None], bins=5, mark=0)
+    assert b["edges"][0] <= -0.3 and b["edges"][-1] > 0.2 and sum(b["counts"]) == 5 and b["missing"] == 2
+    w = b["edges"][1] - b["edges"][0]
+    assert abs(w - 0.1) < 1e-12 and all(abs(e / w - round(e / w)) < 1e-9 for e in b["edges"]) and b["mark"] == 0.0
+
+
 def test_digest_ignores_memory_addresses():
     class Thing:
         pass
     assert graph.digest({"x": Thing()}) == graph.digest({"x": Thing()})
+
+
+def test_chart_band_rides_on_its_series():
+    b = ui.chart([0, 1], {"a": [1, 2], "b": [3, 4]}, bands={"b": ([2, 3], [4, 5])})
+    assert "band" not in b["series"][0] and b["series"][1]["band"] == [[2, 3], [4, 5]]

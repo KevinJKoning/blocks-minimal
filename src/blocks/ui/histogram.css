@@ -1,0 +1,7 @@
+.histogram svg { width: 100%; height: auto; font: 11px var(--sans); fill: var(--muted); overflow: visible; }
+.histogram .grid { stroke: var(--rule); }
+.histogram .axis { stroke: var(--ink); }
+.histogram .bar { fill: var(--s1); }
+.histogram .mark { stroke: var(--s2); stroke-width: 1.5; stroke-dasharray: 3 3; }
+.histogram .label { fill: var(--ink); }
+.histogram p { margin: 4px 0 0; }

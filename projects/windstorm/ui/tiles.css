@@ -1,0 +1,7 @@
+.tiles .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(104px, 1fr)); gap: 6px; max-height: 420px; overflow: auto; }
+.tiles .tile { display: flex; flex-direction: column; gap: 2px; padding: 6px 8px; border: 1px solid var(--rule); background: var(--paper); }
+.tiles strong { font: 500 15px var(--mono); }
+.tiles .badge { align-self: flex-start; font: 10px var(--sans); padding: 0 6px; border-radius: 6px; border: 1px solid var(--rule); }
+.tiles .badge.low { background: var(--wash); color: var(--muted); }
+.tiles .badge.medium { background: color-mix(in oklab, var(--ramp-hi) 30%, var(--ramp-lo)); color: var(--ink); }
+.tiles .badge.high { background: var(--ramp-hi); color: var(--paper); border-color: var(--ramp-hi); }

@@ -38,4 +38,5 @@ def view(out):
                  x_label="reading"),
         ui.chart(out["reading"], {"residual": out["residual"]}, kind="scatter", title="Residuals on held-out rows",
                  x_label="reading"),
+        ui.histogram(out["residual"], title="Distribution of held-out residuals", x_label="predicted − reference", mark=0),
     ]

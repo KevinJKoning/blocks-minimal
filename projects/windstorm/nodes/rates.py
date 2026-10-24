@@ -11,6 +11,7 @@ import pyarrow as pa
 
 from blocks import ui
 from rating import design
+from ui.tiles import tiles
 
 METRICS = {"lowest": "lowest rate per 1,000 homes", "highest": "highest rate per 1,000 homes",
            "spread": "highest / lowest"}
@@ -26,7 +27,8 @@ def rates(join, wind, glm, credibility):
     table = pa.table({"territory": t["territory"], "terrain": t["terrain"], "km_inland": np.round(t["distance_km"].to_numpy(), 1),
                       "policy_years": np.round(t["policy_years"].to_numpy(), 1), "claims": t["claims"],
                       "z": np.round(c["z"].to_numpy(), 3), "glm_rate": np.round(base, 2), "rate": np.round(rate, 2)})
-    return {"table": table, "wkb": t["wkb"], "lowest": float(rate.min()), "highest": float(rate.max()),
+    # z unrounded too: the table's is rounded for the CSV, and a band's cut-off needs the real value.
+    return {"table": table, "wkb": t["wkb"], "z": c["z"].to_numpy(), "lowest": float(rate.min()), "highest": float(rate.max()),
             "spread": float(rate.max() / rate.min())}
 
 
@@ -35,6 +37,8 @@ def view(out):
     return [
         ui.download("territory_rates.csv", t, title="every territory's base rate, its GLM rate and its credibility"),
         ui.metrics(),
+        tiles(t["territory"].to_pylist(), t["rate"].to_pylist(), out["z"].tolist(),
+              title="Every territory, highest rate first, with how credible its experience is"),
         ui.map(out["wkb"], t["rate"], names=t["territory"],
                title="Base rate: windstorm claims per 1,000 reference homes a year", label="per 1,000"),
         ui.table(t.sort_by([("rate", "descending")]), title="Territories, highest rate first"),

@@ -11,9 +11,10 @@ own blocks are the same files in its ui/ folder.
 from .chart import chart
 from .download import download
 from .figure import figure
+from .histogram import histogram
 from .map import map  # noqa: A004 - ui.map reads best
 from .markdown import markdown
 from .metrics import metrics
 from .table import table
 
-__all__ = ["chart", "download", "figure", "map", "markdown", "metrics", "table"]
+__all__ = ["chart", "download", "figure", "histogram", "map", "markdown", "metrics", "table"]

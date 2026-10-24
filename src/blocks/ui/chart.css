@@ -4,3 +4,4 @@
 .chart .label { fill: var(--ink); }
 .chart .legend { display: flex; gap: 16px; font-size: 12px; color: var(--muted); margin: 4px 0 0; }
 .chart .legend i { display: inline-block; width: 10px; height: 2px; margin-right: 6px; vertical-align: middle; }
+.chart .band { fill-opacity: .15; stroke: none; }

@@ -187,7 +187,7 @@ def record(results: dict, settings: dict, data: dict) -> dict:
     keep = ("status", "key", "metrics", "digest", "error", "view_error")
     return {"made": datetime.datetime.now(datetime.timezone.utc).isoformat(timespec="seconds"),
             "settings": settings, "data": data,
-            "nodes": {n: {k: r[k] for k in keep if k in r} for n, r in results.items()}}
+            "nodes": {n: {k: r[k] for k in keep if r.get(k) is not None} for n, r in results.items()}}
 
 
 def compare(run: dict, ref: dict, rel_tol=1e-9, abs_tol=1e-12) -> dict:

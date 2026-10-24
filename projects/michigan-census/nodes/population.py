@@ -24,5 +24,5 @@ def view(out):
     rows = out['rows']
     return [ui.download('population.csv', [{'geography': out['name'], **r} for r in rows]), ui.metrics(),
             ui.chart([r['end_year'] for r in rows], {out['name']: [r['population'] for r in rows]},
-                     title=f"{out['name']}: population", x_label='ACS five-year period ending', y_label='People'),
-            ui.table(rows, title='Population and published 90% margins of error')]
+                     title=f"{out['name']}: population", x_label='ACS five-year period ending', y_label='People', x_text=True),
+            ui.table(rows, title='Population and published 90% margins of error', text=['end_year'])]

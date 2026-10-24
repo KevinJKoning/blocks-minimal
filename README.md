@@ -82,9 +82,10 @@ projects/<app>/
 |---|---|
 | `markdown(text)` | Markdown |
 | `metrics()` | the node's metrics, labelled, with the change since the last run and the baseline's value |
-| `table(rows, title=None)` | a DataFrame, pyarrow Table, `{column: values}` or list of dicts (200 rows shown) |
-| `chart(x, series, title, x_label, y_label, kind)` | `series` is `{name: ys}`; `kind` is `line`, `scatter` or `{name: kind}` |
+| `table(rows, title=None, text=())` | a DataFrame, pyarrow Table, `{column: values}` or list of dicts (200 rows shown); `text` names the columns whose numbers name something (a year), read as written |
+| `chart(x, series, title, x_label, y_label, kind, bands=None, x_text=False)` | `series` is `{name: ys}`; `kind` is `line`, `scatter` or `{name: kind}`; `bands` is `{name: (lows, highs)}`, shaded around that series; `x_text` when x is years |
 | `figure(image, caption=None)` | SVG text or PNG bytes |
+| `histogram(values, bins=None, title, x_label, mark=None)` | counts in equal bins of a round width (about √n of them unless `bins` says), a dashed line at `mark` (0 for residuals) |
 | `map(shapes, values=None, names=None, title, label, lines=None, center=None)` | polygons (shapely, WKB or GeoJSON geometries) shaded by value, in their own coordinates, diverging from `center` if given; `lines` drawn on top (a coastline) |
 | `download(name, value, title=None)` | a file to take away, as a card with a Download button: a table as `.csv`, `.json` or `.parquet`, text, or bytes |
 
@@ -103,8 +104,9 @@ the core.
 |---|---|
 | `sensor-calibration` | a modelling pipeline: cleaning, features, ridge regression, held-out evaluation, delivered files |
 | `parcels` | a zipped Esri geodatabase read with GDAL in the browser, then areas and a summary |
-| `windstorm` | geodata joined to policies; a Poisson GLM with a wind-load offset and Bühlmann–Straub credibility, checked against its synthetic truth |
+| `windstorm` | geodata joined to policies; a Poisson GLM with a wind-load offset and Bühlmann–Straub credibility, checked against its synthetic truth; its own `tiles` block in `ui/` |
 | `michigan-census` | official Census data fetched natively and analysed offline; settings shared through small nodes, county maps that diverge from zero |
+| `electricity-demand` | a seasonal forecast of synthetic monthly demand: trend plus seasonal levels, an 80% prediction band, the forecast as CSV |
 
 ## Code
 

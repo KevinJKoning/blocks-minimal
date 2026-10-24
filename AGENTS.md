@@ -31,7 +31,8 @@ what every app needs; anything else is a block or a node. A block is its files i
 - The core draws whatever `RENDER[type]` is and names two blocks: `metrics`, the view of a
   node without one, and `download`, which the overview gathers. Never a third.
 - Python determines meaning, JavaScript presentation. `<name>.py` decides what the data
-  means (a colour scale, its centre, what is missing); the page never guesses it. `<name>.js`
+  means (a colour scale, its centre, what is missing, a year that is a name and not a
+  quantity); the page never guesses it, and formats every number as a quantity. `<name>.js`
   decides layout (ticks, margins, sizes), with the kit listed above `// @blocks` in
   `page/app.js`.
 - Same picture with more on it (a band on a chart): a parameter on that block. A different

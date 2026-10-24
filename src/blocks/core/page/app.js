@@ -39,7 +39,9 @@ function fmt(v) {
   v = num(v);
   if (typeof v !== "number") return v == null ? "—" : String(v);
   if (!Number.isFinite(v)) return String(v);
-  if (Number.isInteger(v)) return Math.abs(v) < 1e4 ? String(v) : v.toLocaleString("en-US");   // 2024, not 2,024
+  // Every number is a quantity here; one that names something (a year, a code) reaches the page
+  // as text, because its block's Python was told so.
+  if (Number.isInteger(v)) return v.toLocaleString("en-US");
   const a = Math.abs(v);
   return a !== 0 && (a < 1e-3 || a >= 1e9) ? v.toExponential(3) : (+v.toPrecision(4)).toLocaleString("en-US", { maximumFractionDigits: 12 });
 }

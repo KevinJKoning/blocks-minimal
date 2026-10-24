@@ -1,8 +1,9 @@
-// Lines or dots over a shared x, on nice ticks, in the theme's series colours.
+// Lines or dots over a shared x, on nice ticks, in the theme's series colours; a series'
+// band (lows, highs) is shaded beneath it.
 const COLORS = ["var(--s1)", "var(--s2)", "var(--s3)", "var(--s4)"];
 RENDER.chart = (b) => {
   const W = 640, H = 300, R = 12, T = 12, B = 40;
-  const xs = b.x.map(num), ys = b.series.flatMap((s) => s.y.map(num)).filter(Number.isFinite);
+  const xs = b.x.map(num), ys = b.series.flatMap((s) => [s.y, ...(s.band || [])].flat().map(num)).filter(Number.isFinite);
   const fx = xs.filter(Number.isFinite);
   if (!fx.length || !ys.length) return h("p", { class: "muted" }, "Nothing to plot.");
   let [x0, x1, y0, y1] = [Math.min(...fx), Math.max(...fx), Math.min(...ys), Math.max(...ys)];
@@ -16,11 +17,19 @@ RENDER.chart = (b) => {
   const grid = [
     ...yTicks.map((t) => [h("svg:line", { x1: L, x2: W - R, y1: Y(t), y2: Y(t), class: "grid" }),
       h("svg:text", { x: L - 6, y: Y(t) + 4, "text-anchor": "end" }, fmt(t))]),
-    ...ticks(x0, x1).map((t) => h("svg:text", { x: X(t), y: H - B + 16, "text-anchor": "middle" }, fmt(t))),
+    ...ticks(x0, x1).map((t) => h("svg:text", { x: X(t), y: H - B + 16, "text-anchor": "middle" }, b.x_text ? String(t) : fmt(t))),
     h("svg:line", { x1: L, x2: W - R, y1: H - B, y2: H - B, class: "axis" }),
     b.x_label && h("svg:text", { x: (L + W - R) / 2, y: H - 4, "text-anchor": "middle", class: "label" }, b.x_label),
     b.y_label && h("svg:text", { x: 12, y: (T + H - B) / 2, "text-anchor": "middle", class: "label", transform: `rotate(-90 12 ${(T + H - B) / 2})` }, b.y_label),
   ];
+  const bands = b.series.map((s, i) => {
+    if (!s.band) return null;
+    const pts = s.band[0].map((lo, k) => [xs[k], num(lo), num(s.band[1][k])]).filter((p) => p.every(Number.isFinite));
+    if (!pts.length) return null;
+    const d = [...pts.map(([x, lo]) => [x, lo]), ...pts.reverse().map(([x, , hi]) => [x, hi])]
+      .map(([x, y], k) => `${k ? "L" : "M"}${X(x).toFixed(1)},${Y(y).toFixed(1)}`).join("") + "Z";
+    return h("svg:path", { d, fill: COLORS[i % COLORS.length], class: "band" });
+  });
   const marks = b.series.map((s, i) => {
     const pts = s.y.map((y, k) => [xs[k], num(y)]).filter(([x, y]) => Number.isFinite(x) && Number.isFinite(y));
     const c = COLORS[i % COLORS.length];
@@ -28,6 +37,6 @@ RENDER.chart = (b) => {
     return h("svg:path", { d: pts.map(([x, y], k) => `${k ? "L" : "M"}${X(x).toFixed(1)},${Y(y).toFixed(1)}`).join(""), stroke: c, fill: "none", "stroke-width": 1.5 });
   });
   return h("figure", { class: "chart" }, b.title && h("figcaption", {}, b.title),
-    h("svg:svg", { viewBox: `0 0 ${W} ${H}` }, grid, marks),
+    h("svg:svg", { viewBox: `0 0 ${W} ${H}` }, grid, bands, marks),
     b.series.length > 1 && h("p", { class: "legend" }, b.series.map((s, i) => h("span", {}, h("i", { style: `background:${COLORS[i % COLORS.length]}` }), s.name))));
 };

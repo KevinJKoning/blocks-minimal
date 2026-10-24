@@ -1,0 +1,45 @@
+{
+ "made": "2026-10-24T20:49:36+00:00",
+ "settings": {
+  "fit.season_length": 12,
+  "forecast.horizon": 24
+ },
+ "data": {
+  "demand": "56217181923ea7a17986f0bf79b10645cec6fca8b4799465af74961fc56b198f"
+ },
+ "nodes": {
+  "history": {
+   "status": "done",
+   "key": "cd20746448d3e690d234a7423d437bae509374f7865fc35f634c6365e64c8b40",
+   "metrics": {
+    "months": 120,
+    "mean_gwh": 1045.4358333333334,
+    "peak_gwh": 1369.4
+   },
+   "digest": "92435fe51116a7513d8fdcdb5d33a28ddadc6170bfe7f48968a01e4144c3a6ad"
+  },
+  "fit": {
+   "status": "done",
+   "key": "fe58a92b587ff789e6136d58dffffef012b4e32fa79f4171d8151608ab5a1bc5",
+   "metrics": {
+    "dof": 107,
+    "season_length": 12,
+    "rmse": 25.081394110665222,
+    "mape": 0.01921607849853619,
+    "sigma": 26.561366024461822,
+    "trend_per_year": 30.046616161616132
+   },
+   "digest": "36e3a07cb204fbe5d47acbad6029c1a81a30879dc34f9d369c405bb32cfffcf5"
+  },
+  "forecast": {
+   "status": "done",
+   "key": "dc0332d088c56a7262f9b12dd74493529656ab7fbad8e2bbc4da7a49b91df8df",
+   "metrics": {
+    "months_ahead": 24,
+    "total_gwh": 29417.17272727272,
+    "mean_width": 73.03175132165065
+   },
+   "digest": "4ab5c31d3d404c1f46acd50a7a379897120513e94c3a239769293911ceeef1f4"
+  }
+ }
+}

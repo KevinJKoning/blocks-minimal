@@ -47,6 +47,6 @@ def view(out):
         blocks.append(ui.chart(years, {g: [next(r['share_pct'] for r in out['rows'] if r['group'] == g and r['end_year'] == y)
                                           for y in years] for g in groups},
                                title=f"{out['name']}: {family.lower()} shares", x_label='ACS five-year period ending',
-                               y_label='Share of population (%)'))
+                               y_label='Share of population (%)', x_text=True))
         blocks.append(ui.table([r for r in out['changes'] if r['family'] == family], title=f'{family}: selected-period changes'))
     return blocks

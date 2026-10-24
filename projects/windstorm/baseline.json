@@ -1,5 +1,5 @@
 {
- "made": "2026-10-24T10:52:30+00:00",
+ "made": "2026-10-24T21:16:36+00:00",
  "settings": {
   "wind.coast_speed": 60,
   "wind.background_speed": 25,
@@ -15,7 +15,7 @@
  "nodes": {
   "join": {
    "status": "done",
-   "key": "dbf0a33a19c33da9c2235cabb0d4df6b1aa778e06a05bdc1570b0d36724a6020",
+   "key": "65ff072e2cd698c96c3d4b1b0dcb4de26ae5a3807858770aacdfbe20b913c9e1",
    "metrics": {
     "policies": 100000,
     "policy_years": 86438.33000000002,
@@ -27,7 +27,7 @@
   },
   "wind": {
    "status": "done",
-   "key": "64a56f1faa76f2fdc19611ad822e68a4d00914825f72435aacddda0449d36bca",
+   "key": "ebd000ad85f4931eba70c2f3ce6a292b1b8b343943e00554fd836db218ef8dd1",
    "metrics": {
     "mean_load": 0.5196786363757258,
     "load_at_50km": 0.3408159771721135
@@ -36,7 +36,7 @@
   },
   "glm": {
    "status": "done",
-   "key": "735d30dbc75b33287738aa5daced252282a14aef75da97fac40ed41dcee019f8",
+   "key": "b1a411079d992dcea43a15fd62702e100da9b3126e93aaeea9bfcaa39f8f7072",
    "metrics": {
     "deviance": 19188.88399433795,
     "dispersion": 1.034136218183001,
@@ -46,7 +46,7 @@
   },
   "credibility": {
    "status": "done",
-   "key": "92dbf6054b88c8765d63731d75d04bd51add4d9220bc4626bfc66551879f41fc",
+   "key": "d838cdfbbe7db3edc71ef3d7df798c730850dc55e6063887dfce3431fe96855b",
    "metrics": {
     "k": 10.295450856406028,
     "between_sd": 0.3116573079989507,
@@ -58,17 +58,17 @@
   },
   "rates": {
    "status": "done",
-   "key": "f0b043252dde2b1a001830fbd7df08dc9f3107f740a2fa63054a984bf6a2ffe8",
+   "key": "4c887009f1178729581b4b48b0850d925b2684053e0b2651c5d1831cf7407641",
    "metrics": {
     "lowest": 9.85597594876334,
     "highest": 85.02324767426316,
     "spread": 8.626568095971388
    },
-   "digest": "12c640ec7fcd4cb0234e1cb0b20f64ae666fc42fd0a8d1c09467231a92c693e5"
+   "digest": "133f0b5a8169afaa0addc2c403c8f97d504d45811a73a9d3dcf8487d8e1a7d7c"
   },
   "recovery": {
    "status": "done",
-   "key": "1814ece55021a2f5e66a479b437cd1f12529c80356aec286fd532f2a17493317",
+   "key": "61b3f8bd920e8833b39e5d6753bb277d61a462c3778dee91b0832173c35ab606",
    "metrics": {
     "within_interval": 5,
     "error_own": 0.8103899491017968,
