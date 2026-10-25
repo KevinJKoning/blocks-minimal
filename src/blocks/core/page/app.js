@@ -37,8 +37,10 @@ function h(tag, attrs = {}, ...kids) {
 }
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
 const num = (v) => (v === "NaN" ? NaN : v === "Infinity" ? Infinity : v === "-Infinity" ? -Infinity : v);
-function fmt(v) {
+// percent: v is a share, which its block's Python marked, so 0.706 reads 70.6%.
+function fmt(v, percent) {
   v = num(v);
+  if (percent && Number.isFinite(v)) return `${fmt(100 * v)}%`;
   if (typeof v !== "number") return v == null ? "—" : String(v);
   if (!Number.isFinite(v)) return String(v);
   // Every number is a quantity here; one that names something (a year, a code) reaches the page
@@ -361,7 +363,7 @@ function overview() {
       return h("li", {}, h("a", { href: `#${n}`, onclick: (e) => { e.preventDefault(); show(n); } }, n),
         h("span", { class: `status ${st}` }, ` ${GLYPH[st]} ${st}`),
         h("p", {}, (S.nodes[n].doc.split("\n")[0] || "")),
-        decl.length > 0 && h("p", { class: "small muted" }, decl.map((d) => `${d.label} ${fmt(m[d.key])}`).join(" · ")));
+        decl.length > 0 && h("p", { class: "small muted" }, decl.map((d) => `${d.label} ${fmt(m[d.key], d.percent)}`).join(" · ")));
     }))),
     // The app's front door: everything that goes in and everything that comes out.
     Object.keys(M.data).length > 0 && h("section", {}, h("h2", {}, "Inputs"), h("div", { class: "cards" }, Object.keys(M.data).map(dataCard))),

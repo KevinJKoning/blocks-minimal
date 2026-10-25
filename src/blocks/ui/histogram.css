@@ -5,3 +5,7 @@
 .histogram .mark { stroke: var(--s2); stroke-width: 1.5; stroke-dasharray: 3 3; }
 .histogram .label { fill: var(--ink); }
 .histogram p { margin: 4px 0 0; }
+.histogram .outline { stroke-width: 1.5; fill-opacity: .1; }
+.histogram .hit { fill: transparent; }
+.histogram .legend { display: flex; flex-wrap: wrap; gap: 4px 16px; font-size: 12px; color: var(--muted); }
+.histogram .legend i { display: inline-block; width: 10px; height: 2px; margin-right: 6px; vertical-align: middle; }

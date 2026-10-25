@@ -37,6 +37,6 @@ def view(out):
                  kind={"reference": "scatter", "predicted": "line"}, title="Calibration curve on held-out rows",
                  x_label="reading"),
         ui.chart(out["reading"], {"residual": out["residual"]}, kind="scatter", title="Residuals on held-out rows",
-                 x_label="reading"),
+                 x_label="reading", y_lines={"no error": 0}),
         ui.histogram(out["residual"], title="Distribution of held-out residuals", x_label="predicted − reference", mark=0),
     ]

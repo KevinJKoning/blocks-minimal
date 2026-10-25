@@ -13,11 +13,11 @@ RENDER.bars = (b) => {
   const X = (v) => L + ((v - lo) / (hi - lo)) * (W - L - R);
   const Y = (i, j) => T + i * row + row / 2 + (S > 1 ? (j - (S - 1) / 2) * 10 : 0);
   const fits = Math.floor((L - 16) / 6.2), cut = (c) => (c.length > fits ? c.slice(0, fits - 1) + "…" : c);
-  const color = (j) => `var(--s${(j % 4) + 1})`;
+  const color = (j) => `var(--s${(j % 6) + 1})`, f = (v) => fmt(v, b.percent);
   const marks = b.series.map((s, j) => h("svg:g", { fill: color(j), stroke: color(j) }, s.values.map((v, i) => {
     v = num(v);
     const iv = s.interval && [num(s.interval[0][i]), num(s.interval[1][i])], y = Y(i, j);
-    const tip = h("svg:title", {}, `${b.categories[i]} · ${s.name}: ${fmt(v)}${iv ? ` (${fmt(iv[0])} to ${fmt(iv[1])})` : ""}`);
+    const tip = h("svg:title", {}, `${b.categories[i]} · ${s.name}: ${f(v)}${iv ? ` (${f(iv[0])} to ${f(iv[1])})` : ""}`);
     return [
       iv && iv.every(Number.isFinite) && h("svg:path", { class: "error", d: `M${X(iv[0])},${y - 3}v6M${X(iv[0])},${y}H${X(iv[1])}M${X(iv[1])},${y - 3}v6` }),
       Number.isFinite(v) && (b.kind === "dot" ? h("svg:circle", { cx: X(v), cy: y, r: 3.5 }, tip)
@@ -27,7 +27,7 @@ RENDER.bars = (b) => {
   return h("figure", { class: "bars" }, b.title && h("figcaption", {}, b.title),
     h("svg:svg", { viewBox: `0 0 ${W} ${H}` },
       ticks(lo, hi).map((t) => [h("svg:line", { x1: X(t), x2: X(t), y1: T, y2: H - B, class: "grid" }),
-        h("svg:text", { x: X(t), y: H - B + 14, "text-anchor": "middle" }, fmt(t))]),
+        h("svg:text", { x: X(t), y: H - B + 14, "text-anchor": "middle" }, f(t))]),
       b.categories.map((c, i) => h("svg:text", { x: L - 8, y: Y(i, (S - 1) / 2) + 4, "text-anchor": "end", class: "category" }, h("svg:title", {}, c), cut(c))),
       b.reference != null && h("svg:line", { x1: X(b.reference), x2: X(b.reference), y1: T, y2: H - B, class: "reference" }),
       marks,

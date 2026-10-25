@@ -60,6 +60,9 @@ def read_node(path: Path) -> dict:
         raise ValueError(f"{path}: imports a name {name}, which the node's own function {name}() shadows; import it under another name")
     consts = {t.id: s.value for s in tree.body if isinstance(s, ast.Assign) for t in s.targets if isinstance(t, ast.Name)}
     metrics = _literal(consts["METRICS"], f"{path}: METRICS") if "METRICS" in consts else {}
+    for k, m in metrics.items():
+        if not isinstance(m, str) and (not isinstance(m, dict) or set(m) - {"label", "goal", "percent"}):
+            raise ValueError(f"{path}: METRICS[{k!r}] is a label, or a dict of label, goal (\"min\" or \"max\") and percent (True for a share)")
     return {
         "file": f"nodes/{path.name}",
         "doc": ast.get_docstring(tree) or "",

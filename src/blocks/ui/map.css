@@ -4,6 +4,11 @@
 .map .area { fill: var(--wash); stroke: var(--paper); stroke-width: .6; vector-effect: non-scaling-stroke; }
 .map .area:hover { stroke: var(--ink); stroke-width: 1.2; }
 .map .line { fill: none; stroke: var(--ink); stroke-width: 1.2; vector-effect: non-scaling-stroke; }
+.map .dot { /* outlined, to show on paper and on a grid of its own colours */ fill: none; stroke: var(--muted); stroke-width: 7; stroke-linecap: round; vector-effect: non-scaling-stroke;
+  filter: drop-shadow(0 0 .5px var(--ink)) drop-shadow(0 0 .5px var(--ink)); }
+.map .dot:hover { stroke-width: 10; }
+.map .dot.mark { stroke: var(--ink); stroke-width: 4; pointer-events: none; }
+.map .grid rect { shape-rendering: crispEdges; }
 .map button { font: inherit; color: var(--muted); background: none; border: 0; padding: 0; cursor: pointer; }
 .map button:hover { color: var(--ink); }
 .map .layers { display: flex; flex-wrap: wrap; gap: 4px 14px; margin: 0 0 6px; font: 12px var(--sans); }
@@ -16,4 +21,8 @@
 .map .scale .bar i { display: block; height: 8px; }
 .map .scale .bar span { position: absolute; top: 11px; transform: translateX(-50%); white-space: nowrap; }
 .map .scale .pin { position: absolute; top: -3px; width: 2px; height: 14px; margin-left: -1px; background: var(--ink); }
-.map .scale .none { display: inline-block; width: 10px; height: 8px; margin-right: 6px; background: var(--wash); border: 1px solid var(--rule); }
+.map .swatch { display: inline-block; width: 10px; height: 8px; margin-right: 6px; vertical-align: baseline; }
+.map .swatch.none { background: var(--wash); border: 1px solid var(--rule); }
+.map .key { display: flex; flex-wrap: wrap; gap: 4px 16px; font-size: 12px; color: var(--muted); margin: 4px 0 0; }
+.map .key i { display: inline-block; width: 12px; height: 2px; margin-right: 6px; vertical-align: middle; }
+.map .key i.dot { width: 6px; height: 6px; border-radius: 50%; }

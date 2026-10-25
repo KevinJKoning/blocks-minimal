@@ -2,7 +2,7 @@
 :root {
   --paper: #fbfaf7; --ink: #1a1a1a; --muted: #6b6862; --faint: #a19d95; --rule: #e4e2dc; --wash: #f2f0eb;
   --accent: #1f3a5f; --better: #2f6b3a; --worse: #a3402a; --stale: #8a6a1f;
-  --s1: #1a1a1a; --s2: #a3402a; --s3: #1f3a5f; --s4: #8a8578;
+  --s1: #1a1a1a; --s2: #a3402a; --s3: #1f3a5f; --s4: #8a8578; --s5: #2f6b3a; --s6: #b08a2e;   /* series, and names */
   --ramp-lo: #efece4; --ramp-hi: #1f3a5f; --ramp-neg: #8f4a2c;   /* the ramp: any block that shades by value */
   --serif: Charter, "Iowan Old Style", "Source Serif Pro", Georgia, serif;
   --sans: ui-sans-serif, -apple-system, "Helvetica Neue", Arial, sans-serif;

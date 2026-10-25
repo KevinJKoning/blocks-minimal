@@ -7,3 +7,5 @@
 .chart .band { fill-opacity: .15; stroke: none; }
 .chart .errors { fill: none; stroke-width: 1; stroke-opacity: .6; }
 .chart .legend i.scatter { width: 5px; height: 5px; border-radius: 50%; }
+.chart .ref { stroke: var(--ink); stroke-width: 1; stroke-dasharray: 4 3; }
+.chart .ref-name { fill: var(--ink); font-size: 10px; }

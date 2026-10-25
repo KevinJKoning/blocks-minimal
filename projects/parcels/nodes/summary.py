@@ -3,7 +3,7 @@ import numpy as np
 
 from blocks import ui
 
-METRICS = {"residential_area_share": "residential share", "total_area_ha": "total area (ha)", "value_per_ha": "value per ha"}
+METRICS = {"residential_area_share": {"label": "residential share", "percent": True}, "total_area_ha": "total area (ha)", "value_per_ha": "value per ha"}
 
 
 def summary(areas):
@@ -19,14 +19,15 @@ def summary(areas):
 
 
 def rows(out):
-    return [{"land use": u, "parcels": v["parcels"], "area (ha)": round(v["area_ha"], 2), "assessed value": round(v["value"])}
+    return [{"land use": u, "parcels": v["parcels"], "area (ha)": round(v["area_ha"], 2),
+             "share of area": round(v["area_ha"] / out["total_area_ha"], 4), "assessed value": round(v["value"])}
             for u, v in sorted(out["by_land_use"].items(), key=lambda kv: -kv[1]["area_ha"])]
 
 
 def view(out):
     return [ui.download("land_use_summary.csv", rows(out), title="parcels, area and assessed value per land use"),
             ui.metrics(),
-            ui.bars([r["land use"] for r in rows(out)], {"area": [r["area (ha)"] for r in rows(out)]}, title="Area by land use",
-                    label="hectares"),
-            ui.table(rows(out), title="By land use")]
+            ui.bars([r["land use"] for r in rows(out)], {"share": [r["share of area"] for r in rows(out)]}, title="Share of the area by land use",
+                    percent=True),
+            ui.table(rows(out), title="By land use", percent=["share of area"])]
 

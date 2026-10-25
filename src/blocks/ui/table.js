@@ -1,15 +1,15 @@
-// A table's first rows (ui.table keeps the total), numbers right-aligned. A table that holds
+// A table's first rows (ui.table keeps the total), numbers right-aligned, shares as percents. A table that holds
 // all its rows sorts by a header on click (again to reverse); a cut one does not, since it
 // would sort only what it shows.
-const cell = (v) => h("td", { class: typeof num(v) === "number" ? "num" : null }, fmt(v));
+const cell = (v, percent) => h("td", { class: typeof num(v) === "number" ? "num" : null }, fmt(v, percent));
 const order = (a, b) => (a == null ? 1 : b == null ? -1 : typeof num(a) === "number" && typeof num(b) === "number"
   ? num(a) - num(b) : String(a).localeCompare(String(b), "en", { numeric: true }));
 RENDER.table = (b) => {
-  const whole = b.total === b.rows.length, body = h("tbody");
+  const whole = b.total === b.rows.length, body = h("tbody"), shares = b.columns.map((c) => b.percent?.includes(c));
   let by = null, up = true;
   const fill = () => {
     const rows = by == null ? b.rows : [...b.rows].sort((r, s) => (up ? 1 : -1) * order(r[by], s[by]) || 0);
-    body.replaceChildren(...rows.map((r) => h("tr", {}, r.map(cell))));
+    body.replaceChildren(...rows.map((r) => h("tr", {}, r.map((v, i) => cell(v, shares[i])))));
   };
   const head = h("tr", {}, b.columns.map((c, i) => h("th", whole ? {
     class: "sortable", title: "Sort by this column",

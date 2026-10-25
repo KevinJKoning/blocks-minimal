@@ -210,7 +210,7 @@ def test_map_takes_geojson_geometries():
     square = {"type": "Polygon", "coordinates": [[[0, 0], [10, 0], [10, 10], [0, 10], [0, 0]]]}
     b = ui.map([square], [1.5], names=["a"], lines=[{"type": "LineString", "coordinates": [[0, 0], [20, 20]]}])
     assert b["bounds"] == [0, 0, 20, 20] and b["shapes"] == [[[[0, 0], [10, 0], [10, 10], [0, 10], [0, 0]]]]
-    assert b["lines"] == [[[[0, 0], [20, 20]]]] and (b["layers"][0]["values"], b["names"]) == ([1.5], ["a"])
+    assert b["lines"] == [{"name": None, "shapes": [[[[0, 0], [20, 20]]]]}] and (b["layers"][0]["values"], b["names"]) == ([1.5], ["a"])
 
 
 def test_map_layers_each_get_their_own_shading():
@@ -233,7 +233,7 @@ def test_long_series_are_thinned_and_marks_stay_in_range():
 
 def test_histogram_bins_on_round_edges():
     b = ui.histogram([-0.3, -0.1, 0.0, 0.05, 0.2, float("nan"), None], bins=5, mark=0)
-    assert b["edges"][0] <= -0.3 and b["edges"][-1] > 0.2 and sum(b["counts"]) == 5 and b["missing"] == 2
+    assert b["edges"][0] <= -0.3 and b["edges"][-1] > 0.2 and sum(b["groups"][0]["counts"]) == 5 and b["missing"] == 2
     w = b["edges"][1] - b["edges"][0]
     assert abs(w - 0.1) < 1e-12 and all(abs(e / w - round(e / w)) < 1e-9 for e in b["edges"]) and b["mark"] == 0.0
 
@@ -276,3 +276,62 @@ def test_digest_ignores_memory_addresses():
 def test_chart_band_rides_on_its_series():
     b = ui.chart([0, 1], {"a": [1, 2], "b": [3, 4]}, bands={"b": ([2, 3], [4, 5])})
     assert "band" not in b["series"][0] and b["series"][1]["band"] == [[2, 3], [4, 5]]
+
+
+def test_map_draws_points_names_named_lines_and_a_grid():
+    square = {"type": "Polygon", "coordinates": [[[0, 0], [1, 0], [1, 1], [0, 1], [0, 0]]]}
+    well = {"type": "Point", "coordinates": [2, 2]}
+    b = ui.map([square, well, square], ["farm", "town", None], lines={"roads": [{"type": "LineString", "coordinates": [[0, 0], [3, 3]]}], "wells": well})
+    assert b["shapes"][1] == [[[2, 2]]] and [g["name"] for g in b["lines"]] == ["roads", "wells"]
+    layer = b["layers"][0]
+    assert [n["name"] for n in layer["legend"]["names"]] == ["farm", "town"] and layer["fills"][2] is None
+    many = ui.map([square] * 8, list("abcdefgh"))["layers"][0]["legend"]["names"]
+    assert len(many) == 6 and many[-1]["name"] == "other (3 names)"
+    with pytest.raises(ValueError, match="numbers or names, not both"):
+        ui.map([square] * 2, ["farm", 3])
+    # Rows given south first are put north first; the grid shares the shapes' ramp.
+    g = ui.map([well], [12], grid=([0, 1, 2, 3], [0, 1, 2], [[0, 1, 2, 3], [4, 5, 6, 7], [8, 9, 10, 11]]))
+    grid = g["layers"][0]["grid"]
+    assert g["bounds"] == [-0.5, -0.5, 3.5, 2.5] and grid["cols"] == 4 and grid["values"][:4] == [8, 9, 10, 11]
+    assert g["layers"][0]["legend"]["hi"] == 12 and grid["fills"][grid["cells"][0]] == "color-mix(in oklab, var(--ramp-hi) 67%, var(--ramp-lo))"
+    big = ui.map([], grid=(range(300), range(300), [[1.0] * 300] * 300))["layers"][0]["grid"]
+    assert big["every"] == 2 and big["cols"] == 150
+
+
+def test_chart_steps_references_own_xs_and_log_axes():
+    b = ui.chart(None, {"model a": ([0, 0.5, 1], [0, 0.8, 1]), "model b": ([0, 1], [0, 1])}, kind="step",
+                 y_lines={"target": 0.9}, x_lines={"cut": 0.5}, x_percent=True)
+    assert "x" not in b and b["series"][0]["x"] == [0, 0.5, 1] and b["y_lines"] == [{"name": "target", "value": 0.9}]
+    assert b["x_percent"] and b["series"][1]["kind"] == "step"
+    with pytest.raises(ValueError, match="every series is"):
+        ui.chart(None, {"a": [1, 2]})
+    with pytest.raises(ValueError, match="kind is"):
+        ui.chart([1], {"a": [1]}, kind="bar")
+    log = ui.chart([1, 2, 3], {"a": [10, 0, -1]}, y_scale="log")
+    assert log["series"][0]["y"] == [10, None, None] and log["dropped"] == 2 and log["y_scale"] == "log"
+
+
+def test_shares_are_marked_where_they_are_made(app):
+    b = ui.table([{"use": "farm", "share": 0.706}], percent=["share"])
+    assert b["percent"] == ["share"] and b["rows"] == [["farm", 0.706]]
+    with pytest.raises(ValueError, match="both text and percent"):
+        ui.table([{"share": 0.5}], text=["share"], percent=["share"])
+    assert ui.bars(["a"], {"s": [0.5]}, percent=True)["percent"] is True
+    (app / "nodes" / "count.py").write_text('METRICS = {"n": {"label": "values", "format": "percent"}}\n' + NODES["count.py"])
+    with pytest.raises(ValueError, match="percent \\(True for a share\\)"):
+        spec.load(app)
+
+
+def test_histogram_groups_share_their_edges():
+    b = ui.histogram({"leaked": [1, 2, 3], "no leak": [2, 2, 9, None]})
+    assert [g["name"] for g in b["groups"]] == ["leaked", "no leak"] and b["missing"] == 1
+    assert [sum(g["counts"]) for g in b["groups"]] == [3, 3] and len(b["edges"]) == len(b["groups"][0]["counts"]) + 1
+
+
+def test_heatmap_shades_cells_on_the_ramp():
+    b = ui.heatmap(["leak", "no leak"], ["leak", "no leak"], [[40, 10], [5, 945]], scale="log", title="confusion")
+    assert b["fills"][1][1] == "color-mix(in oklab, var(--ramp-hi) 100%, var(--ramp-lo))" and b["dark"] == [[False, False], [False, True]]
+    c = ui.heatmap([2023, 2024], ["a"], [[-0.5], [1.0]], center=0)
+    assert c["rows"] == ["2023", "2024"] and c["fills"][0][0].startswith("color-mix(in oklab, var(--ramp-neg) 50%")
+    with pytest.raises(ValueError, match="2 rows by 1 columns"):
+        ui.heatmap(["a", "b"], ["x"], [[1]])

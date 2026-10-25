@@ -53,6 +53,7 @@ def view(out):
                     f"at {out['between_sd']:.0%} of the rate."),
         ui.map(t["wkb"], Z, names=t["territory"],
                title="Credibility by territory", label="Z"),
-        ui.chart(np.log10(m[seen]), {"own experience A / m": X[seen], "credibility-weighted θ": theta[seen]}, kind="scatter",
-                 title="Each territory's experience, and what credibility makes of it", x_label="log₁₀ expected claims"),
+        ui.chart(m[seen], {"own experience A / m": X[seen], "credibility-weighted θ": theta[seen]}, kind="scatter",
+                 title="Each territory's experience, and what credibility makes of it", x_label="expected claims",
+                 x_scale="log", y_lines={"as the GLM expects": 1}),
     ]
