@@ -3,8 +3,8 @@
 How much electricity will the utility need each month over the next year or two, and how
 sure can it be?
 
-The data is synthetic, made by `data/generate.py`: `data/demand.csv` holds ten years of
-monthly demand (January 2015 to December 2024, in GWh) with steady load growth, a winter
+The data is synthetic, made by `data/generate.py`: `data/demand/` holds ten yearly exports
+of monthly demand (January 2015 to December 2024, in GWh) with steady load growth, a winter
 heating peak, a smaller summer cooling peak and noise.
 
 `history` reads the series. `fit` fits a simple seasonal model by least squares, a linear

@@ -109,7 +109,9 @@ def b64(data: bytes) -> str:
     return base64.b64encode(data).decode()
 
 
-def build(app_dir: Path, inline: bool) -> str:
+def build(app_dir: Path, inline: bool, data: bool = True) -> str:
+    """The app's page. inline: the runtime is in it (an offline file), not served. data: its
+    datasets are in it; without them, whoever opens it chooses them."""
     a = spec.load(app_dir)
     pkgs = packages(a["imports"], {p.split("/")[0].removesuffix(".py") for p in a["files"]})
     library = {f"blocks/{f}": (PACKAGE / f).read_bytes() for f in LIBRARY}
@@ -119,7 +121,8 @@ def build(app_dir: Path, inline: bool) -> str:
         "spec": {"order": a["order"], "nodes": a["nodes"], "datasets": {d: v["path"] for d, v in a["datasets"].items()}},
         "files": {p: b64(b) for p, b in a["files"].items()},
         "library": {p: b64(b) for p, b in library.items()},
-        "data": {d: {"key": spec.sha256(v["bytes"]), "size": len(v["bytes"]), "bytes": b64(v["bytes"])}
+        "data": {d: {"key": spec.data_key(v["path"], v["files"]), "size": sum(map(len, v["files"].values())),
+                     "files": {p: b64(b) for p, b in v["files"].items()}} if data else {"key": None, "size": None, "files": None}
                  for d, v in a["datasets"].items()},
         "baseline": json.loads(baseline.read_text()) if baseline.exists() else None,
         "runtime": None if inline else "/_runtime/",

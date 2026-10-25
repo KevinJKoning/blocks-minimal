@@ -119,7 +119,23 @@ def test_builds_one_page(app):
     assert manifest["title"] == "Doubling" and manifest["runtime"] == "/_runtime/"
     assert "connect-src data: 'self';" in page and "connect-src data:;" in build.build(app, inline=True)
     assert set(manifest["files"]) == {"README.md", "nodes/double.py", "nodes/count.py"}
-    assert manifest["spec"]["datasets"] == {"numbers": "data/numbers.txt"} and set(manifest["data"]["numbers"]) == {"key", "size", "bytes"}
+    assert manifest["spec"]["datasets"] == {"numbers": "data/numbers.txt"} and set(manifest["data"]["numbers"]) == {"key", "size", "files"}
+    bare = json.loads(build.build(app, inline=False, data=False).split('id="manifest">')[1].split("</script>")[0])
+    assert bare["data"] == {"numbers": {"key": None, "size": None, "files": None}}
+
+
+def test_a_folder_is_one_dataset_read_in_name_order(app):
+    (app / "data" / "numbers.txt").unlink()
+    (app / "data" / "numbers").mkdir()
+    for name, text in [("b.txt", "2 3"), ("a.txt", "1")]:
+        (app / "data" / "numbers" / name).write_text(text)
+    (app / "nodes" / "double.py").write_text(NODES["double.py"].replace(
+        "open(numbers).read().split()", "' '.join(open(p).read() for p in numbers).split()"))
+    a = spec.load(app)
+    assert a["datasets"]["numbers"]["path"] == "data/numbers/" and list(a["datasets"]["numbers"]["files"]) == ["data/numbers/a.txt", "data/numbers/b.txt"]
+    assert graph.Graph(str(app), graph_spec(a)).run({}, {})["double"]["metrics"]["total"] == 12
+    key = spec.data_key("data/numbers/", a["datasets"]["numbers"]["files"])
+    assert key != spec.data_key("data/numbers/", {"data/numbers/c.txt": b"1", "data/numbers/b.txt": b"2 3"})
 
 
 def test_packages_follow_imports():

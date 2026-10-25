@@ -2,8 +2,10 @@
 
     projects/<app>/README.md        "# Title", then what the app is for (Markdown)
     projects/<app>/nodes/<name>.py  one node: def <name>(inputs..., *, settings...)
-    projects/<app>/data/<name>.*    a dataset, read by a node with a parameter <name> (a .py
-                                    there makes or fetches one, natively, and is not one)
+    projects/<app>/data/<name>.*    a dataset, read by a node with a parameter <name>, which
+                                    gets its path (a .py there makes or fetches one, natively,
+                                    and is not one)
+    projects/<app>/data/<name>/     a dataset of files: the node gets their paths, by name
     projects/<app>/*.py             helpers the nodes import
     projects/<app>/baseline.json    the run every check compares with (blocks baseline)
 
@@ -86,7 +88,8 @@ def load(app_dir: Path) -> dict:
     readme = (app_dir / "README.md").read_text() if (app_dir / "README.md").exists() else f"# {app_dir.name}\n"
     head, _, about = readme.partition("\n")
     nodes = {p.stem: read_node(p) for p in sorted((app_dir / "nodes").glob("*.py"))}
-    data = {p.name.split(".")[0]: p for p in sorted((app_dir / "data").glob("*")) if p.is_file() and p.suffix != ".py"} if (app_dir / "data").is_dir() else {}
+    data = {p.name.split(".")[0]: p for p in sorted((app_dir / "data").glob("*"))
+            if p.is_dir() or p.suffix != ".py"} if (app_dir / "data").is_dir() else {}
     if set(nodes) & set(data):
         raise ValueError(f"{', '.join(sorted(set(nodes) & set(data)))}: both a node and a file in data/")
     datasets = {}
@@ -102,8 +105,24 @@ def load(app_dir: Path) -> dict:
     return {
         "name": app_dir.name, "title": head.lstrip("# ").strip() or app_dir.name, "about": about.strip(),
         "order": order, "nodes": nodes, "files": files, "imports": sorted(imports(files)),
-        "datasets": {d: {"path": f"data/{p.name}", "bytes": p.read_bytes()} for d, p in datasets.items()},
+        "datasets": {d: dataset(app_dir, p) for d, p in datasets.items()},
     }
+
+
+def dataset(app_dir: Path, p: Path) -> dict:
+    """{path, files: {path: bytes}}: one file, or a folder's files (its path ends in /)."""
+    if p.is_file():
+        return {"path": f"data/{p.name}", "files": {f"data/{p.name}": p.read_bytes()}}
+    return {"path": f"data/{p.name}/", "files": {f.relative_to(app_dir).as_posix(): f.read_bytes()
+                                                  for f in sorted(p.iterdir()) if f.is_file() and not f.name.startswith(".")}}
+
+
+def data_key(path: str, files: dict[str, bytes]) -> str:
+    """A dataset's key: a file's sha256, or a folder's over each file's name and sha256. The page
+    computes the same for a replacement (page/app.js dataKey)."""
+    if not path.endswith("/"):
+        return sha256(files[path])
+    return sha256("".join(f"{p[len(path):]}\0{sha256(b)}\n" for p, b in sorted(files.items())).encode())
 
 
 def sha256(b: bytes) -> str:

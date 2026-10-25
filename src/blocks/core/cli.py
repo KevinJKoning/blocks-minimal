@@ -6,7 +6,8 @@ run       run each app headlessly and print every node: its status, metrics and 
 baseline  run each app headlessly and keep its run as projects/<app>/baseline.json, if
           every node and view succeeded
 verify    run each app headlessly and compare with its baseline
-build     dist/<app>.html, one offline file, verified from file:// with the network blocked
+build     dist/<app>.html, one offline file, verified from file:// with the network blocked;
+          --inline-data false leaves its datasets out, for whoever opens it to choose
 """
 from __future__ import annotations
 
@@ -21,7 +22,7 @@ from urllib.parse import urlsplit
 
 from .graph import compare
 
-from . import build
+from . import build, spec
 
 PROJECTS = Path("projects")
 
@@ -90,11 +91,12 @@ RUN = """async () => {
 }"""
 
 
-def run_page(urls: list[str], offline=False) -> list[dict]:
+def run_page(urls: list[str], offline=False, choose=None) -> list[dict]:
     """Open each page in headless Chromium, press Run, draw every node's page and return its
     run records. The page runs
     untrusted packages, so Chromium keeps its sandbox and the page reaches no server but its
-    own (offline: none at all)."""
+    own (offline: none at all). choose: {dataset: [files]} for a page built without its data,
+    chosen as a reader would, through the dataset's file input."""
     from playwright.sync_api import sync_playwright
     out = []
     with sync_playwright() as p:
@@ -105,6 +107,11 @@ def run_page(urls: list[str], offline=False) -> list[dict]:
             context.route("**/*", lambda route, request: route.continue_() if request.url.startswith(allowed) else route.abort())
             page = context.new_page()
             page.goto(url)
+            if choose:
+                page.evaluate("() => window.blocks.ready")
+                for d, files in choose.items():
+                    page.locator(f'input[data-dataset="{d}"]').first.set_input_files(files)
+                page.wait_for_function("() => window.blocks.state().missing.length === 0")
             out.append(page.evaluate(RUN))
             context.close()
         browser.close()
@@ -152,6 +159,7 @@ def main(argv=None):
     ap.add_argument("apps", nargs="*")
     ap.add_argument("--port", type=int, default=8765)
     ap.add_argument("--no-verify", action="store_true", help="build only")
+    ap.add_argument("--inline-data", choices=["true", "false"], default="true", help="build: put the datasets in the page")
     a = ap.parse_args(argv)
     if a.command == "serve":
         try:
@@ -166,10 +174,12 @@ def main(argv=None):
         for app in targets:
             out = Path("dist") / f"{app.name}.html"
             out.parent.mkdir(exist_ok=True)
-            out.write_text(build.build(app, inline=True))
-            print(f"{out}  {out.stat().st_size / 1e6:.1f} MB")
+            out.write_text(build.build(app, inline=True, data=a.inline_data == "true"))
+            print(f"{out}  {out.stat().st_size / 1e6:.1f} MB" + ("" if a.inline_data == "true" else ", without its data"))
             if not a.no_verify:
-                ok &= check(app, run_page([out.resolve().as_uri()], offline=True)[0])
+                choose = None if a.inline_data == "true" else {
+                    d: [str((app / p).resolve()) for p in v["files"]] for d, v in spec.load(app)["datasets"].items()}
+                ok &= check(app, run_page([out.resolve().as_uri()], offline=True, choose=choose)[0])
         sys.exit(0 if ok else 1)
     server = serve(0)
     records = run_page([f"http://127.0.0.1:{server.server_port}/{app.name}/" for app in targets])

@@ -48,6 +48,7 @@ python3.13 -m venv .venv && .venv/bin/pip install --require-hashes -r requiremen
 .venv/bin/blocks baseline parcels         # the same, kept as projects/parcels/baseline.json if nothing failed
 .venv/bin/blocks verify [APP ...]         # compare with the baseline (no APP: every app)
 .venv/bin/blocks build [APP ...]          # dist/<app>.html (git-ignored, mostly Pyodide: 20-80 MB), verified offline from file://
+                                          # --inline-data false: without its datasets; whoever opens it chooses them
 .venv/bin/python -m pytest                # -m "not browser" for the fast ones
 ```
 
@@ -63,6 +64,7 @@ projects/<app>/
   README.md          "# Title", then what the app is for (the overview page)
   nodes/<name>.py    one node: def <name>(inputs..., *, settings...)
   data/<name>.*      a dataset; a node reads it with a parameter <name> and gets its path
+  data/<name>/       a dataset of files (exports by month, say); the node gets their paths, by name
   data/*.py          a script that makes or fetches a dataset; it runs natively, by hand, never in the app
   *.py               helpers the nodes import
   ui/<name>.py|js|css  a block only this app draws (see Blocks)
@@ -110,7 +112,7 @@ the core.
 | `parcels` | a zipped Esri geodatabase read with GDAL in the browser, then areas and a summary |
 | `windstorm` | geodata joined to policies; a Poisson GLM with a wind-load offset and Bühlmann–Straub credibility, checked against its synthetic truth; its own `tiles` block in `ui/` |
 | `michigan-census` | official Census data fetched natively and analysed offline; settings shared through small nodes, county maps that diverge from zero |
-| `electricity-demand` | a seasonal forecast of synthetic monthly demand: trend plus seasonal levels, an 80% prediction band, the forecast as CSV |
+| `electricity-demand` | a seasonal forecast of synthetic monthly demand, read from a folder of yearly exports: trend plus seasonal levels, an 80% prediction band, the forecast as CSV |
 
 ## Code
 

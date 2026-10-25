@@ -41,7 +41,15 @@ const handlers = {
     graph.start("/app", JSON.stringify(spec), JSON.stringify(baseline));
     return py.runPython("import sys; sys.version.split()[0]");
   },
-  dataset({ path, buf }) { write("/app", { [path]: buf }); },
+  // A replacement, whole: a folder's old files go first.
+  dataset({ path, files }) {
+    const clear = (dir) => py.FS.readdir(dir).filter((n) => n !== "." && n !== "..").forEach((n) => {
+      const p = `${dir}/${n}`;
+      if (py.FS.isDir(py.FS.stat(p).mode)) { clear(p); py.FS.rmdir(p); } else py.FS.unlink(p);
+    });
+    if (path.endsWith("/") && py.FS.analyzePath(`/app/${path}`).exists) clear(`/app/${path.slice(0, -1)}`);
+    write("/app", files);
+  },
   run({ settings, data }) { return JSON.parse(graph.run_json(JSON.stringify(settings), JSON.stringify(data))); },
   output({ name }) { return JSON.parse(graph.output_json(name)); },
 };

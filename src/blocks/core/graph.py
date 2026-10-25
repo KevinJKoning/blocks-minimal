@@ -164,8 +164,7 @@ class Graph:
             if name in self.cache and self.cache[name][0] == key:
                 results[name] = {**self.cache[name][2], "cached": True}
                 continue
-            args = [os.path.join(self.root, self.spec["datasets"][d]) if d in self.spec["datasets"] else self.cache[d][1]
-                    for d in node["deps"]]
+            args = [self.dataset(d) if d in self.spec["datasets"] else self.cache[d][1] for d in node["deps"]]
             log, t0 = io.StringIO(), time.perf_counter()
             try:
                 with contextlib.chdir(self.root), contextlib.redirect_stdout(log), contextlib.redirect_stderr(log):
@@ -186,6 +185,13 @@ class Graph:
             self.cache[name] = (key, value, result)
             results[name] = {**result, "cached": False}
         return results
+
+    def dataset(self, d):
+        """A dataset's path, or a folder's file paths in name order."""
+        path = os.path.join(self.root, self.spec["datasets"][d])
+        if not path.endswith("/"):
+            return path
+        return [os.path.join(path, f) for f in sorted(os.listdir(path))]
 
     def blocks(self, name, value):
         """The node's view of its output (without a view, its metrics), and the traceback when

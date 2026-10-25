@@ -10,7 +10,9 @@ const text = (b64) => new TextDecoder().decode(Uint8Array.from(atob(b64), (c) =>
 const state = {
   page: decodeURIComponent(location.hash.slice(1)) || null,   // a node's name, or null: the overview
   settings: Object.fromEntries(S.order.flatMap((n) => Object.entries(S.nodes[n].settings).map(([p, s]) => [`${n}.${p}`, s.default]))),
-  data: Object.fromEntries(Object.entries(M.data).map(([d, v]) => [d, { key: v.key, size: v.size, file: null }])),
+  // dataset -> {key, size, files}: files are the ones chosen here ({path: File}), else the page's.
+  // A page built without its data has no key until they are chosen.
+  data: Object.fromEntries(Object.entries(M.data).map(([d, v]) => [d, { key: v.key, size: v.size, files: null }])),
   results: {},   // node -> its result in the last run
   record: null,  // the last run's record
   differs: null, // {node: [what differs]} from the baseline (core/graph.py compare); null without one
@@ -123,7 +125,7 @@ async function startWorker() {
     transfer.push(runtime[el.dataset.runtime]);
   }
   const decode = async (o) => Object.fromEntries(await Promise.all(Object.entries(o).map(async ([p, b]) => [p, (await bytes(b)).buffer])));
-  const data = Object.fromEntries(await Promise.all(Object.entries(M.data).map(async ([d, v]) => [S.datasets[d], (await bytes(v.bytes)).buffer])));
+  const data = await decode(Object.assign({}, ...Object.values(M.data).map((v) => v.files || {})));
   state.status = `Loading Python and ${M.packages.length} packages…`; render();
   await call("init", {
     base: M.runtime && new URL(M.runtime, location.href).href, runtime, packages: M.packages,
@@ -162,6 +164,10 @@ const GLYPH = { pending: "○", stale: "↻", running: "…", done: "●", error
 // Returns the run record, or throws when the run itself failed (a node's failure is in the record).
 async function run() {
   if (state.busy) throw new Error("a run is already going");
+  if (missing().length) {
+    state.status = `Choose ${missing().join(", ")} to run`; render();
+    throw new Error(state.status);
+  }
   let failed = null;
   state.busy = state.running = true; state.status = "Running…"; render();
   const data = Object.fromEntries(Object.entries(state.data).map(([d, v]) => [d, v.key]));
@@ -185,24 +191,42 @@ async function run() {
   return state.record;
 }
 
-async function replaceData(d, file) {
-  const buf = await file.arrayBuffer();
-  await call("dataset", { path: S.datasets[d], buf });
-  // A dataset's key is its sha256, as the build computes it: the same bytes are the same data.
-  const key = [...new Uint8Array(await crypto.subtle.digest("SHA-256", buf))].map((b) => b.toString(16).padStart(2, "0")).join("");
-  state.data[d] = { key, size: file.size, file: file.name, blob: file };
+const missing = () => Object.keys(state.data).filter((d) => state.data[d].key == null);
+const sha = async (buf) => [...new Uint8Array(await crypto.subtle.digest("SHA-256", buf))].map((b) => b.toString(16).padStart(2, "0")).join("");
+// A dataset's key, as spec.data_key computes it: the same bytes (and names) are the same data.
+async function dataKey(path, bufs) {
+  if (!path.endsWith("/")) return sha(bufs[path]);
+  const sums = await Promise.all(Object.keys(bufs).sort().map(async (p) => `${p.slice(path.length)}\0${await sha(bufs[p])}\n`));
+  return sha(new TextEncoder().encode(sums.join("")));
+}
+// Replace a dataset whole: a file, or every file of a folder (its old files go).
+async function replaceData(d, chosen) {
+  const path = S.datasets[d], folder = path.endsWith("/");
+  const files = Object.fromEntries((folder ? chosen : chosen.slice(0, 1)).map((f) => [folder ? path + f.name : path, f]));
+  const bufs = Object.fromEntries(await Promise.all(Object.entries(files).map(async ([p, f]) => [p, await f.arrayBuffer()])));
+  const key = await dataKey(path, bufs);
+  await call("dataset", { path, files: bufs });
+  state.data[d] = { key, size: Object.values(files).reduce((n, f) => n + f.size, 0), files };
   render();
 }
 const save = async (name, blob) => h("a", { href: URL.createObjectURL(await blob), download: name }).click();
-const dataBlob = async (d) => state.data[d].blob || new Blob([await bytes(M.data[d].bytes)]);
+// [path, Blob] for each of a dataset's files: those chosen here, or the page's own.
+const dataFiles = (d) => (state.data[d].files ? Object.entries(state.data[d].files)
+  : Object.entries(M.data[d].files || {}).map(([p, b]) => [p, bytes(b).then((u) => new Blob([u]))]));
 
 // Data in and files out: a card with what the file is and a button that acts on it.
 const card = (label, name, detail, ...buttons) => h("div", { class: "card" },
   h("div", {}, h("span", { class: "card-label" }, label), h("strong", {}, name), h("span", { class: "muted small" }, detail)), buttons);
-const dataCard = (d) => card("Input", state.data[d].file || S.datasets[d].split("/").pop(),
-  `${size(state.data[d].size)}${state.data[d].file ? " · replaced" : ""}`,
-  h("label", { class: `button secondary ${state.busy ? "disabled" : ""}` }, "Replace…", h("input", { type: "file", disabled: state.busy, onchange: (e) => e.target.files[0] && replaceData(d, e.target.files[0]) })),
-  h("button", { class: "secondary", onclick: () => save(state.data[d].file || S.datasets[d].split("/").pop(), dataBlob(d)) }, "Download"));
+function dataCard(d) {
+  const v = state.data[d], path = S.datasets[d], folder = path.endsWith("/"), count = Object.keys(v.files || M.data[d].files || {}).length;
+  const name = folder ? path.slice("data/".length) : (v.files ? Object.values(v.files)[0].name : path.split("/").pop());
+  const detail = v.key == null ? `Not in this page: choose ${folder ? "its files" : "the file"} to run`
+    : `${folder ? `${count} files · ` : ""}${size(v.size)}${v.files ? " · chosen here" : ""}`;
+  return card("Input", name, detail,
+    h("label", { class: `button secondary ${state.busy ? "disabled" : ""}` }, v.key == null ? "Choose…" : "Replace…",
+      h("input", { type: "file", multiple: folder, "data-dataset": d, disabled: state.busy, onchange: (e) => e.target.files.length && replaceData(d, [...e.target.files]) })),
+    v.key != null && h("button", { class: "secondary", onclick: () => dataFiles(d).forEach(([p, b]) => save(v.files ? b.name : p.split("/").pop(), b)) }, "Download"));
+}
 
 // ------------------------------------------------------------------ blocks
 // The kit a block's renderer (ui/<name>.js, the library's or an app's) may use, all of it here:
@@ -307,7 +331,8 @@ const crumb = (x) => h("p", { class: "crumb" }, h("a", { href: "#", onclick: (e)
 function dataPage(d) {
   const readers = S.order.filter((m) => S.nodes[m].deps.includes(d));
   return [crumb(d), h("h1", {}, d), h("div", { class: "cards" }, dataCard(d)),
-    h("p", { class: "muted" }, `${S.datasets[d]} in the app. Read by `, sep(readers), ". A replacement is used from the next Run.")];
+    h("p", { class: "muted" }, `${S.datasets[d]} in the app${S.datasets[d].endsWith("/") ? ", whose files its readers get by name" : ""}. Read by `,
+      sep(readers), ". A replacement, all of it, is used from the next Run.")];
 }
 
 function nodePage(n) {
@@ -370,7 +395,7 @@ window.addEventListener("hashchange", () => { state.page = decodeURIComponent(lo
 
 // For agents (and the tooling): the page's state and its two actions.
 window.blocks = {
-  state: () => ({ status: state.status, busy: state.busy, settings: state.settings, stale: [...stale()], results: state.results, record: state.record }),
+  state: () => ({ status: state.status, busy: state.busy, settings: state.settings, stale: [...stale()], missing: missing(), results: state.results, record: state.record }),
   set: (values) => { Object.assign(state.settings, values); render(); return [...stale()]; },
   run,
   output: (node) => call("output", { name: node }),
