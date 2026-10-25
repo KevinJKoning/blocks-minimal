@@ -12,7 +12,7 @@ RENDER.map = (b) => {
   // A ring of one point is a dot: a stroke of no length, with round caps.
   const d = (rings, close) => rings.map((r) => (r.length === 1 ? `M${P(r[0])}h0` : `M${r.map(P).join("L")}${close ? "Z" : ""}`)).join("");
   const areas = b.shapes.map((rings, i) => h("svg:path", { d: d(rings, true), class: dot(rings) ? "dot" : "area", "data-i": i }));
-  const named = b.lines.some((g) => g.name != null), color = (k) => (named ? `var(--s${(k % 6) + 1})` : null);
+  const named = b.lines.some((g) => g.name != null), color = (k) => (named ? hue(k) : null);
   const lines = b.lines.map((g, k) => g.shapes.map((rings) =>
     h("svg:path", { d: d(rings, false), class: dot(rings) ? "dot mark" : "line", style: color(k) && `stroke: ${color(k)}` })));
   const under = h("svg:g", { class: "grid" });

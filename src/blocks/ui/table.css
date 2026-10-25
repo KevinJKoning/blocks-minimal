@@ -4,3 +4,4 @@
 .table th.sortable:hover { color: var(--accent); }
 .table th[data-sort="up"]::after { content: " ↑"; }
 .table th[data-sort="down"]::after { content: " ↓"; }
+.table td.num { text-align: right; font-variant-numeric: tabular-nums; }

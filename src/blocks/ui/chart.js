@@ -2,7 +2,6 @@
 // series colours, with dashed reference lines. A series' band (lows, highs) is shaded beneath
 // a line, and drawn as an error bar on each of its dots. A missing point breaks a line and its
 // band. A log axis places log10 of its values, on ticks at powers of ten.
-const COLORS = ["var(--s1)", "var(--s2)", "var(--s3)", "var(--s4)", "var(--s5)", "var(--s6)"];
 // The unbroken runs of rows [x, ...values]: a row with a value missing ends one.
 function runs(rows) {
   const out = [];
@@ -56,15 +55,15 @@ RENDER.chart = (b) => {
   const bands = b.series.map((s, i) => {
     if (!s.band) return null;
     const parts = runs(s.band[0].map((lo, k) => [sx[i][k], ay(lo), ay(s.band[1][k])]));
-    if (s.kind === "scatter") return h("svg:g", { stroke: COLORS[i % COLORS.length], class: "errors" },
+    if (s.kind === "scatter") return h("svg:g", { stroke: hue(i), class: "errors" },
       parts.flat().map(([x, lo, hi]) => h("svg:path", { d: `M${X(x) - 3},${Y(lo)}h6M${X(x)},${Y(lo)}V${Y(hi)}M${X(x) - 3},${Y(hi)}h6` })));
     const step = s.kind === "step";
     const d = parts.map((p) => path(p.map(([x, lo]) => [x, lo]), step) + path([...p].reverse().map(([x, , hi]) => [x, hi]), step, true).replace(/^M/, "L") + "Z").join("");
-    return h("svg:path", { d, fill: COLORS[i % COLORS.length], class: "band" });
+    return h("svg:path", { d, fill: hue(i), class: "band" });
   });
   const marks = b.series.map((s, i) => {
     const parts = runs(s.y.map((y, k) => [sx[i][k], ay(y)]));
-    const c = COLORS[i % COLORS.length];
+    const c = hue(i);
     if (s.kind === "scatter") return h("svg:g", { fill: c }, parts.flat().map(([x, y]) => h("svg:circle", { cx: X(x), cy: Y(y), r: 2.2 })));
     return h("svg:path", { d: parts.map((p) => path(p, s.kind === "step")).join(""), stroke: c, fill: "none", "stroke-width": 1.5 });
   });
@@ -72,5 +71,5 @@ RENDER.chart = (b) => {
     h("svg:svg", { viewBox: `0 0 ${W} ${H}` }, grid, bands, refs, marks),
     b.every && h("p", { class: "muted small" }, `One point in ${fmt(b.every)} of ${fmt(b.points)} is drawn.`),
     b.dropped && h("p", { class: "muted small" }, `${fmt(b.dropped)} ${b.dropped === 1 ? "value" : "values"} at 0 or less ${b.dropped === 1 ? "has" : "have"} no place on the log axis, so left out.`),
-    b.series.length > 1 && h("p", { class: "legend" }, b.series.map((s, i) => h("span", {}, h("i", { class: s.kind, style: `background:${COLORS[i % COLORS.length]}` }), s.name))));
+    b.series.length > 1 && h("p", { class: "legend" }, b.series.map((s, i) => h("span", {}, h("i", { class: s.kind, style: `background:${hue(i)}` }), s.name))));
 };

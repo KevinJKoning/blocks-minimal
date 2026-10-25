@@ -48,7 +48,7 @@ python3.13 -m venv .venv && .venv/bin/pip install --require-hashes -r requiremen
 .venv/bin/blocks baseline parcels         # the same, kept as projects/parcels/baseline.json if nothing failed
 .venv/bin/blocks verify [APP ...]         # compare with the baseline (no APP: every app)
 .venv/bin/blocks build [APP ...]          # dist/<app>.html (git-ignored, mostly Pyodide: 20-80 MB), verified offline from file://
-                                          # --inline-data false: without its datasets; whoever opens it chooses them
+                                          # --no-data: without its datasets; whoever opens it chooses them
 .venv/bin/python -m pytest                # -m "not browser" for the fast ones
 ```
 
@@ -74,10 +74,10 @@ projects/<app>/
 | in a node file | means |
 |---|---|
 | positional parameters | what it reads: a node's output, or a dataset's path |
-| keyword-only parameters | its settings, each a literal default: a bool is a checkbox; `Annotated[int \| float, Range(min, max, step=None, log=False)]` a slider (`step` defaults to 1 for an int and any value for a float; `log` slides evenly in orders of magnitude, and ignores `step`); `Annotated[str, Choices("a", "b")]` a menu of those literals (numbers too); any other number a number box, any other string a text box |
+| keyword-only parameters | its settings, each a literal default: a bool is a checkbox; `Annotated[float, Range(min, max)]` a slider; `Annotated[str, Choices("a", "b")]` a menu; any other number or string a box |
 | the return value | its output, any Python value, passed in memory to the nodes that read it. Every number in it (in nested dicts too) is a metric: recorded, compared with the baseline and shown, the unlabelled ones folded under "more numbers" (a setting the view needs to mention comes back this way too) |
 | the docstring | the top of its page (Markdown) |
-| `METRICS = {key: "label" \| {label, goal, percent}}` | labels for its numbers, in order, each key a number's path in the output (`fit.shape` for `{"fit": {"shape": ...}}`); `goal: "min" \| "max"` colours changes; `percent: True` marks a share (0.706 reads 70.6%) |
+| `METRICS = {key: "label" \| {label, goal, percent}}` | labels for its numbers, in order, each key a number's path in the output (`fit.shape` for `{"fit": {"shape": ...}}`); `goal: "min" \| "max"` colours changes; `percent: True` marks a share |
 | `def view(out)` | its results: a list of blocks |
 
 ## Blocks
@@ -86,24 +86,20 @@ projects/<app>/
 |---|---|
 | `markdown(text)` | Markdown |
 | `metrics()` | the node's metrics, labelled, with the change since the last run and the baseline's value |
-| `table(rows, title=None, text=(), percent=(), limit=200)` | a DataFrame, pyarrow Table, `{column: values}` or list of dicts (`limit` rows shown; a table shown whole sorts by its headers); `text` names the columns whose numbers name something (a year), read as written; `percent` the columns of shares |
-| `chart(x, series, title, x_label, y_label, kind, bands=None, x_text=False, x_lines, y_lines, x_scale, y_scale, x_percent, y_percent)` | `series` is `{name: ys}`, or `{name: (xs, ys)}` on its own x (then `x` may be None); `kind` is `line`, `scatter`, `step` or `{name: kind}`; `bands` is `{name: (lows, highs)}`, shaded around a line or as error bars on dots; `x_lines`/`y_lines` `{name: value}` are dashed reference lines; a `"log"` scale leaves 0 or less out; `_percent` marks an axis of shares; `x_text` when x is years; a None or NaN is a gap |
-| `bars(categories, series, title, label, kind="bar", intervals=None, reference=None, percent=False)` | a row per named category: bars, or dots (`kind="dot"`) with `intervals` `{name: (lows, highs)}` as error bars (a forest plot); a dashed line at `reference`; `percent` for shares |
+| `table(rows, ...)` | a DataFrame, pyarrow Table, `{column: values}` or list of dicts, sortable when shown whole |
+| `chart(x, series, ...)` | lines, steps or dots over x, with bands or error bars, reference lines and log axes |
+| `bars(categories, series, ...)` | a row per category: bars, or dots with error bars (a forest plot) |
 | `figure(image, caption=None)` | SVG text or PNG bytes |
-| `histogram(values, bins=None, title, x_label, mark=None)` | counts in equal bins of a round width (about √n of them unless `bins` says), a dashed line at `mark` (0 for residuals); `values` as groups `{name: values}` share edges, each drawn as its share of its group |
-| `heatmap(rows, columns, values, title, label, center=None, scale="linear", percent=False)` | `values[i][j]` shaded on the ramp, written in the cells when they fit: a confusion matrix, correlations (`center=0`), crews by day |
-| `map(shapes, values=None, names=None, title, label, lines=None, grid=None, center=None, scale="linear")` | polygons or points (shapely, WKB or GeoJSON geometries) shaded by value, or a colour per name when values are text, in their own coordinates, diverging from `center` if given, or on a `"log"` scale (0 or less left unshaded); `lines` drawn on top (a coastline, wells), or `{name: geometries}` each in a colour with a key; `grid=(xs, ys, values)` a surface beneath, on the shapes' ramp. `values` may be layers `{name: values}` the reader switches between, with `label`, `center` and `scale` given once or `{name: ...}`. Hovering reads a region out; pinch, ctrl + scroll, double-click or + / − zoom, and dragging pans |
-| `row(*blocks, title=None)` | blocks side by side, to compare (they wrap on a narrow page) |
-| `download(name, value, title=None)` | a file to take away, as a card with a Download button: a table as `.csv`, `.json` or `.parquet`, text, or bytes |
+| `histogram(values, ...)` | counts in round bins, of one set or of groups compared |
+| `heatmap(rows, columns, values, ...)` | a value per row and column, shaded: a confusion matrix, correlations |
+| `map(shapes, values=None, ...)` | polygons, lines and points shaded by value or coloured by name, in layers, over a grid; hover and zoom |
+| `row(*blocks, title=None)` | blocks side by side, to compare |
+| `download(name, value, title=None)` | a file to take away: a table as `.csv`, `.json` or `.parquet`, text, or bytes |
 
-A block is the files of one name in `src/blocks/ui/`, or in an app's `ui/` when only that app
-draws it. Python determines meaning, JavaScript presentation: `<name>.py` returns the dict
-`{"type": "<name>", ...}` and decides what the data means (a colour scale, its centre, what is
-missing); `<name>.js` lays it out and draws it (`RENDER.<name>`, with the page's kit and
-`ui/_kit.js`); `<name>.css`, if it needs one, styles it under `.<name>` in the theme's colours.
-A node uses an app's block with `from ui.<name> import <name>`. A new block, or a new
-parameter on one (the same picture with more on it, like a band on a chart), never changes
-the core.
+Each block's parameters are in its docstring, in `src/blocks/ui/<name>.py`. Every number is
+drawn as a quantity; a share is marked `percent`, and a number that names something (a year)
+`text`, where the block is made. A block is the files of one name in `src/blocks/ui/`, or in
+an app's `ui/` when only that app draws it; AGENTS.md has the rules for writing one.
 
 ## Example apps
 

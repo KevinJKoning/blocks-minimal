@@ -104,7 +104,7 @@ def map(shapes, values=None, names=None, title=None, label=None, lines=None, gri
                                  + ("; a grid is shaded by number" if surface else ""))
             layer["values"], layer["fills"], layer["legend"] = _names(vals)
         else:
-            ts, legend = shade(vals + (surface["values"] if surface else []), pick(center, name), pick(scale, name, "linear"))
+            ts, legend = shade(vals + (surface["values"] if surface else []), pick(center, name), pick(scale, name, "linear"), "ui.map")
             layer.update(values=vals, fills=[ramp(t) for t in ts[:len(vals)]], legend=legend)
             if surface:   # its cells as indexes into the few colours they take, 1% of the ramp apart
                 steps = [None if t is None else round(t * 100) for t in ts[len(vals):]]

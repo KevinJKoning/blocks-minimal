@@ -2,10 +2,9 @@ from ._kit import MAX_ROWS, block, plain, tabulate
 
 
 def table(rows, title=None, text=(), percent=(), limit=MAX_ROWS):
-    """text: the columns whose numbers name something (a year, a code); they read as written
-    (2024, not 2,024). percent: the columns of shares, which read 70.6%, not 0.706. The rest
-    are quantities. limit: the rows the page gets (the total is kept); a table that holds all
-    its rows can be sorted by its headers."""
+    """text: the columns whose numbers name something (a year, a code); they read as written.
+    percent: the columns of shares. The rest are quantities. limit: the rows the page gets (the
+    total is kept); a table that holds all its rows can be sorted by its headers."""
     cols, data = tabulate(rows)
     unknown = (set(text) | set(percent)) - set(cols)
     if unknown:

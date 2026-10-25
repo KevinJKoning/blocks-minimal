@@ -6,7 +6,7 @@ def heatmap(rows, columns, values, title=None, label=None, center=None, scale="l
     correlations, crews by day. values[i][j] is row i's value in column j; unknown ones stay
     unshaded. center: the value meaning "no change" (0 for a correlation); colours then diverge
     from it. scale: "log" for values spread over orders of magnitude. percent: the values are
-    shares, which read 70.6%. Rows and columns are names, so a year reads 2024."""
+    shares. Rows and columns are names, read as written."""
     rows, columns = [str(r) for r in plain(rows)], [str(c) for c in plain(columns)]
     grid = [list(plain(r)) for r in values]
     if len(grid) != len(rows) or any(len(r) != len(columns) for r in grid):

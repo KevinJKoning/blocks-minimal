@@ -1,6 +1,9 @@
 // What the blocks' renderers share, on top of the page's kit; the build puts it before them,
 // unscoped. A helper moves here from a block once a second block needs it.
 
+// The i-th series colour, from the theme's six (--s1 to --s6), round again past them.
+const hue = (i) => `var(--s${(i % 6) + 1})`;
+
 // About n round ticks (1, 2 or 5 times a power of ten) from lo to hi.
 function ticks(lo, hi, n = 5) {
   const step = 10 ** Math.floor(Math.log10((hi - lo) / n || 1)), err = (hi - lo) / n / step;

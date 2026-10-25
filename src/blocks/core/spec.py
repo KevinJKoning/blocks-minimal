@@ -1,16 +1,5 @@
-"""Read an app from its files, with ast (node code never runs natively).
-
-    projects/<app>/README.md        "# Title", then what the app is for (Markdown)
-    projects/<app>/nodes/<name>.py  one node: def <name>(inputs..., *, settings...)
-    projects/<app>/data/<name>.*    a dataset, read by a node with a parameter <name>, which
-                                    gets its path (a .py there makes or fetches one, natively,
-                                    and is not one)
-    projects/<app>/data/<name>/     a dataset of files: the node gets their paths, by name
-    projects/<app>/*.py             helpers the nodes import
-    projects/<app>/baseline.json    the run every check compares with (blocks baseline)
-
-A positional parameter names another node or a dataset; a keyword-only one is a setting
-with a literal default, optionally Annotated[type, Range(...)] or Choices(...).
+"""Read an app from its files (README.md has the layout) with ast, since node code never runs
+natively: its nodes, their inputs, settings and metrics, its datasets, the order, the imports.
 """
 from __future__ import annotations
 
@@ -70,7 +59,6 @@ def read_node(path: Path) -> dict:
         "settings": {x.arg: _setting(x, d, f"{path}: {x.arg}") for x, d in zip(a.kwonlyargs, a.kw_defaults)},
         "metrics": [{"key": k, **({"label": m} if isinstance(m, str) else {"label": k, **m})} for k, m in metrics.items()],
         "view": "view" in fns,
-        "downloads": any(isinstance(n, ast.Attribute) and n.attr == "download" for n in ast.walk(tree)),
     }
 
 

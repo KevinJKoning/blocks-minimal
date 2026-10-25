@@ -19,7 +19,8 @@ const state = {
   previous: null,
   ran: {},       // node -> {settings, data} it last ran with
   status: "Starting Python…",
-  busy: true,
+  busy: true,     // the worker is starting or running
+  running: false, // a run is going
 };
 
 // ------------------------------------------------------------------ DOM
@@ -37,14 +38,13 @@ function h(tag, attrs = {}, ...kids) {
 }
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
 const num = (v) => (v === "NaN" ? NaN : v === "Infinity" ? Infinity : v === "-Infinity" ? -Infinity : v);
-// percent: v is a share, which its block's Python marked, so 0.706 reads 70.6%.
+// Every number is a quantity here. One that names something (a year, a code) reaches the page as
+// text, and a share has percent set (0.706 reads 70.6%), because its block's Python was told so.
 function fmt(v, percent) {
   v = num(v);
   if (percent && Number.isFinite(v)) return `${fmt(100 * v)}%`;
   if (typeof v !== "number") return v == null ? "—" : String(v);
   if (!Number.isFinite(v)) return String(v);
-  // Every number is a quantity here; one that names something (a year, a code) reaches the page
-  // as text, because its block's Python was told so.
   if (Number.isInteger(v)) return v.toLocaleString("en-US");
   const a = Math.abs(v);
   return a !== 0 && (a < 1e-3 || a >= 1e9) ? v.toExponential(3) : (+v.toPrecision(4)).toLocaleString("en-US", { maximumFractionDigits: 12 });
@@ -231,12 +231,10 @@ function dataCard(d) {
 }
 
 // ------------------------------------------------------------------ blocks
-// The kit a block's renderer (ui/<name>.js, the library's or an app's) may use, all of it here:
-// h, fmt, num, size, markdown, card, save, bytes; paint(block, node), to draw a block's own
-// blocks (in its "blocks" field); S, the app's spec; records(), the page's run,
-// last run and baseline; the classes muted, small, note and error; and ui/_kit.js, the blocks'
-// own shared helpers. Each renderer adds itself as RENDER.<name>; the build puts ui/_kit.js and
-// then each block's file, in its own scope, at the marker. Block helpers never go in this file.
+// The kit a block's renderer may use, all of it here: h, fmt, num, size, markdown, card, save,
+// bytes; paint(block, node), to draw a block's own blocks; S, the app's spec; records(), the
+// page's run, last run and baseline; the classes muted, small, note and error; and ui/_kit.js.
+// The build puts ui/_kit.js and then each block's script, in its own scope, at the marker.
 const RENDER = {};
 const records = () => ({ run: state.record, last: state.previous, baseline: M.baseline });
 // @blocks
@@ -261,11 +259,11 @@ function dag() {
   }));
   const boxes = nodeIds.map((id) => {
     const p = pos[id], isData = !S.nodes[id], st = isData ? "data" : statusOf(id);
-    const label = id, fits = Math.floor((p.w - 8) / 6.4);
+    const fits = Math.floor((p.w - 8) / 6.4);
     return h("svg:g", { class: `box ${st} ${state.page === id ? "sel" : ""}`, onclick: () => show(id) },
       h("svg:title", {}, isData ? `${S.datasets[id]}` : `${id}: ${st}`),
       h("svg:rect", { x: p.x, y: p.y, width: p.w, height: BH, rx: isData ? 15 : 3 }),
-      h("svg:text", { x: p.x + p.w / 2, y: p.y + BH / 2 + 4, "text-anchor": "middle" }, label.length > fits ? label.slice(0, fits - 1) + "…" : label));
+      h("svg:text", { x: p.x + p.w / 2, y: p.y + BH / 2 + 4, "text-anchor": "middle" }, id.length > fits ? id.slice(0, fits - 1) + "…" : id));
   });
   return h("svg:svg", { viewBox: `0 0 ${W} ${H}`, width: W, class: "dag" }, edges, boxes);
 }
@@ -367,10 +365,9 @@ function overview() {
     }))),
     // The app's front door: everything that goes in and everything that comes out.
     Object.keys(M.data).length > 0 && h("section", {}, h("h2", {}, "Inputs"), h("div", { class: "cards" }, Object.keys(M.data).map(dataCard))),
-    S.order.some((n) => S.nodes[n].downloads) && h("section", {}, h("h2", {}, "Outputs"),
-      S.order.some((n) => offered(n).length) ? h("div", { class: "cards" }, S.order.map((n) => h("div", { class: `cards ${statusOf(n) === "stale" ? "dim" : ""}` },
-        offered(n).map((b) => RENDER.download(b, n, `Output · ${n}`)))))
-        : h("p", { class: "muted" }, "Run to make the files.")),
+    S.order.some((n) => offered(n).length) && h("section", {}, h("h2", {}, "Outputs"),
+      h("div", { class: "cards" }, S.order.map((n) => h("div", { class: `cards ${statusOf(n) === "stale" ? "dim" : ""}` },
+        offered(n).map((b) => RENDER.download(b, n, `Output · ${n}`)))))),
     state.record && h("section", {}, h("h2", {}, "This run"),
       failing === null ? h("p", { class: "muted" }, "No baseline to compare with.")
         : Object.keys(failing).length === 0 ? h("p", { class: "ok" }, "Every node matches the baseline.")

@@ -28,8 +28,10 @@ changing `spec.py`, `build.py` or `cli.py`, restart `blocks serve`.
 ## Keeping the core small
 
 The core is `src/blocks/core/`: the executor, the build and the page's shell. Add to it only
-what every app needs; anything else is a block or a node. A block is its files in
-`src/blocks/ui/` (or an app's `ui/`), and growing it stays out of the core:
+what every app needs; anything else is a block or a node. A block is the files of its name
+in `src/blocks/ui/` (or an app's `ui/`): `<name>.py` returns `{"type": "<name>", ...}`,
+`<name>.js` adds `RENDER.<name> = (b, n) => element`, and an optional `<name>.css` styles it.
+Growing a block stays out of the core:
 
 - The core draws whatever `RENDER[type]` is and names two blocks: `metrics`, the view of a
   node without one, and `download`, which the overview gathers. Never a third.

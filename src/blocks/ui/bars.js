@@ -13,8 +13,8 @@ RENDER.bars = (b) => {
   const X = (v) => L + ((v - lo) / (hi - lo)) * (W - L - R);
   const Y = (i, j) => T + i * row + row / 2 + (S > 1 ? (j - (S - 1) / 2) * 10 : 0);
   const fits = Math.floor((L - 16) / 6.2), cut = (c) => (c.length > fits ? c.slice(0, fits - 1) + "…" : c);
-  const color = (j) => `var(--s${(j % 6) + 1})`, f = (v) => fmt(v, b.percent);
-  const marks = b.series.map((s, j) => h("svg:g", { fill: color(j), stroke: color(j) }, s.values.map((v, i) => {
+  const f = (v) => fmt(v, b.percent);
+  const marks = b.series.map((s, j) => h("svg:g", { fill: hue(j), stroke: hue(j) }, s.values.map((v, i) => {
     v = num(v);
     const iv = s.interval && [num(s.interval[0][i]), num(s.interval[1][i])], y = Y(i, j);
     const tip = h("svg:title", {}, `${b.categories[i]} · ${s.name}: ${f(v)}${iv ? ` (${f(iv[0])} to ${f(iv[1])})` : ""}`);
@@ -32,5 +32,5 @@ RENDER.bars = (b) => {
       b.reference != null && h("svg:line", { x1: X(b.reference), x2: X(b.reference), y1: T, y2: H - B, class: "reference" }),
       marks,
       b.label && h("svg:text", { x: (L + W - R) / 2, y: H - 4, "text-anchor": "middle", class: "label" }, b.label)),
-    S > 1 && h("p", { class: "legend" }, b.series.map((s, j) => h("span", {}, h("i", { class: b.kind, style: `background:${color(j)}` }), s.name))));
+    S > 1 && h("p", { class: "legend" }, b.series.map((s, j) => h("span", {}, h("i", { class: b.kind, style: `background:${hue(j)}` }), s.name))));
 };

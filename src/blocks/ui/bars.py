@@ -5,8 +5,7 @@ def bars(categories, series, title=None, label=None, kind="bar", intervals=None,
     """Values per named category, one row each, in the order given: series is {name: values};
     kind "bar" draws bars from the reference (or 0), "dot" draws dots, for estimates;
     intervals {name: (lows, highs)} draws error bars; reference is a value to draw a line at
-    (0 for a change, 1 for a relativity); percent: the values are shares, which read 70.6%,
-    not 0.706."""
+    (0 for a change, 1 for a relativity); percent: the values are shares."""
     if kind not in ("bar", "dot"):
         raise ValueError(f"ui.bars: kind is bar or dot, not {kind!r}")
     cats, intervals = [str(c) for c in plain(categories)], intervals or {}

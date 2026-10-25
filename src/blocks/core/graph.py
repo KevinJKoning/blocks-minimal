@@ -1,12 +1,7 @@
 """The graph, run in Pyodide: nodes are functions, values pass in memory, and every output is
 cached by a key over the node's code, its settings and its inputs' keys. Run computes only
-the nodes whose key changed; the rest come from the cache.
-
-spec (core/spec.py): {order, datasets: {name: path}, nodes: {name: {file, deps, settings:
-{param: {default}}, metrics: [{key, label, goal}], view}}}
-
-A run record is what a run leaves: {made, settings, data, nodes: {name: {status, key,
-metrics, digest, error, view_error}}}. Verification compares one with the baseline (compare).
+the nodes whose key changed; the rest come from the cache. A run leaves a record (record),
+and verification compares one with the baseline (compare).
 """
 from __future__ import annotations
 
@@ -38,13 +33,11 @@ def plain(v):
 
 
 def numbers(o, prefix=""):
-    """The numbers in an output (a dict or dataclass, nested), as (dotted key, value)."""
-    if hasattr(o, "__dataclass_fields__"):
-        o = {f: getattr(o, f) for f in o.__dataclass_fields__}
+    """The numbers in an output (a dict, nested), as (dotted key, value)."""
     if not isinstance(o, dict):
         return
     for k, v in o.items():
-        if isinstance(v, dict) or hasattr(v, "__dataclass_fields__"):
+        if isinstance(v, dict):
             yield from numbers(v, f"{prefix}{k}.")
         elif isinstance(v, (int, float)) and not isinstance(v, bool):
             yield f"{prefix}{k}", v
@@ -75,8 +68,6 @@ def canon(h, v):
             for x in v:
                 feed(x)
             h.update(b"]")
-        elif hasattr(v, "__dataclass_fields__"):
-            feed({f: getattr(v, f) for f in v.__dataclass_fields__})
         elif hasattr(v, "dtype") and getattr(v.dtype, "hasobject", False):     # numpy of Python objects: their bytes are addresses
             h.update(f"nd{v.shape}".encode()); feed(v.tolist())
         elif hasattr(v, "dtype") and hasattr(v, "tobytes"):                   # numpy
@@ -112,7 +103,7 @@ def digest(v) -> str:
 
 
 def to_json(o) -> str:
-    """JSON for the page: non-finite numbers as strings, since JSON has none."""
+    """JSON for the page, of plain values: non-finite numbers as strings, since JSON has none."""
     def clean(v):
         if isinstance(v, float) and not math.isfinite(v):
             return "NaN" if math.isnan(v) else ("Infinity" if v > 0 else "-Infinity")
@@ -120,8 +111,8 @@ def to_json(o) -> str:
             return {str(k): clean(x) for k, x in v.items()}
         if isinstance(v, (list, tuple)):
             return [clean(x) for x in v]
-        return v
-    return json.dumps(clean(plain(o)), default=str)
+        return clean(plain(v)) if hasattr(v, "to_pylist") or hasattr(v, "tolist") else v
+    return json.dumps(clean(o), default=str)
 
 
 class Graph:

@@ -2,7 +2,7 @@
 // value. Groups are outlines, each its share of its own group per bin, in the series colours.
 RENDER.histogram = (b) => {
   if (!b.groups.some((g) => g.counts.some((c) => c > 0))) return h("p", { class: "muted" }, "Nothing to count.");
-  const many = b.groups.length > 1, color = (j) => `var(--s${(j % 6) + 1})`;
+  const many = b.groups.length > 1;
   const sum = (cs) => cs.reduce((a, c) => a + c, 0);
   const heights = b.groups.map((g) => (many ? g.counts.map((c) => c / (sum(g.counts) || 1)) : g.counts));
   const W = 640, H = 260, R = 12, T = 12, B = 40, y1 = Math.max(...heights.flat()) * 1.05;
@@ -14,7 +14,7 @@ RENDER.histogram = (b) => {
   const marks = many
     ? b.groups.map((g, j) => {
       const d = `M${X(x0)},${Y(0)}` + heights[j].map((v, k) => `V${Y(v)}H${X(b.edges[k + 1])}`).join("") + `V${Y(0)}Z`;
-      return h("svg:g", {}, h("svg:path", { d, class: "outline", stroke: color(j), fill: color(j) }),
+      return h("svg:g", {}, h("svg:path", { d, class: "outline", stroke: hue(j), fill: hue(j) }),
         g.counts.map((c, k) => h("svg:rect", { x: X(b.edges[k]), width: X(b.edges[k + 1]) - X(b.edges[k]), y: Y(heights[j][k]), height: Y(0) - Y(heights[j][k]), class: "hit" }, tip(k, c, g))));
     })
     : b.groups[0].counts.map((c, k) => c > 0 && h("svg:rect", { x: X(b.edges[k]) + 0.5, width: Math.max(0.5, X(b.edges[k + 1]) - X(b.edges[k]) - 1), y: Y(c), height: Y(0) - Y(c), class: "bar" },
@@ -30,6 +30,6 @@ RENDER.histogram = (b) => {
       b.mark != null && h("svg:line", { x1: X(b.mark), x2: X(b.mark), y1: T, y2: Y(0), class: "mark" }),
       b.x_label && h("svg:text", { x: (L + W - R) / 2, y: H - 4, "text-anchor": "middle", class: "label" }, b.x_label),
       h("svg:text", { x: 12, y: (T + H - B) / 2, "text-anchor": "middle", class: "label", transform: `rotate(-90 12 ${(T + H - B) / 2})` }, many ? "share of its group" : "count")),
-    many && h("p", { class: "legend" }, b.groups.map((g, j) => h("span", {}, h("i", { style: `background:${color(j)}` }), g.name))),
+    many && h("p", { class: "legend" }, b.groups.map((g, j) => h("span", {}, h("i", { style: `background:${hue(j)}` }), g.name))),
     h("p", { class: "muted small" }, `${told} values in ${b.edges.length - 1} bins of width ${fmt(b.edges[1] - b.edges[0])}` + (b.missing ? `; ${b.missing} unknown left out` : "")));
 };

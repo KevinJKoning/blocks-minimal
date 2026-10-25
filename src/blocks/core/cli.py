@@ -7,7 +7,7 @@ baseline  run each app headlessly and keep its run as projects/<app>/baseline.js
           every node and view succeeded
 verify    run each app headlessly and compare with its baseline
 build     dist/<app>.html, one offline file, verified from file:// with the network blocked;
-          --inline-data false leaves its datasets out, for whoever opens it to choose
+          --no-data leaves its datasets out, for whoever opens it to choose
 """
 from __future__ import annotations
 
@@ -159,7 +159,7 @@ def main(argv=None):
     ap.add_argument("apps", nargs="*")
     ap.add_argument("--port", type=int, default=8765)
     ap.add_argument("--no-verify", action="store_true", help="build only")
-    ap.add_argument("--inline-data", choices=["true", "false"], default="true", help="build: put the datasets in the page")
+    ap.add_argument("--no-data", action="store_true", help="build: leave the datasets out of the page")
     a = ap.parse_args(argv)
     if a.command == "serve":
         try:
@@ -174,11 +174,11 @@ def main(argv=None):
         for app in targets:
             out = Path("dist") / f"{app.name}.html"
             out.parent.mkdir(exist_ok=True)
-            out.write_text(build.build(app, inline=True, data=a.inline_data == "true"))
-            print(f"{out}  {out.stat().st_size / 1e6:.1f} MB" + ("" if a.inline_data == "true" else ", without its data"))
+            out.write_text(build.build(app, inline=True, data=not a.no_data))
+            print(f"{out}  {out.stat().st_size / 1e6:.1f} MB" + (", without its data" if a.no_data else ""))
             if not a.no_verify:
-                choose = None if a.inline_data == "true" else {
-                    d: [str((app / p).resolve()) for p in v["files"]] for d, v in spec.load(app)["datasets"].items()}
+                choose = {d: [str((app / p).resolve()) for p in v["files"]]
+                          for d, v in spec.load(app)["datasets"].items()} if a.no_data else None
                 ok &= check(app, run_page([out.resolve().as_uri()], offline=True, choose=choose)[0])
         sys.exit(0 if ok else 1)
     server = serve(0)

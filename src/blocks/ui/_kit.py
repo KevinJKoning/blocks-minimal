@@ -33,14 +33,19 @@ def known(v):
     return v if isinstance(v, (int, float)) and not isinstance(v, bool) and math.isfinite(v) else None
 
 
-def shade(values, center=None, scale="linear", who="ui.map"):
+def log_scale(scale, what) -> bool:
+    """Whether a scale is log; what names it in the error, if it is neither linear nor log."""
+    if scale not in ("linear", "log"):
+        raise ValueError(f"{what} is linear or log, not {scale!r}")
+    return scale == "log"
+
+
+def shade(values, center, scale, who):
     """Each value's place on the theme's ramp and the ramp's legend {lo, hi, stops, scale,
     center, unshaded}. A place t runs from 0 (--ramp-lo) to 1 (--ramp-hi); with a center,
     values below it run to -1 (--ramp-neg). None where a value is unknown. On a log scale a
     value of 0 or less has no place, so it stays unshaded and the legend counts it."""
-    if scale not in ("linear", "log"):
-        raise ValueError(f"{who}: scale is linear or log, not {scale!r}")
-    if scale == "log" and center is not None:
+    if log_scale(scale, f"{who}: scale") and center is not None:
         raise ValueError(f"{who}: a log scale has no center")
     vals = [known(v) for v in values]
     unshaded = sum(v is not None and v <= 0 for v in vals) if scale == "log" else 0

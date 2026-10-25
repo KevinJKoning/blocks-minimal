@@ -1,4 +1,4 @@
-from ._kit import MAX_POINTS, block, known, plain
+from ._kit import MAX_POINTS, block, known, log_scale, plain
 
 KINDS = ("line", "scatter", "step")
 
@@ -19,13 +19,11 @@ def chart(x, series, title=None, x_label=None, y_label=None, kind="line", bands=
     threshold), dashed and named.
     x_scale, y_scale: "log" for values spread over orders of magnitude; values of 0 or less
     have no place on it, so they are left out and counted.
-    x_percent, y_percent: that axis holds shares, which read 70.6%, not 0.706.
-    x_text: x names something (a year), so its ticks read as written (2024, not 2,024).
+    x_percent, y_percent: that axis holds shares.
+    x_text: x names something (a year), so its ticks read as written.
     A missing value (None or NaN) is a gap: a line breaks there. Past MAX_POINTS, every
     k-th point is kept, and the chart says so."""
-    for scale, what in ((x_scale, "x_scale"), (y_scale, "y_scale")):
-        if scale not in ("linear", "log"):
-            raise ValueError(f"ui.chart: {what} is linear or log, not {scale!r}")
+    x_log, y_log = log_scale(x_scale, "ui.chart: x_scale"), log_scale(y_scale, "ui.chart: y_scale")
     pick = (lambda n: kind.get(n, "line")) if isinstance(kind, dict) else (lambda n: kind)
     for n in series:
         if pick(n) not in KINDS:
@@ -34,9 +32,9 @@ def chart(x, series, title=None, x_label=None, y_label=None, kind="line", bands=
         raise ValueError("ui.chart: with x None, every series is (xs, ys), on its own x")
     bands, dropped, thinned = bands or {}, [0], []
 
-    def placed(vals, scale, count=True):   # on a log axis, values of 0 or less are left out, and counted
+    def placed(vals, log, count=True):   # on a log axis, values of 0 or less are left out, and counted
         vals = list(plain(vals))
-        if scale != "log":
+        if not log:
             return vals
         out = [None if known(v) is not None and v <= 0 else v for v in vals]
         dropped[0] += count * sum(a is not b for a, b in zip(vals, out))
@@ -48,14 +46,14 @@ def chart(x, series, title=None, x_label=None, y_label=None, kind="line", bands=
             thinned.append((k, n))
         return k
 
-    xs = None if x is None else placed(x, x_scale)
+    xs = None if x is None else placed(x, x_log)
     k0 = every(len(xs)) if xs is not None else 1
 
     def one(n, v):
         own = _own(v)
-        sx, ys = (placed(v[0], x_scale), v[1]) if own else (None, v)
+        sx, ys = (placed(v[0], x_log), v[1]) if own else (None, v)
         k = every(len(sx)) if own else k0
-        thin = lambda vals, count=True: placed(vals, y_scale, count)[::k]
+        thin = lambda vals, count=True: placed(vals, y_log, count)[::k]
         s = {"name": str(n), "y": thin(ys), "kind": pick(n)}
         if own:
             s["x"] = sx[::k]
@@ -68,6 +66,6 @@ def chart(x, series, title=None, x_label=None, y_label=None, kind="line", bands=
     k, points = max(thinned) if thinned else (None, None)
     return block("chart", title=title, x=xs[::k0] if xs is not None else None, x_label=x_label, y_label=y_label,
                  x_text=x_text or None, series=out, x_lines=lines(x_lines), y_lines=lines(y_lines),
-                 x_scale="log" if x_scale == "log" else None, y_scale="log" if y_scale == "log" else None,
+                 x_scale="log" if x_log else None, y_scale="log" if y_log else None,
                  x_percent=x_percent or None, y_percent=y_percent or None, dropped=dropped[0] or None,
                  every=k, points=points)

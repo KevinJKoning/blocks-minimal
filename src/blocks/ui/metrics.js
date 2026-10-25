@@ -1,6 +1,5 @@
 // The node's numbers from the run, labelled by its METRICS (the spec's metrics), with the change
-// since the last run and the baseline's value. A share (percent in METRICS) reads 70.6%, and its
-// change in percentage points.
+// since the last run and the baseline's value; a share's change is in percentage points.
 RENDER.metrics = (b, n) => {
   const { run, last, baseline } = records(), declared = S.nodes[n].metrics, found = run?.nodes[n]?.metrics || {};
   const before = last?.nodes[n]?.metrics || {}, base = baseline?.nodes[n]?.metrics || {};

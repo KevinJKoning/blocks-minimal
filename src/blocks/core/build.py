@@ -36,7 +36,7 @@ CSP = ("default-src 'none'; script-src 'unsafe-inline' 'wasm-unsafe-eval'; worke
 def runtime_file(name: str) -> bytes:
     """A runtime file (core file or wheel) from the cache, or the CDN on first use."""
     want = CORE.get(name) or next((p["sha256"] for p in lock()["packages"].values() if p["file_name"] == name), None)
-    if not want or "/" in name:
+    if not want:
         raise KeyError(f"{name} is not part of Pyodide {PYODIDE}")
     path = CACHE / name
     data = path.read_bytes() if path.is_file() else b""
@@ -59,8 +59,6 @@ def packages(imports: list[str], local=()) -> list[str]:
     is none of these, nor the standard library or the app's own module, is an error now
     rather than in the browser."""
     pk = lock()["packages"]
-    if "zoneinfo" in imports:   # Pyodide has no system time zones; zoneinfo reads them from tzdata
-        imports = [*imports, "tzdata"]
     by_import = {i: n for n, p in pk.items() for i in p.get("imports", [])}
     unknown = set(imports) - set(by_import) - sys.stdlib_module_names - {"blocks", "pyodide", "js", *local}
     if unknown:
@@ -92,17 +90,9 @@ def block_files(app_dir: Path, ext: str) -> list[Path]:
 def blocks(app_dir: Path, ext: str) -> str:
     """Every block's .js or .css, the library's kit first. Each script is in its own scope, so
     a block's helpers stay its own; the kit's are every block's."""
-    kit = PACKAGE / "ui" / f"_kit{ext}"
-    files = block_files(app_dir, ext)
-    parts = [f"{{ // {p.name}\n{p.read_text()}}}" if ext == ".js" else p.read_text() for p in files]
-    return "\n".join(([kit.read_text()] if kit.exists() else []) + parts)
-
-
-def page_script(app_dir: Path) -> str:
-    app = template("page/app.js")
-    if app.count("// @blocks\n") != 1:
-        raise ValueError("page/app.js must mark once where the blocks' renderers go (// @blocks)")
-    return app.replace("// @blocks\n", blocks(app_dir, ".js"))
+    parts = [f"{{ // {p.name}\n{p.read_text()}}}" if ext == ".js" else p.read_text() for p in block_files(app_dir, ext)]
+    kit = [(PACKAGE / "ui" / "_kit.js").read_text()] if ext == ".js" else []   # styles have no kit
+    return "\n".join(kit + parts)
 
 
 def b64(data: bytes) -> str:
@@ -141,5 +131,5 @@ def build(app_dir: Path, inline: bool, data: bool = True) -> str:
     if inline:
         names = [*CORE, *(lock()["packages"][p]["file_name"] for p in pkgs)]
         parts += [script("application/octet-stream", b64(runtime_file(n)), f' data-runtime="{n}"') for n in names]
-    parts.append(script("module", page_script(app_dir)))
+    parts.append(script("module", template("page/app.js").replace("// @blocks\n", blocks(app_dir, ".js"))))
     return "\n".join(parts) + "\n"
