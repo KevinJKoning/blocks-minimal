@@ -59,6 +59,8 @@ def packages(imports: list[str], local=()) -> list[str]:
     is none of these, nor the standard library or the app's own module, is an error now
     rather than in the browser."""
     pk = lock()["packages"]
+    if "zoneinfo" in imports:   # Pyodide has no system time zones; zoneinfo reads them from tzdata
+        imports = [*imports, "tzdata"]
     by_import = {i: n for n, p in pk.items() for i in p.get("imports", [])}
     unknown = set(imports) - set(by_import) - sys.stdlib_module_names - {"blocks", "pyodide", "js", *local}
     if unknown:

@@ -159,8 +159,10 @@ function statusOf(n) {
 }
 const GLYPH = { pending: "○", stale: "↻", running: "…", done: "●", error: "✕", blocked: "–" };
 
+// Returns the run record, or throws when the run itself failed (a node's failure is in the record).
 async function run() {
-  if (state.busy) return;
+  if (state.busy) throw new Error("a run is already going");
+  let failed = null;
   state.busy = state.running = true; state.status = "Running…"; render();
   const data = Object.fromEntries(Object.entries(state.data).map(([d, v]) => [d, v.key]));
   try {
@@ -175,9 +177,11 @@ async function run() {
     state.status = `Ran ${ran} of ${S.order.length} in ${((performance.now() - t0) / 1000).toFixed(1)} s`;
   } catch (e) {
     state.status = `Failed: ${e.message}`;
+    failed = e;
   }
   state.busy = state.running = false;
   render();
+  if (failed) throw failed;
   return state.record;
 }
 
@@ -354,7 +358,7 @@ function chrome() {
   document.querySelector("header").replaceChildren(
     h("a", { class: "title", href: "#", onclick: (e) => { e.preventDefault(); show(null); } }, M.title),
     h("span", { class: "status-text" }, state.status),
-    h("button", { onclick: run, disabled: state.busy }, "Run"));
+    h("button", { onclick: () => run().catch(() => {}), disabled: state.busy }, "Run"));
   document.querySelector("nav").replaceChildren(dag());
 }
 function render() {

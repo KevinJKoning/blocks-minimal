@@ -1,6 +1,17 @@
 // Lines or dots over a shared x, on nice ticks, in the theme's series colours. A series' band
-// (lows, highs) is shaded beneath a line, and drawn as an error bar on each of its dots.
+// (lows, highs) is shaded beneath a line, and drawn as an error bar on each of its dots. A
+// missing point breaks a line and its band.
 const COLORS = ["var(--s1)", "var(--s2)", "var(--s3)", "var(--s4)"];
+// The unbroken runs of rows [x, ...values]: a row with a value missing ends one.
+function runs(rows) {
+  const out = [];
+  let open = false;
+  for (const r of rows) {
+    if (r.every(Number.isFinite)) { if (!open) out.push([]); out.at(-1).push(r); open = true; }
+    else open = false;
+  }
+  return out;
+}
 RENDER.chart = (b) => {
   const W = 640, H = 300, R = 12, T = 12, B = 40;
   const xs = b.x.map(num), ys = b.series.flatMap((s) => [s.y, ...(s.band || [])].flat().map(num)).filter(Number.isFinite);
@@ -22,23 +33,23 @@ RENDER.chart = (b) => {
     b.x_label && h("svg:text", { x: (L + W - R) / 2, y: H - 4, "text-anchor": "middle", class: "label" }, b.x_label),
     b.y_label && h("svg:text", { x: 12, y: (T + H - B) / 2, "text-anchor": "middle", class: "label", transform: `rotate(-90 12 ${(T + H - B) / 2})` }, b.y_label),
   ];
+  const path = (pts) => pts.map(([x, y], k) => `${k ? "L" : "M"}${X(x).toFixed(1)},${Y(y).toFixed(1)}`).join("");
   const bands = b.series.map((s, i) => {
     if (!s.band) return null;
-    const pts = s.band[0].map((lo, k) => [xs[k], num(lo), num(s.band[1][k])]).filter((p) => p.every(Number.isFinite));
-    if (!pts.length) return null;
+    const parts = runs(s.band[0].map((lo, k) => [xs[k], num(lo), num(s.band[1][k])]));
     if (s.kind === "scatter") return h("svg:g", { stroke: COLORS[i % COLORS.length], class: "errors" },
-      pts.map(([x, lo, hi]) => h("svg:path", { d: `M${X(x) - 3},${Y(lo)}h6M${X(x)},${Y(lo)}V${Y(hi)}M${X(x) - 3},${Y(hi)}h6` })));
-    const d = [...pts.map(([x, lo]) => [x, lo]), ...pts.reverse().map(([x, , hi]) => [x, hi])]
-      .map(([x, y], k) => `${k ? "L" : "M"}${X(x).toFixed(1)},${Y(y).toFixed(1)}`).join("") + "Z";
+      parts.flat().map(([x, lo, hi]) => h("svg:path", { d: `M${X(x) - 3},${Y(lo)}h6M${X(x)},${Y(lo)}V${Y(hi)}M${X(x) - 3},${Y(hi)}h6` })));
+    const d = parts.map((p) => path([...p.map(([x, lo]) => [x, lo]), ...[...p].reverse().map(([x, , hi]) => [x, hi])]) + "Z").join("");
     return h("svg:path", { d, fill: COLORS[i % COLORS.length], class: "band" });
   });
   const marks = b.series.map((s, i) => {
-    const pts = s.y.map((y, k) => [xs[k], num(y)]).filter(([x, y]) => Number.isFinite(x) && Number.isFinite(y));
+    const parts = runs(s.y.map((y, k) => [xs[k], num(y)]));
     const c = COLORS[i % COLORS.length];
-    if (s.kind === "scatter") return h("svg:g", { fill: c }, pts.map(([x, y]) => h("svg:circle", { cx: X(x), cy: Y(y), r: 2.2 })));
-    return h("svg:path", { d: pts.map(([x, y], k) => `${k ? "L" : "M"}${X(x).toFixed(1)},${Y(y).toFixed(1)}`).join(""), stroke: c, fill: "none", "stroke-width": 1.5 });
+    if (s.kind === "scatter") return h("svg:g", { fill: c }, parts.flat().map(([x, y]) => h("svg:circle", { cx: X(x), cy: Y(y), r: 2.2 })));
+    return h("svg:path", { d: parts.map(path).join(""), stroke: c, fill: "none", "stroke-width": 1.5 });
   });
   return h("figure", { class: "chart" }, b.title && h("figcaption", {}, b.title),
     h("svg:svg", { viewBox: `0 0 ${W} ${H}` }, grid, bands, marks),
+    b.every && h("p", { class: "muted small" }, `One point in ${fmt(b.every)} of ${fmt(b.points)} is drawn.`),
     b.series.length > 1 && h("p", { class: "legend" }, b.series.map((s, i) => h("span", {}, h("i", { class: s.kind, style: `background:${COLORS[i % COLORS.length]}` }), s.name))));
 };

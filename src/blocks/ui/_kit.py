@@ -13,6 +13,8 @@ def tabulate(rows) -> tuple[list[str], list[list]]:
         d = rows.to_pydict()
         return list(d), [list(r) for r in zip(*d.values())]
     if hasattr(rows, "itertuples"):
+        if any(n is not None for n in rows.index.names):   # a named index (a groupby's) is data
+            rows = rows.reset_index()
         return [str(c) for c in rows.columns], [list(r) for r in rows.itertuples(index=False)]
     if isinstance(rows, dict):
         return [str(c) for c in rows], [list(r) for r in zip(*(plain(list(v)) for v in rows.values()))]

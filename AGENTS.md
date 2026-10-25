@@ -1,12 +1,13 @@
 # Working in this repo (for agents)
 
 Read `README.md` first. Never run node code with native Python, its helpers included; it runs
-in Pyodide, in the page (`blocks serve`) or headless (`blocks verify`), and the venv has none of
+in Pyodide, in the page (`blocks serve`) or headless (`blocks run APP`), and the venv has none of
 its packages. A script in `data/` that makes or fetches a dataset is the exception: run it natively.
 
 ## Iterating on an app
 
-Edit node files, then reload `/<app>/` and drive it with `window.blocks`: `set({...})`
+Edit node files, then `blocks run APP` to see every node's status, metrics and errors. In
+the page, reload `/<app>/` and drive it with `window.blocks`: `set({"node.param": v})`
 marks what is stale, `run()` computes it and returns the run record, `output(node)` reads
 an output, `state()` has every result and its blocks, `show(node)` opens a page. Changes
 to apps (their `ui/` too), `src/blocks/ui/`, `graph.py`, `worker.js` and `page/` show on reload; after

@@ -18,6 +18,8 @@ def histogram(values, bins=None, title=None, x_label=None, mark=None):
     if not vals:
         return block("histogram", title=title, x_label=x_label, edges=[], counts=[], missing=missing)
     lo, hi = min(vals), max(vals)
+    if mark is not None:   # the bins reach the mark, so it is always drawn
+        lo, hi = min(lo, float(mark)), max(hi, float(mark))
     target = bins or min(40, max(5, round(math.sqrt(len(vals)))))
     width = _nice((hi - lo) / target) if hi > lo else 1.0
     start = math.floor(lo / width) * width
@@ -27,4 +29,4 @@ def histogram(values, bins=None, title=None, x_label=None, mark=None):
         counts[min(n - 1, int((v - start) // width))] += 1
     edges = [round(start + k * width, 12) for k in range(n + 1)]
     return block("histogram", title=title, x_label=x_label, edges=edges, counts=counts, missing=missing or None,
-                 mark=float(mark) if mark is not None and edges[0] <= mark <= edges[-1] else None)
+                 mark=float(mark) if mark is not None else None)

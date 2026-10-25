@@ -2,7 +2,8 @@
 
     projects/<app>/README.md        "# Title", then what the app is for (Markdown)
     projects/<app>/nodes/<name>.py  one node: def <name>(inputs..., *, settings...)
-    projects/<app>/data/<name>.*    a dataset, read by a node with a parameter <name>
+    projects/<app>/data/<name>.*    a dataset, read by a node with a parameter <name> (a .py
+                                    there makes or fetches one, natively, and is not one)
     projects/<app>/*.py             helpers the nodes import
     projects/<app>/baseline.json    the run every check compares with (blocks baseline)
 
@@ -23,7 +24,7 @@ def _literal(node, where):
     try:
         return ast.literal_eval(node)
     except ValueError:
-        raise ValueError(f"{where}: must be a literal") from None
+        raise ValueError(f"{where}: must be written out as a literal (an app is read as source, not run)") from None
 
 
 def _setting(arg: ast.arg, default, where) -> dict:
@@ -53,6 +54,8 @@ def read_node(path: Path) -> dict:
         raise ValueError(f"{path}: {name}() takes no *args or **kwargs")
     if None in a.kw_defaults:
         raise ValueError(f"{path}: every setting needs a default")
+    if name in {x.asname or x.name.split(".")[0] for n in tree.body if isinstance(n, (ast.Import, ast.ImportFrom)) for x in n.names}:
+        raise ValueError(f"{path}: imports a name {name}, which the node's own function {name}() shadows; import it under another name")
     consts = {t.id: s.value for s in tree.body if isinstance(s, ast.Assign) for t in s.targets if isinstance(t, ast.Name)}
     metrics = _literal(consts["METRICS"], f"{path}: METRICS") if "METRICS" in consts else {}
     return {
@@ -83,7 +86,7 @@ def load(app_dir: Path) -> dict:
     readme = (app_dir / "README.md").read_text() if (app_dir / "README.md").exists() else f"# {app_dir.name}\n"
     head, _, about = readme.partition("\n")
     nodes = {p.stem: read_node(p) for p in sorted((app_dir / "nodes").glob("*.py"))}
-    data = {p.name.split(".")[0]: p for p in sorted((app_dir / "data").glob("*")) if p.is_file()} if (app_dir / "data").is_dir() else {}
+    data = {p.name.split(".")[0]: p for p in sorted((app_dir / "data").glob("*")) if p.is_file() and p.suffix != ".py"} if (app_dir / "data").is_dir() else {}
     if set(nodes) & set(data):
         raise ValueError(f"{', '.join(sorted(set(nodes) & set(data)))}: both a node and a file in data/")
     datasets = {}

@@ -80,7 +80,7 @@ RENDER.map = (b) => {
 
   show(layer); apply();
   return h("figure", { class: "map" }, b.title && h("figcaption", {}, b.title),
-    tabs.length && h("p", { class: "layers" }, tabs), svg,
+    tabs.length > 0 && h("p", { class: "layers" }, tabs), svg,
     h("p", { class: "under" }, readout, h("span", { class: "zoom" },
       h("button", { onclick: () => zoom(2), "aria-label": "zoom in" }, "+"), h("button", { onclick: () => zoom(0.5), "aria-label": "zoom out" }, "−"), reset)),
     legend);

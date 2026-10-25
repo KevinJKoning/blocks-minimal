@@ -1,9 +1,12 @@
-"""blocks serve | build | baseline | verify, run from the repository root.
+"""blocks serve | run | baseline | verify | build [APP ...], run from the repository root;
+with no APP, every app in projects/.
 
 serve     the apps at http://127.0.0.1:8765/<app>/, rebuilt on every request
-build     dist/<app>.html, one offline file, verified from file:// with the network blocked
-baseline  run each app headlessly and keep its run as projects/<app>/baseline.json
+run       run each app headlessly and print every node: its status, metrics and errors
+baseline  run each app headlessly and keep its run as projects/<app>/baseline.json, if
+          every node and view succeeded
 verify    run each app headlessly and compare with its baseline
+build     dist/<app>.html, one offline file, verified from file:// with the network blocked
 """
 from __future__ import annotations
 
@@ -75,7 +78,8 @@ def serve(port: int) -> ThreadingHTTPServer:
 # Run, then open every node's page: a block that failed to draw is a failed view.
 RUN = """async () => {
   await window.blocks.ready;
-  const rec = await window.blocks.run();
+  let rec;
+  try { rec = await window.blocks.run(); } catch (e) { return { failed: e.message }; }
   for (const n of Object.keys(rec.nodes)) {
     window.blocks.show(n);
     const failed = [...document.querySelectorAll("[data-failed]")].map((e) => e.textContent);
@@ -107,7 +111,30 @@ def run_page(urls: list[str], offline=False) -> list[dict]:
     return out
 
 
+def faults(record: dict) -> dict:
+    """{node: its error or view error, in full} for the nodes that failed in a run."""
+    return {n: r.get("error") or ("its view failed:\n" + r["view_error"]) for n, r in record["nodes"].items()
+            if r["status"] != "done" or r.get("view_error")}
+
+
+def show(app: Path, record: dict) -> bool:
+    """Print a run, node by node, with each failure in full; True when nothing failed."""
+    if "failed" in record:
+        print(f"{app.name}: the run failed: {record['failed']}")
+        return False
+    bad = faults(record)
+    print(f"{app.name}:")
+    for n, r in record["nodes"].items():
+        metrics = ", ".join(f"{k}={v:.6g}" if isinstance(v, float) else f"{k}={v}" for k, v in r.get("metrics", {}).items())
+        print(f"  {n}  {r['status']}" + (f"  {metrics}" if metrics else ""))
+        if n in bad:
+            print("    " + bad[n].strip().replace("\n", "\n    "))
+    return not bad
+
+
 def check(app: Path, record: dict) -> bool:
+    if "failed" in record:
+        return show(app, record)
     baseline = app / "baseline.json"
     if not baseline.exists():
         print(f"{app.name}: no baseline (blocks baseline {app.name})")
@@ -121,7 +148,7 @@ def check(app: Path, record: dict) -> bool:
 
 def main(argv=None):
     ap = argparse.ArgumentParser(prog="blocks", description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("command", choices=["serve", "build", "baseline", "verify"])
+    ap.add_argument("command", choices=["serve", "run", "baseline", "verify", "build"])
     ap.add_argument("apps", nargs="*")
     ap.add_argument("--port", type=int, default=8765)
     ap.add_argument("--no-verify", action="store_true", help="build only")
@@ -146,11 +173,19 @@ def main(argv=None):
         sys.exit(0 if ok else 1)
     server = serve(0)
     records = run_page([f"http://127.0.0.1:{server.server_port}/{app.name}/" for app in targets])
+    if a.command == "run":
+        sys.exit(0 if all([show(app, r) for app, r in zip(targets, records)]) else 1)
     if a.command == "baseline":
+        ok = True
         for app, record in zip(targets, records):
+            if "failed" in record or faults(record):   # a baseline holds only a run that worked
+                show(app, record)
+                print(f"{app.name}: no baseline recorded")
+                ok = False
+                continue
             (app / "baseline.json").write_text(json.dumps(record, indent=1) + "\n")
-            print(f"{app.name}: baseline recorded" + "".join(f"\n  {n} failed" for n, r in record["nodes"].items() if r["status"] != "done")
-                  + "".join(f"\n  {n}: its view failed" for n, r in record["nodes"].items() if r.get("view_error")))
+            print(f"{app.name}: baseline recorded")
+        sys.exit(0 if ok else 1)
     else:
         sys.exit(0 if all([check(app, r) for app, r in zip(targets, records)]) else 1)
 

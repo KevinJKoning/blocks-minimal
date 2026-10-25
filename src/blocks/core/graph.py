@@ -54,38 +54,55 @@ def numbers(o, prefix=""):
 
 def canon(h, v):
     """Feed a value into a hash deterministically: two outputs are the same when this is."""
-    if v is None or isinstance(v, (bool, int, str)):
-        h.update(json.dumps(v).encode())
-    elif isinstance(v, float):
-        h.update(("f" + ("nan" if math.isnan(v) else repr(v))).encode())
-    elif isinstance(v, (bytes, bytearray)):
-        h.update(b"b" + bytes(v))
-    elif isinstance(v, dict):
-        h.update(b"{")
-        for k in sorted(v, key=str):
-            canon(h, str(k)); canon(h, v[k])
-        h.update(b"}")
-    elif isinstance(v, (list, tuple)):
-        h.update(b"[")
-        for x in v:
-            canon(h, x)
-        h.update(b"]")
-    elif hasattr(v, "__dataclass_fields__"):
-        canon(h, {f: getattr(v, f) for f in v.__dataclass_fields__})
-    elif hasattr(v, "dtype") and getattr(v.dtype, "hasobject", False):     # numpy of Python objects: their bytes are addresses
-        h.update(f"nd{v.shape}".encode()); canon(h, v.tolist())
-    elif hasattr(v, "dtype") and hasattr(v, "tobytes"):                   # numpy
-        h.update(f"nd{v.dtype.str}{v.shape}".encode() + v.tobytes())
-    elif hasattr(v, "to_pydict"):                                         # pyarrow table
-        canon(h, v.to_pydict())
-    elif hasattr(v, "to_pylist"):                                         # pyarrow array
-        canon(h, v.to_pylist())
-    elif hasattr(v, "columns") and hasattr(v, "to_numpy"):                # pandas
-        canon(h, {str(c): v[c].to_numpy() for c in v.columns})
-    elif hasattr(v, "item"):
-        canon(h, v.item())
-    else:   # an object's default repr holds its address, which differs from run to run
-        h.update(re.sub(r" at 0x[0-9a-fA-F]+", "", repr(v)).encode())
+    seen = set()
+
+    def feed(v):
+        if v is None or isinstance(v, (bool, int, str)):
+            h.update(json.dumps(v).encode())
+        elif isinstance(v, float):
+            h.update(("f" + ("nan" if math.isnan(v) else repr(v))).encode())
+        elif isinstance(v, (bytes, bytearray)):
+            h.update(b"b" + bytes(v))
+        elif isinstance(v, type):   # a class (numpy's float64 has a dtype of its own): its name
+            h.update(f"t{v.__module__}.{v.__qualname__}".encode())
+        elif isinstance(v, dict):
+            h.update(b"{")
+            for k in sorted(v, key=str):
+                feed(str(k)); feed(v[k])
+            h.update(b"}")
+        elif isinstance(v, (list, tuple)):
+            h.update(b"[")
+            for x in v:
+                feed(x)
+            h.update(b"]")
+        elif hasattr(v, "__dataclass_fields__"):
+            feed({f: getattr(v, f) for f in v.__dataclass_fields__})
+        elif hasattr(v, "dtype") and getattr(v.dtype, "hasobject", False):     # numpy of Python objects: their bytes are addresses
+            h.update(f"nd{v.shape}".encode()); feed(v.tolist())
+        elif hasattr(v, "dtype") and hasattr(v, "tobytes"):                   # numpy
+            h.update(f"nd{v.dtype.str}{v.shape}".encode() + v.tobytes())
+        elif hasattr(v, "to_pydict"):                                         # pyarrow table
+            feed(v.to_pydict())
+        elif hasattr(v, "to_pylist"):                                         # pyarrow array
+            feed(v.to_pylist())
+        elif hasattr(v, "columns") and hasattr(v, "to_numpy"):                # pandas
+            feed({str(c): v[c].to_numpy() for c in v.columns})
+        elif hasattr(v, "item"):
+            feed(v.item())
+        else:   # any other object: its class and what it would pickle (a fitted model's weights,
+            # a geometry's WKB); its repr, less the address that differs run to run, if nothing
+            try:
+                state = None if id(v) in seen else v.__reduce_ex__(4)
+            except Exception:  # noqa: BLE001 - it cannot be pickled
+                state = None
+            seen.add(id(v))
+            h.update(f"o{type(v).__module__}.{type(v).__qualname__}".encode())
+            if isinstance(state, tuple):
+                feed(state[1:3])
+            else:
+                h.update(re.sub(r" at 0x[0-9a-fA-F]+", "", repr(v)).encode())
+
+    feed(v)
 
 
 def digest(v) -> str:
@@ -158,8 +175,13 @@ class Graph:
                 results[name] = {"status": "error", "key": key, "error": traceback.format_exc(), "log": log.getvalue()[-20000:]}
                 continue
             blocks, view_error = self.blocks(name, value)
+            metrics = dict(numbers(value))
+            unknown = [m["key"] for m in node["metrics"] if m["key"] not in metrics]
+            if unknown and not view_error:   # a label for no number is a typo, and it fails the run like a broken view
+                view_error = (f"METRICS labels {', '.join(unknown)}, but the output has no such number "
+                              f"(its numbers: {', '.join(metrics) or 'none'})")
             result = {"status": "done", "key": key, "seconds": round(time.perf_counter() - t0, 4), "settings": mine,
-                      "metrics": dict(numbers(value)), "digest": digest(value), "blocks": blocks, "view_error": view_error,
+                      "metrics": metrics, "digest": digest(value), "blocks": blocks, "view_error": view_error,
                       "log": log.getvalue()[-20000:]}
             self.cache[name] = (key, value, result)
             results[name] = {**result, "cached": False}
@@ -196,7 +218,7 @@ def compare(run: dict, ref: dict, rel_tol=1e-9, abs_tol=1e-12) -> dict:
     """{node: [what differs]} between a run and its reference (the baseline); empty: they match."""
     def same(a, b):
         if isinstance(a, (int, float)) and isinstance(b, (int, float)):
-            return math.isclose(a, b, rel_tol=rel_tol, abs_tol=abs_tol)
+            return math.isclose(a, b, rel_tol=rel_tol, abs_tol=abs_tol) or (math.isnan(a) and math.isnan(b))
         return a == b
     show = lambda v: f"{v:.6g}" if isinstance(v, float) else v
     out = {}
@@ -206,6 +228,8 @@ def compare(run: dict, ref: dict, rel_tol=1e-9, abs_tol=1e-12) -> dict:
             out[n] = ["only in the baseline" if b else "not in the baseline"]
         elif a["status"] != "done":
             out[n] = [(a.get("error") or a["status"]).strip().splitlines()[-1]]
+        elif b["status"] != "done":
+            out[n] = [f"{b['status']} in the baseline"]
         else:
             bad = [f"{k}: {show(b['metrics'].get(k))} → {show(a['metrics'].get(k))}" for k in set(a["metrics"]) | set(b["metrics"])
                    if not same(a["metrics"].get(k), b["metrics"].get(k))]

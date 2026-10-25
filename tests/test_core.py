@@ -93,6 +93,24 @@ def test_compare_with_the_baseline(app):
     broken = graph.Graph(str(app), graph_spec(spec.load(app))).run({}, {})
     assert broken["count"]["blocks"] == [] and "KeyError" in broken["count"]["view_error"]
     assert graph.compare(graph.record(broken, {}, {}), base) == {"count": ["view failed: KeyError: 'nope'"]}
+    failed_base = {**base, "nodes": {**base["nodes"], "count": {"status": "error", "error": "Traceback\nValueError: x"}}}
+    assert graph.compare(base, failed_base) == {"count": ["error in the baseline"]}
+    nan = {"nodes": {"n": {"status": "done", "metrics": {"m": float("nan")}, "digest": "d"}}}
+    assert graph.compare(nan, nan) == {}
+
+
+def test_metrics_labels_must_name_numbers(app):
+    (app / "nodes" / "double.py").write_text(NODES["double.py"].replace('{"total":', '{"totl":'))
+    r = graph.Graph(str(app), graph_spec(spec.load(app))).run({}, {})["double"]
+    assert r["status"] == "done" and "METRICS labels totl" in r["view_error"] and "total" in r["view_error"]
+
+
+def test_data_scripts_are_not_datasets_and_imports_cannot_shadow_a_node(app):
+    (app / "data" / "generate.py").write_text("print('makes numbers.txt')")
+    assert set(spec.load(app)["datasets"]) == {"numbers"}
+    (app / "nodes" / "count.py").write_text("from collections import Counter as count\n\ndef count(double):\n    return {}\n")
+    with pytest.raises(ValueError, match="shadows"):
+        spec.load(app)
 
 
 def test_builds_one_page(app):
@@ -175,7 +193,7 @@ def test_numbers_that_name_something_read_as_written():
 def test_map_takes_geojson_geometries():
     square = {"type": "Polygon", "coordinates": [[[0, 0], [10, 0], [10, 10], [0, 10], [0, 0]]]}
     b = ui.map([square], [1.5], names=["a"], lines=[{"type": "LineString", "coordinates": [[0, 0], [20, 20]]}])
-    assert b["bounds"] == [0, 0, 10, 10] and b["shapes"] == [[[[0, 0], [10, 0], [10, 10], [0, 10], [0, 0]]]]
+    assert b["bounds"] == [0, 0, 20, 20] and b["shapes"] == [[[[0, 0], [10, 0], [10, 10], [0, 10], [0, 0]]]]
     assert b["lines"] == [[[[0, 0], [20, 20]]]] and (b["layers"][0]["values"], b["names"]) == ([1.5], ["a"])
 
 
@@ -188,6 +206,13 @@ def test_map_layers_each_get_their_own_shading():
         ui.map([square], [1], label={"rate": "x"})
     with pytest.raises(ValueError, match="2 shapes but 1 values in 'rate'"):
         ui.map([square] * 2, {"rate": [1]})
+
+
+def test_long_series_are_thinned_and_marks_stay_in_range():
+    b = ui.chart(range(12001), {"y": range(12001)})
+    assert (b["every"], b["points"], len(b["x"]), b["x"][:2]) == (3, 12001, 4001, [0, 3])
+    h = ui.histogram([1, 2, 3], mark=-5)
+    assert h["edges"][0] <= -5 and h["mark"] == -5
 
 
 def test_histogram_bins_on_round_edges():

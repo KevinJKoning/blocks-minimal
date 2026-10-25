@@ -53,9 +53,10 @@ def map(shapes, values=None, names=None, title=None, label=None, lines=None, cen
     label, center and scale then apply to every layer, or take {name: ...} for each.
     center: the value meaning "no change" (0 for a change); colours then diverge from it.
     scale: "log" for values spread over orders of magnitude (policy-years, populations).
-    lines: geometries drawn on top, such as a coastline."""
+    lines: geometries drawn on top, such as a coastline or a route; the map's extent takes in
+    both."""
     shapes, lines = [_rings(s) for s in plain(shapes)], [_rings(g) for g in plain(lines or [])]
-    xs, ys = zip(*(p for s in shapes for r in s for p in r))
+    xs, ys = zip(*(p for g in shapes + lines for r in g for p in r))
     bounds = [min(xs), min(ys), max(xs), max(ys)]
     digits = max(0, 4 - len(str(int(max(bounds[2] - bounds[0], bounds[3] - bounds[1], 1)))))   # about 1/10,000 of the extent
     rnd = lambda rings: [[[round(x, digits), round(y, digits)] for x, y in r] for r in rings]

@@ -26,7 +26,7 @@ def view(out):                              # optional: how its results look
 - **The graph is the functions' signatures.** Positional parameters are inputs: another
   node by its name, or a file in `data/` by its stem. Keyword-only parameters are
   settings. There is no config file: the title and description are the README's, the
-  packages are the imports.
+  packages are the imports (Pyodide's builds of them, not the venv's).
 - **Cached.** Each output is keyed by its node's code, settings and inputs' keys. Changing
   `alpha` makes `train` and what reads it stale; Run re-runs just those.
 - **The page is blocks.** The graph is the table of contents. Each node is one page: its
@@ -44,9 +44,10 @@ def view(out):                              # optional: how its results look
 python3.13 -m venv .venv && .venv/bin/pip install --require-hashes -r requirements.lock
 .venv/bin/pip install --no-deps --no-build-isolation -e . && .venv/bin/playwright install chromium
 .venv/bin/blocks serve                    # http://127.0.0.1:8765/<app>/, rebuilt on every request
-.venv/bin/blocks baseline parcels         # run headlessly, keep projects/parcels/baseline.json
-.venv/bin/blocks verify                   # run every app, compare with its baseline
-.venv/bin/blocks build                    # dist/<app>.html (git-ignored, mostly Pyodide: 20-80 MB), verified offline from file://
+.venv/bin/blocks run parcels              # run headlessly; print each node's status, metrics and errors
+.venv/bin/blocks baseline parcels         # the same, kept as projects/parcels/baseline.json if nothing failed
+.venv/bin/blocks verify [APP ...]         # compare with the baseline (no APP: every app)
+.venv/bin/blocks build [APP ...]          # dist/<app>.html (git-ignored, mostly Pyodide: 20-80 MB), verified offline from file://
 .venv/bin/python -m pytest                # -m "not browser" for the fast ones
 ```
 
@@ -74,7 +75,7 @@ projects/<app>/
 | keyword-only parameters | its settings, each a literal default: a bool is a checkbox; `Annotated[int \| float, Range(min, max, step=None, log=False)]` a slider (`step` defaults to 1 for an int and any value for a float; `log` slides evenly in orders of magnitude, and ignores `step`); `Annotated[str, Choices("a", "b")]` a menu of those literals (numbers too); any other number a number box, any other string a text box |
 | the return value | its output, any Python value, passed in memory to the nodes that read it. Every number in it (in nested dicts too) is a metric: recorded, compared with the baseline and shown, the unlabelled ones folded under "more numbers" (a setting the view needs to mention comes back this way too) |
 | the docstring | the top of its page (Markdown) |
-| `METRICS = {key: "label" \| {label, goal}}` | labels for its numbers, in order; `goal: "min" \| "max"` colours changes |
+| `METRICS = {key: "label" \| {label, goal}}` | labels for its numbers, in order, each key a number's path in the output (`fit.shape` for `{"fit": {"shape": ...}}`); `goal: "min" \| "max"` colours changes |
 | `def view(out)` | its results: a list of blocks |
 
 ## Blocks
@@ -84,7 +85,7 @@ projects/<app>/
 | `markdown(text)` | Markdown |
 | `metrics()` | the node's metrics, labelled, with the change since the last run and the baseline's value |
 | `table(rows, title=None, text=(), limit=200)` | a DataFrame, pyarrow Table, `{column: values}` or list of dicts (`limit` rows shown; a table shown whole sorts by its headers); `text` names the columns whose numbers name something (a year), read as written |
-| `chart(x, series, title, x_label, y_label, kind, bands=None, x_text=False)` | `series` is `{name: ys}`; `kind` is `line`, `scatter` or `{name: kind}`; `bands` is `{name: (lows, highs)}`, shaded around a line or as error bars on dots; `x_text` when x is years |
+| `chart(x, series, title, x_label, y_label, kind, bands=None, x_text=False)` | `series` is `{name: ys}`; `kind` is `line`, `scatter` or `{name: kind}`; `bands` is `{name: (lows, highs)}`, shaded around a line or as error bars on dots; `x_text` when x is years; a None or NaN is a gap |
 | `bars(categories, series, title, label, kind="bar", intervals=None, reference=None)` | a row per named category: bars, or dots (`kind="dot"`) with `intervals` `{name: (lows, highs)}` as error bars (a forest plot); a dashed line at `reference` |
 | `figure(image, caption=None)` | SVG text or PNG bytes |
 | `histogram(values, bins=None, title, x_label, mark=None)` | counts in equal bins of a round width (about √n of them unless `bins` says), a dashed line at `mark` (0 for residuals) |
