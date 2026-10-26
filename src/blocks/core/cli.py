@@ -41,7 +41,7 @@ class Handler(BaseHTTPRequestHandler):
                 body, kind = f"<!doctype html><title>blocks</title><h1>Apps</h1><ul>{links}</ul>".encode(), "text/html"
             elif parts[0] == "_runtime" and len(parts) == 2:
                 body, kind = build.runtime_file(parts[1]), "application/wasm" if parts[1].endswith(".wasm") else "application/octet-stream"
-            elif len(parts) == 1 and (PROJECTS / parts[0] / "nodes").is_dir():
+            elif len(parts) == 1 and parts[0] in {p.name for p in apps()}:   # a name, never a path: "/../" is no app
                 if not path.endswith("/"):
                     self.send_response(301); self.send_header("Location", path + "/"); self.end_headers()
                     return
