@@ -1,0 +1,39 @@
+# The tests, browser ones included (the CSP, traversal and hidden-file checks among them, and
+# every app against its baseline), on each push to main and each PR to it.
+name: tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0  # v7.1.0
+        with:
+          python-version: "3.13"
+      # The Pyodide runtime, pinned in build.py and checked by hash on every read.
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9  # v6.1.0
+        with:
+          path: .cache/pyodide
+          key: pyodide-${{ hashFiles('src/blocks/core/build.py') }}
+      - name: Install
+        run: |
+          python -m pip install --require-hashes -r requirements.txt
+          python -m pip install --no-deps --no-build-isolation -e .
+          python -m playwright install --with-deps chromium
+      # Ubuntu 24.04 blocks the user namespaces Chromium's sandbox needs; the tests keep the sandbox on.
+      - name: Allow Chromium's sandbox
+        run: sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
+      - name: Test
+        run: python -m pytest
