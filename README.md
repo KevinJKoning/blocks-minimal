@@ -53,7 +53,7 @@ python3.13 -m venv .venv && .venv/bin/pip install --require-hashes -r requiremen
 ```
 
 The apps' code is trusted; their packages are not. The page's Content-Security-Policy keeps
-the worker off the network (a built page reaches nothing; a served one, only its dev server),
+the worker off the network (a built page reaches nothing; a served one, only its dev server's runtime files),
 headless Chromium keeps its sandbox, the dev server answers only to `127.0.0.1` and
 `localhost`, and the native dependencies are pinned with hashes in `requirements.lock`.
 

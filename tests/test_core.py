@@ -121,14 +121,22 @@ def test_data_scripts_are_not_datasets_and_imports_cannot_shadow_a_node(app):
 
 
 def test_builds_one_page(app):
-    page = build.build(app, inline=False)
+    page = build.build(app, inline=False, origin="http://127.0.0.1:8765")
     manifest = json.loads(page.split('id="manifest">')[1].split("</script>")[0])
     assert manifest["title"] == "Doubling" and manifest["runtime"] == "/_runtime/"
-    assert "connect-src data: 'self';" in page and "connect-src data:;" in build.build(app, inline=True)
+    assert "connect-src data: http://127.0.0.1:8765/_runtime/;" in page and "connect-src data:;" in build.build(app, inline=True)
     assert set(manifest["files"]) == {"README.md", "nodes/double.py", "nodes/count.py"}
     assert manifest["spec"]["datasets"] == {"numbers": "data/numbers.txt"} and set(manifest["data"]["numbers"]) == {"key", "size", "files"}
-    bare = json.loads(build.build(app, inline=False, data=False).split('id="manifest">')[1].split("</script>")[0])
+    bare = json.loads(build.build(app, inline=False, data=False, origin="http://127.0.0.1:8765").split('id="manifest">')[1].split("</script>")[0])
     assert bare["data"] == {"numbers": {"key": None, "size": None, "files": None}}
+
+
+def test_a_baseline_cannot_link_outside_the_app(app, tmp_path_factory):
+    outside = tmp_path_factory.mktemp("outside") / "private.json"
+    outside.write_text('{"secret": "must not ship"}')
+    (app / "baseline.json").symlink_to(outside)
+    with pytest.raises(ValueError, match="baseline.json: links outside the app"):
+        build.build(app, inline=False, origin="http://127.0.0.1:8765")
 
 
 def test_a_page_carries_nothing_hidden_nor_linked_from_outside(app, tmp_path_factory):
@@ -204,7 +212,7 @@ def test_a_page_that_does_not_load_says_why(app, tmp_path_factory, monkeypatch):
 @pytest.mark.browser
 def test_the_worker_reaches_no_other_server(tmp_path_factory, monkeypatch):
     """The packages are not trusted: the page's CSP, which the worker inherits, keeps Python off
-    every server but the dev server's, served or built. Opened without run_page's routing, which
+    every endpoint but the dev server's runtime files, served or built. Opened without run_page's routing, which
     would block the request itself; without the CSP the same probe gets through."""
     import re
     import threading
@@ -230,11 +238,11 @@ def test_the_worker_reaches_no_other_server(tmp_path_factory, monkeypatch):
     (app / "nodes" / "probe.py").write_text(f'''"""Asks another server for a page, from the worker."""
 
 
-def probe():
+def probe(*, url: str = "http://127.0.0.1:{other.server_port}/leak"):
     import js
     xhr = js.XMLHttpRequest.new()
     try:
-        xhr.open("GET", "http://127.0.0.1:{other.server_port}/leak", False)
+        xhr.open("GET", url, False)
         xhr.send()
     except Exception:
         return {{"reached": 0}}
@@ -247,17 +255,26 @@ def probe():
     built.write_text(build.build(app, inline=True))
     bare.write_text(re.sub(r'<meta http-equiv="Content-Security-Policy"[^>]*>', "", built.read_text()))
 
-    def reached(url):
+    def reached(url, target=None):
         hits.clear()
         with sync_playwright() as p:
             browser = p.chromium.launch(chromium_sandbox=True)
             page = browser.new_page()
             page.goto(url)
+            if target:
+                page.evaluate("target => window.blocks.set({'probe.url': target})", target)
             got = page.evaluate(cli.RUN)["nodes"]["probe"]["metrics"]["reached"]
             browser.close()
         return got, list(hits)
 
-    assert reached(f"http://127.0.0.1:{server.server_port}/probe/") == (0, [])
+    origin = f"http://127.0.0.1:{server.server_port}"
+    victim = top / "projects" / "victim"
+    (victim / "nodes").mkdir(parents=True)
+    (victim / "nodes" / "secret.py").write_text("def secret():\n    return {'private': 42}\n")
+    assert reached(f"{origin}/probe/") == (0, [])
+    for path in ("/", "/victim/", "/_runtime/../victim/"):
+        assert reached(f"{origin}/probe/", origin + path) == (0, [])
+    assert reached(f"{origin}/probe/", origin + "/_runtime/pyodide-lock.json") == (1, [])
     assert reached(built.as_uri()) == (0, [])
     assert reached(bare.as_uri()) == (1, ["/leak"])
     server.shutdown()
@@ -301,12 +318,12 @@ def test_an_app_brings_its_own_block(app):
     (app / "ui" / "badge.js").write_text('RENDER.badge = (b) => h("span", { class: "badge" }, b.text);\n')
     (app / "ui" / "badge.css").write_text(".badge { color: var(--ink); }\n")
     (app / "nodes" / "count.py").write_text(NODES["count.py"] + "\n\ndef view(out):\n    from ui.badge import badge\n    return [badge(f\"{out['n']} values\")]\n")
-    page = build.build(app, inline=False)
+    page = build.build(app, inline=False, origin="http://127.0.0.1:8765")
     assert "RENDER.badge = " in page and ".badge { color" in page and "ticks(" in page
     assert graph.Graph(str(app), graph_spec(spec.load(app))).run({}, {})["count"]["blocks"] == [{"type": "badge", "text": "3 values"}]
     (app / "ui" / "chart.js").write_text("")
     with pytest.raises(ValueError, match="redefines a library block"):
-        build.build(app, inline=False)
+        build.build(app, inline=False, origin="http://127.0.0.1:8765")
 
 
 

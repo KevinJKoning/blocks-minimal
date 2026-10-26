@@ -45,7 +45,7 @@ class Handler(BaseHTTPRequestHandler):
                 if not path.endswith("/"):
                     self.send_response(301); self.send_header("Location", path + "/"); self.end_headers()
                     return
-                body, kind = build.build(PROJECTS / parts[0], inline=False).encode(), "text/html"
+                body, kind = build.build(PROJECTS / parts[0], inline=False, origin=f"http://{self.headers['Host']}").encode(), "text/html"
             else:
                 return self.send_error(404)
         except Exception as e:  # noqa: BLE001 - show the error instead of a blank page

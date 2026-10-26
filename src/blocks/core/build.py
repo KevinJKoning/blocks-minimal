@@ -31,7 +31,7 @@ LIBRARY = ["__init__.py", "core/__init__.py", "core/graph.py", *sorted(p.relativ
 CACHE = Path(".cache") / "pyodide" / PYODIDE
 # The page's Content-Security-Policy, which the worker inherits: the packages are not trusted,
 # so nothing on the page reaches the network but the dev server's /_runtime/ (linked builds).
-CSP = ("default-src 'none'; script-src 'unsafe-inline' 'wasm-unsafe-eval'; worker-src blob:; connect-src data:{self}; "
+CSP = ("default-src 'none'; script-src 'unsafe-inline' 'wasm-unsafe-eval'; worker-src blob:; connect-src data:{runtime}; "
        "img-src data: blob:; style-src 'unsafe-inline'; base-uri 'none'; form-action 'none'")
 
 
@@ -107,9 +107,12 @@ def b64(data: bytes) -> str:
     return base64.b64encode(data).decode()
 
 
-def build(app_dir: Path, inline: bool, data: bool = True) -> str:
+def build(app_dir: Path, inline: bool, data: bool = True, *, origin: str | None = None) -> str:
     """The app's page. inline: the runtime is in it (an offline file), not served. data: its
-    datasets are in it; without them, whoever opens it chooses them."""
+    datasets are in it; without them, whoever opens it chooses them. Linked pages require
+    their server's origin so the CSP can allow /_runtime/ without exposing other apps."""
+    if not inline and not origin:
+        raise ValueError("a linked page needs its server's origin")
     a = spec.load(app_dir)
     pkgs = packages(a["imports"], {p.split("/")[0].removesuffix(".py") for p in a["files"]}, a["files"])
     library = {f"blocks/{f}": (PACKAGE / f).read_bytes() for f in LIBRARY}
@@ -122,10 +125,10 @@ def build(app_dir: Path, inline: bool, data: bool = True) -> str:
         "data": {d: {"key": spec.data_key(v["path"], v["files"]), "size": sum(map(len, v["files"].values())),
                      "files": {p: b64(b) for p, b in v["files"].items()}} if data else {"key": None, "size": None, "files": None}
                  for d, v in a["datasets"].items()},
-        "baseline": json.loads(baseline.read_text()) if baseline.exists() else None,
+        "baseline": json.loads(spec.inside(app_dir, baseline).read_text()) if baseline.exists() else None,
         "runtime": None if inline else "/_runtime/",
     }
-    csp = CSP.format(self="" if inline else " 'self'")
+    csp = CSP.format(runtime="" if inline else f" {origin}/_runtime/")
     script = lambda type, body, attrs="": f'<script type="{type}"{attrs}>{body}</script>'
     parts = [
         "<!doctype html>", '<html lang="en">', '<meta charset="utf-8">',
