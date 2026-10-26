@@ -41,11 +41,12 @@ class Handler(BaseHTTPRequestHandler):
                 body, kind = f"<!doctype html><title>blocks</title><h1>Apps</h1><ul>{links}</ul>".encode(), "text/html"
             elif parts[0] == "_runtime" and len(parts) == 2:
                 body, kind = build.runtime_file(parts[1]), "application/wasm" if parts[1].endswith(".wasm") else "application/octet-stream"
-            elif len(parts) == 1 and parts[0] in {p.name for p in apps()}:   # a name, never a path: "/../" is no app
+            # The app's folder as projects/ lists it, never a path from the request: "/../" is no app.
+            elif len(parts) == 1 and (app := next((p for p in apps() if p.name == parts[0]), None)):
                 if not path.endswith("/"):
-                    self.send_response(301); self.send_header("Location", path + "/"); self.end_headers()
+                    self.send_response(301); self.send_header("Location", f"/{app.name}/"); self.end_headers()
                     return
-                body, kind = build.build(PROJECTS / parts[0], inline=False, origin=f"http://{self.headers['Host']}").encode(), "text/html"
+                body, kind = build.build(app, inline=False, origin=f"http://{self.headers['Host']}").encode(), "text/html"
             else:
                 return self.send_error(404)
         except Exception as e:  # noqa: BLE001 - show the error instead of a blank page
