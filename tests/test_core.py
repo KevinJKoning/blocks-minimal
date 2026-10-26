@@ -112,9 +112,11 @@ def test_metrics_labels_must_name_numbers(app):
     assert r["status"] == "done" and "METRICS labels totl" in r["view_error"] and "total" in r["view_error"]
 
 
-def test_data_scripts_are_not_datasets_and_imports_cannot_shadow_a_node(app):
+def test_data_scripts_and_descriptions_are_not_datasets_and_imports_cannot_shadow_a_node(app):
     (app / "data" / "generate.py").write_text("print('makes numbers.txt')")
+    (app / "data" / "numbers.md").write_text("Whole numbers, separated by spaces.\n")
     assert set(spec.load(app)["datasets"]) == {"numbers"}
+    assert spec.load(app)["datasets"]["numbers"]["doc"] == "Whole numbers, separated by spaces."
     (app / "nodes" / "count.py").write_text("from collections import Counter as count\n\ndef count(double):\n    return {}\n")
     with pytest.raises(ValueError, match="shadows"):
         spec.load(app)
@@ -126,9 +128,9 @@ def test_builds_one_page(app):
     assert manifest["title"] == "Doubling" and manifest["runtime"] == "/_runtime/"
     assert "connect-src data: http://127.0.0.1:8765/_runtime/;" in page and "connect-src data:;" in build.build(app, inline=True)
     assert set(manifest["files"]) == {"README.md", "nodes/double.py", "nodes/count.py"}
-    assert manifest["spec"]["datasets"] == {"numbers": "data/numbers.txt"} and set(manifest["data"]["numbers"]) == {"key", "size", "files"}
+    assert manifest["spec"]["datasets"] == {"numbers": "data/numbers.txt"} and set(manifest["data"]["numbers"]) == {"key", "size", "files", "doc"}
     bare = json.loads(build.build(app, inline=False, data=False, origin="http://127.0.0.1:8765").split('id="manifest">')[1].split("</script>")[0])
-    assert bare["data"] == {"numbers": {"key": None, "size": None, "files": None}}
+    assert bare["data"] == {"numbers": {"key": None, "size": None, "files": None, "doc": ""}}
 
 
 def test_a_baseline_cannot_link_outside_the_app(app, tmp_path_factory):

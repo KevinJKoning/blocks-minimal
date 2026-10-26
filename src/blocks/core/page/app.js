@@ -331,7 +331,7 @@ const crumb = (x) => h("p", { class: "crumb" }, h("a", { href: "#", onclick: (e)
 
 function dataPage(d) {
   const readers = S.order.filter((m) => S.nodes[m].deps.includes(d));
-  return [crumb(d), h("h1", {}, d), h("div", { class: "cards" }, dataCard(d)),
+  return [crumb(d), h("h1", {}, d), M.data[d].doc && markdown(M.data[d].doc), h("div", { class: "cards" }, dataCard(d)),
     h("p", { class: "muted" }, `${S.datasets[d]} in the app${S.datasets[d].endsWith("/") ? ", whose files its readers get by name" : ""}. Read by `,
       sep(readers), ". A replacement, all of it, is used from the next Run.")];
 }
