@@ -82,7 +82,7 @@ def load(app_dir: Path) -> dict:
     head, _, about = readme.partition("\n")
     nodes = {p.stem: read_node(p) for p in sorted((app_dir / "nodes").glob("*.py"))}
     data = {p.name.split(".")[0]: p for p in sorted((app_dir / "data").glob("*"))
-            if p.is_dir() or p.suffix != ".py"} if (app_dir / "data").is_dir() else {}
+            if (p.is_dir() or p.suffix != ".py") and not p.name.startswith(".")} if (app_dir / "data").is_dir() else {}
     if set(nodes) & set(data):
         raise ValueError(f"{', '.join(sorted(set(nodes) & set(data)))}: both a node and a file in data/")
     datasets = {}
@@ -93,8 +93,9 @@ def load(app_dir: Path) -> dict:
             if d not in nodes:
                 datasets[d] = data[d]
     order = list(graphlib.TopologicalSorter({n: [d for d in v["deps"] if d in nodes] for n, v in nodes.items()}).static_order())
-    files = {p.relative_to(app_dir).as_posix(): p.read_bytes() for p in sorted(app_dir.rglob("*"))
-             if p.is_file() and not SKIP & set(p.relative_to(app_dir).parts) and not p.name.startswith(".")}
+    # A built page ships these: never what is hidden (in a folder like .secrets/ too), nor what a link leads to outside.
+    files = {p.relative_to(app_dir).as_posix(): inside(app_dir, p).read_bytes() for p in sorted(app_dir.rglob("*"))
+             if p.is_file() and not SKIP & set(p.relative_to(app_dir).parts) and not hidden(p.relative_to(app_dir))}
     return {
         "name": app_dir.name, "title": head.lstrip("# ").strip() or app_dir.name, "about": about.strip(),
         "order": order, "nodes": nodes, "files": files, "imports": sorted(imports(files)),
@@ -105,9 +106,21 @@ def load(app_dir: Path) -> dict:
 def dataset(app_dir: Path, p: Path) -> dict:
     """{path, files: {path: bytes}}: one file, or a folder's files (its path ends in /)."""
     if p.is_file():
-        return {"path": f"data/{p.name}", "files": {f"data/{p.name}": p.read_bytes()}}
-    return {"path": f"data/{p.name}/", "files": {f.relative_to(app_dir).as_posix(): f.read_bytes()
+        return {"path": f"data/{p.name}", "files": {f"data/{p.name}": inside(app_dir, p).read_bytes()}}
+    inside(app_dir, p)
+    return {"path": f"data/{p.name}/", "files": {f.relative_to(app_dir).as_posix(): inside(app_dir, f).read_bytes()
                                                   for f in sorted(p.iterdir()) if f.is_file() and not f.name.startswith(".")}}
+
+
+def hidden(rel: Path) -> bool:
+    return any(part.startswith(".") for part in rel.parts)
+
+
+def inside(app_dir: Path, p: Path) -> Path:
+    """p, unless a link takes it out of the app: a build would ship whatever it leads to."""
+    if not p.resolve().is_relative_to(Path(app_dir).resolve()):
+        raise ValueError(f"{p}: links outside the app, so a built page would carry what it leads to; copy the file into the app instead")
+    return p
 
 
 def data_key(path: str, files: dict[str, bytes]) -> str:

@@ -131,6 +131,23 @@ def test_builds_one_page(app):
     assert bare["data"] == {"numbers": {"key": None, "size": None, "files": None}}
 
 
+def test_a_page_carries_nothing_hidden_nor_linked_from_outside(app, tmp_path_factory):
+    (app / ".secrets").mkdir()
+    (app / ".secrets" / "token.txt").write_text("tok")
+    (app / "data" / ".numbers.txt").write_text("4")
+    assert set(spec.load(app)["files"]) == {"README.md", "nodes/double.py", "nodes/count.py"}
+    outside = tmp_path_factory.mktemp("elsewhere")
+    (outside / "notes.txt").write_text("not the app's")
+    (app / "notes.txt").symlink_to(outside / "notes.txt")
+    with pytest.raises(ValueError, match="notes.txt: links outside the app"):
+        spec.load(app)
+    (app / "notes.txt").unlink()
+    (app / "data" / "numbers.txt").unlink()
+    (app / "data" / "numbers.txt").symlink_to(outside / "notes.txt")
+    with pytest.raises(ValueError, match="numbers.txt: links outside the app"):
+        spec.load(app)
+
+
 def test_a_folder_is_one_dataset_read_in_name_order(app):
     (app / "data" / "numbers.txt").unlink()
     (app / "data" / "numbers").mkdir()
@@ -182,6 +199,69 @@ def test_a_page_that_does_not_load_says_why(app, tmp_path_factory, monkeypatch):
     (app / "nodes" / "count.py").write_text("def count(double):\n    return {\n")
     assert "SyntaxError in projects/demo/nodes/count.py, line 2" in cli.run_page([url], apps=[app])[0]["failed"]
     server.shutdown()
+
+
+@pytest.mark.browser
+def test_the_worker_reaches_no_other_server(tmp_path_factory, monkeypatch):
+    """The packages are not trusted: the page's CSP, which the worker inherits, keeps Python off
+    every server but the dev server's, served or built. Opened without run_page's routing, which
+    would block the request itself; without the CSP the same probe gets through."""
+    import re
+    import threading
+    from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+    from playwright.sync_api import sync_playwright
+    from blocks.core import cli
+
+    hits = []
+
+    class Other(BaseHTTPRequestHandler):
+        def do_GET(self):
+            hits.append(self.path)
+            self.send_response(200); self.send_header("Access-Control-Allow-Origin", "*"); self.end_headers()
+
+        def log_message(self, *args):
+            pass
+
+    other = ThreadingHTTPServer(("127.0.0.1", 0), Other)
+    threading.Thread(target=other.serve_forever, daemon=True).start()
+    top = tmp_path_factory.mktemp("repo")
+    app = top / "projects" / "probe"
+    (app / "nodes").mkdir(parents=True)
+    (app / "nodes" / "probe.py").write_text(f'''"""Asks another server for a page, from the worker."""
+
+
+def probe():
+    import js
+    xhr = js.XMLHttpRequest.new()
+    try:
+        xhr.open("GET", "http://127.0.0.1:{other.server_port}/leak", False)
+        xhr.send()
+    except Exception:
+        return {{"reached": 0}}
+    return {{"reached": 1}}
+''')
+    monkeypatch.setattr(build, "CACHE", build.CACHE.resolve())
+    monkeypatch.chdir(top)
+    server = cli.serve(0)
+    built, bare = top / "probe.html", top / "bare.html"
+    built.write_text(build.build(app, inline=True))
+    bare.write_text(re.sub(r'<meta http-equiv="Content-Security-Policy"[^>]*>', "", built.read_text()))
+
+    def reached(url):
+        hits.clear()
+        with sync_playwright() as p:
+            browser = p.chromium.launch(chromium_sandbox=True)
+            page = browser.new_page()
+            page.goto(url)
+            got = page.evaluate(cli.RUN)["nodes"]["probe"]["metrics"]["reached"]
+            browser.close()
+        return got, list(hits)
+
+    assert reached(f"http://127.0.0.1:{server.server_port}/probe/") == (0, [])
+    assert reached(built.as_uri()) == (0, [])
+    assert reached(bare.as_uri()) == (1, ["/leak"])
+    server.shutdown()
+    other.shutdown()
 
 
 @pytest.mark.browser
