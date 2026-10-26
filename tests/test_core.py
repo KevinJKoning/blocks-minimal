@@ -190,6 +190,31 @@ def test_runtime_rejects_corrupt_cache_and_download(tmp_path, monkeypatch):
         build.runtime_file("unlisted.whl")
 
 
+def test_the_dev_server_serves_apps_by_name_only(app, tmp_path_factory, monkeypatch):
+    """A raw request for /../ (a browser would resolve it) must not build the folder above
+    projects/ as an app, even when that folder has a nodes/ of its own."""
+    import shutil
+    import socket
+    from blocks.core import cli
+    top = tmp_path_factory.mktemp("repo")
+    shutil.copytree(app, top / "projects" / "demo")
+    shutil.copytree(app / "nodes", top / "nodes")
+    (top / "secret.txt").write_text("not an app's")
+    monkeypatch.setattr(build, "CACHE", build.CACHE.resolve())
+    monkeypatch.chdir(top)
+    server = cli.serve(0)
+
+    def get(path):
+        with socket.create_connection(("127.0.0.1", server.server_port)) as c:
+            c.sendall(f"GET {path} HTTP/1.0\r\nHost: 127.0.0.1:{server.server_port}\r\n\r\n".encode())
+            return b"".join(iter(lambda: c.recv(65536), b""))
+
+    assert get("/demo/").startswith(b"HTTP/1.0 200")
+    got = get("/../")
+    assert got.startswith(b"HTTP/1.0 404") and b"secret.txt" not in got
+    server.shutdown()
+
+
 @pytest.mark.browser
 def test_a_page_that_does_not_load_says_why(app, tmp_path_factory, monkeypatch):
     """A broken block script or node file is named, with its line, not a missing window.blocks."""
