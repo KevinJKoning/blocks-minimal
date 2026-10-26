@@ -41,7 +41,7 @@ def view(out):                              # optional: how its results look
 ## Quick start
 
 ```sh
-python3.13 -m venv .venv && .venv/bin/pip install --require-hashes -r requirements.lock
+python3.13 -m venv .venv && .venv/bin/pip install --require-hashes -r requirements.txt
 .venv/bin/pip install --no-deps --no-build-isolation -e . && .venv/bin/playwright install chromium
 .venv/bin/blocks serve                    # http://127.0.0.1:8765/<app>/, rebuilt on every request
 .venv/bin/blocks run parcels              # run headlessly; print each node's status, metrics and errors
@@ -55,7 +55,7 @@ python3.13 -m venv .venv && .venv/bin/pip install --require-hashes -r requiremen
 The apps' code is trusted; their packages are not. The page's Content-Security-Policy keeps
 the worker off the network (a built page reaches nothing; a served one, only its dev server's runtime files),
 headless Chromium keeps its sandbox, the dev server answers only to `127.0.0.1` and
-`localhost`, and the native dependencies are pinned with hashes in `requirements.lock`.
+`localhost`, and the native dependencies are pinned with hashes in `requirements.txt`.
 
 ## An app
 

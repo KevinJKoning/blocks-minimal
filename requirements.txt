@@ -1,6 +1,6 @@
 # Every native dependency (with setuptools, to build blocks itself), pinned with hashes.
 # Regenerate after changing pyproject.toml:
-#   echo 'setuptools>=68' | uv pip compile pyproject.toml - --extra test --universal --python-version 3.13 --generate-hashes --no-annotate --no-header -o requirements.lock
+#   echo 'setuptools>=68' | uv pip compile pyproject.toml - --extra test --universal --python-version 3.13 --generate-hashes --no-annotate --no-header -o requirements.txt
 # Keep the enforcement options below when regenerating.
 --require-hashes
 --only-binary=:all:

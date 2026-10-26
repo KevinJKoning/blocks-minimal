@@ -1,0 +1,8 @@
+version: 2
+updates:
+  - package-ecosystem: pip
+    directory: /
+    schedule:
+      interval: weekly
+    # Security fixes only; routine version upgrades stay manual.
+    open-pull-requests-limit: 0
