@@ -122,8 +122,10 @@ def build(app_dir: Path, inline: bool, data: bool = True, *, origin: str | None 
         "spec": {"order": a["order"], "nodes": a["nodes"], "datasets": {d: v["path"] for d, v in a["datasets"].items()}},
         "files": {p: b64(b) for p, b in a["files"].items()},
         "library": {p: b64(b) for p, b in library.items()},
-        "data": {d: {"key": spec.data_key(v["path"], v["files"]), "size": sum(map(len, v["files"].values())),
-                     "files": {p: b64(b) for p, b in v["files"].items()}} if data else {"key": None, "size": None, "files": None}
+        # A page built without its data still says what each dataset is, for whoever chooses it.
+        "data": {d: ({"key": spec.data_key(v["path"], v["files"]), "size": sum(map(len, v["files"].values())),
+                      "files": {p: b64(b) for p, b in v["files"].items()}} if data else {"key": None, "size": None, "files": None})
+                    | {"doc": v["doc"]}
                  for d, v in a["datasets"].items()},
         "baseline": json.loads(spec.inside(app_dir, baseline).read_text()) if baseline.exists() else None,
         "runtime": None if inline else "/_runtime/",

@@ -32,7 +32,7 @@ def view(out):                              # optional: how its results look
   `alpha` makes `train` and what reads it stale; Run re-runs just those.
 - **The page is blocks.** The graph is the table of contents. Each node is a page of its
   docstring, settings, results (its view) and code; each dataset, a page where it can be
-  replaced; the overview gathers datasets and downloads.
+  replaced, under what its `data/<name>.md` says it is; the overview gathers datasets and downloads.
 - **Verified.** Every run leaves a record (settings, data keys, every node's metrics and
   output digest). `blocks baseline` keeps one; `blocks verify` and `blocks build` compare
   against it, and the page shows each metric against it. A view that fails, in Python or
@@ -65,6 +65,7 @@ projects/<app>/
   nodes/<name>.py    one node: def <name>(inputs..., *, settings...)
   data/<name>.*      a dataset; a node reads it with a parameter <name> and gets its path
   data/<name>/       a dataset of files (exports by month, say); the node gets their paths, by name
+  data/<name>.md     what the dataset is (Markdown), atop its page: its format and columns, for whoever replaces it
   data/*.py          a script that makes or fetches a dataset; it runs natively, by hand, never in the app
   *.py               helpers the nodes import: code several nodes share (a node file is not one)
   ui/<name>.py|js|css  a block only this app draws (see Blocks)

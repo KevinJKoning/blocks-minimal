@@ -82,7 +82,7 @@ def load(app_dir: Path) -> dict:
     head, _, about = readme.partition("\n")
     nodes = {p.stem: read_node(p) for p in sorted((app_dir / "nodes").glob("*.py"))}
     data = {p.name.split(".")[0]: p for p in sorted((app_dir / "data").glob("*"))
-            if (p.is_dir() or p.suffix != ".py") and not p.name.startswith(".")} if (app_dir / "data").is_dir() else {}
+            if (p.is_dir() or p.suffix not in {".py", ".md"}) and not p.name.startswith(".")} if (app_dir / "data").is_dir() else {}
     if set(nodes) & set(data):
         raise ValueError(f"{', '.join(sorted(set(nodes) & set(data)))}: both a node and a file in data/")
     datasets = {}
@@ -104,12 +104,15 @@ def load(app_dir: Path) -> dict:
 
 
 def dataset(app_dir: Path, p: Path) -> dict:
-    """{path, files: {path: bytes}}: one file, or a folder's files (its path ends in /)."""
+    """{path, files: {path: bytes}, doc}: one file, or a folder's files (its path ends in /), and
+    what data/<name>.md says it is, for whoever replaces it."""
+    md = p.parent / f"{p.name.split('.')[0]}.md"
+    doc = inside(app_dir, md).read_text().strip() if md.is_file() else ""
     if p.is_file():
-        return {"path": f"data/{p.name}", "files": {f"data/{p.name}": inside(app_dir, p).read_bytes()}}
+        return {"path": f"data/{p.name}", "files": {f"data/{p.name}": inside(app_dir, p).read_bytes()}, "doc": doc}
     inside(app_dir, p)
     return {"path": f"data/{p.name}/", "files": {f.relative_to(app_dir).as_posix(): inside(app_dir, f).read_bytes()
-                                                  for f in sorted(p.iterdir()) if f.is_file() and not f.name.startswith(".")}}
+                                                  for f in sorted(p.iterdir()) if f.is_file() and not f.name.startswith(".")}, "doc": doc}
 
 
 def hidden(rel: Path) -> bool:
