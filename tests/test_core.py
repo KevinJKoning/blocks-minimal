@@ -210,6 +210,7 @@ def test_the_dev_server_serves_apps_by_name_only(app, tmp_path_factory, monkeypa
             return b"".join(iter(lambda: c.recv(65536), b""))
 
     assert get("/demo/").startswith(b"HTTP/1.0 200")
+    assert get("/demo").startswith(b"HTTP/1.0 301") and b"\r\nLocation: /demo/\r\n" in get("/demo")
     got = get("/../")
     assert got.startswith(b"HTTP/1.0 404") and b"secret.txt" not in got
     server.shutdown()
