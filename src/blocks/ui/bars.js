@@ -12,7 +12,7 @@ RENDER.bars = (b) => {
   const pad = (hi - lo) * 0.04; lo -= b.kind === "bar" && lo === base ? 0 : pad; hi += pad;
   const X = (v) => L + ((v - lo) / (hi - lo)) * (W - L - R);
   const Y = (i, j) => T + i * row + row / 2 + (S > 1 ? (j - (S - 1) / 2) * 10 : 0);
-  const fits = Math.floor((L - 16) / 6.2), cut = (c) => (c.length > fits ? c.slice(0, fits - 1) + "…" : c);
+  const fits = Math.floor((L - 16) / 6.2 + 1e-9), cut = (c) => (c.length > fits ? c.slice(0, fits - 1) + "…" : c);
   const f = (v) => fmt(v, b.percent);
   const marks = b.series.map((s, j) => h("svg:g", { fill: hue(j), stroke: hue(j) }, s.values.map((v, i) => {
     v = num(v);

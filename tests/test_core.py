@@ -64,6 +64,13 @@ def test_unknown_input_is_an_error(app):
         spec.load(app)
 
 
+def test_a_menu_default_is_one_of_its_choices(app):
+    (app / "nodes" / "pick.py").write_text("from typing import Annotated\nfrom blocks import Choices\n\n\n"
+                                           "def pick(*, level: Annotated[float, Choices(0.9, 0.99)] = 0.95):\n    return {}\n")
+    with pytest.raises(ValueError, match="default 0.95 is not one of its choices"):
+        spec.load(app)
+
+
 def test_runs_only_what_changed(app):
     g = graph.Graph(str(app), graph_spec(spec.load(app)))
     first = g.run({}, {"numbers": "k1"})
@@ -142,6 +149,8 @@ def test_packages_follow_imports():
     assert "numpy" in build.packages(["pandas"]) and build.packages(["os", "blocks", "helpers"], {"helpers"}) == []
     with pytest.raises(ValueError, match="nosuchpackage"):
         build.packages(["nosuchpackage"])
+    with pytest.raises(ValueError, match="nodes/a.py imports glm, which is no package"):
+        build.packages(["glm"], files={"nodes/a.py": b"from glm import fit\n", "nodes/b.py": b"import os\n"})
 
 
 def test_runtime_rejects_corrupt_cache_and_download(tmp_path, monkeypatch):
@@ -157,6 +166,25 @@ def test_runtime_rejects_corrupt_cache_and_download(tmp_path, monkeypatch):
 
 
 @pytest.mark.browser
+def test_a_page_that_does_not_load_says_why(app, tmp_path_factory, monkeypatch):
+    """A broken block script or node file is named, with its line, not a missing window.blocks."""
+    import shutil
+    from blocks.core import cli
+    top = tmp_path_factory.mktemp("repo")
+    app = Path(shutil.copytree(app, top / "projects" / "demo"))
+    (app / "ui").mkdir()
+    (app / "ui" / "badge.js").write_text('RENDER.badge = (b) => {\n  return h("span", {}, b.text;\n};\n')
+    monkeypatch.chdir(top)
+    server = cli.serve(0)
+    url = f"http://127.0.0.1:{server.server_port}/demo/"
+    assert "projects/demo/ui/badge.js, line 2" in cli.run_page([url], apps=[app])[0]["failed"]
+    (app / "ui" / "badge.js").unlink()
+    (app / "nodes" / "count.py").write_text("def count(double):\n    return {\n")
+    assert "SyntaxError in projects/demo/nodes/count.py, line 2" in cli.run_page([url], apps=[app])[0]["failed"]
+    server.shutdown()
+
+
+@pytest.mark.browser
 def test_example_apps_match_their_baselines():
     from blocks.core import cli
     apps = cli.apps()
@@ -167,12 +195,15 @@ def test_example_apps_match_their_baselines():
 
 
 def blocks_are_their_files(folder, names):
-    assert {p.stem for p in folder.glob("*.js") if not p.name.startswith("_")} == set(names)
+    scripts = {p.stem for p in folder.glob("*.js") if not p.name.startswith("_")}
+    assert scripts == set(names), (f"{folder}: blocks with a script but no Python export {sorted(scripts - set(names))}, "
+                                   f"exported with no script {sorted(set(names) - scripts)} (a library block is a line in ui/__init__.py too)")
     for name in names:
         assert f"RENDER.{name} = " in (folder / f"{name}.js").read_text()
         css = folder / f"{name}.css"
+        # Each rule's selectors are what comes just before its "{": inside an @media too
         selectors = [s.strip() for rule in (css.read_text().split("}") if css.exists() else []) if "{" in rule
-                     for s in rule.split("{")[0].split(",")]
+                     for s in rule.split("{")[-2].split(",")]
         assert all(s == f".{name}" or s.startswith((f".{name} ", f".{name}:")) for s in selectors), (name, selectors)
 
 

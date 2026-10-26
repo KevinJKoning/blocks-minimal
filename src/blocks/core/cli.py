@@ -14,6 +14,7 @@ from __future__ import annotations
 import argparse
 import html
 import json
+import os
 import sys
 import threading
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -48,7 +49,9 @@ class Handler(BaseHTTPRequestHandler):
             else:
                 return self.send_error(404)
         except Exception as e:  # noqa: BLE001 - show the error instead of a blank page
-            body, kind = f"<pre>{html.escape(f'{type(e).__name__}: {e}')}</pre>".encode(), "text/html"
+            if parts and parts[0] == "_runtime":   # a runtime file that failed is an error, never a page in its place
+                return self.send_error(502, f"{type(e).__name__}: {e}")
+            body, kind = f"<pre>{html.escape(why(e))}</pre>".encode(), "text/html"
         self.send_response(200)
         self.send_header("Content-Type", kind)
         self.send_header("Content-Length", str(len(body)))
@@ -58,6 +61,13 @@ class Handler(BaseHTTPRequestHandler):
 
     def log_message(self, *args):
         pass
+
+
+def why(e: Exception) -> str:
+    """A build's error, in one message; a syntax error with its file, line and text."""
+    if isinstance(e, SyntaxError):
+        return f"SyntaxError in {e.filename}, line {e.lineno}: {e.msg}\n    {(e.text or '').strip()}"
+    return f"{type(e).__name__}: {e}"
 
 
 def apps(names=None) -> list[Path]:
@@ -78,7 +88,7 @@ def serve(port: int) -> ThreadingHTTPServer:
 
 # Run, then open every node's page: a block that failed to draw is a failed view.
 RUN = """async () => {
-  await window.blocks.ready;
+  try { await window.blocks.ready; } catch (e) { return { failed: `Python did not start: ${e.message}` }; }
   let rec;
   try { rec = await window.blocks.run(); } catch (e) { return { failed: e.message }; }
   for (const n of Object.keys(rec.nodes)) {
@@ -91,22 +101,53 @@ RUN = """async () => {
 }"""
 
 
-def run_page(urls: list[str], offline=False, choose=None) -> list[dict]:
+# A block's script, parsed (not run) in a blank page: its syntax error, at the file's own line.
+PARSE = """(src) => {
+  let got = null;
+  const on = (e) => { got ??= `line ${e.lineno}, column ${e.colno}: ${e.message.replace(/^.*Element': /, "")}`; e.preventDefault(); };
+  window.addEventListener("error", on);
+  const s = document.createElement("script");
+  s.textContent = `(function () { "use strict"; ${src}\n});`;
+  document.head.append(s);
+  window.removeEventListener("error", on);
+  return got;
+}"""
+
+
+def unloaded(browser, page, errors: list[str], app: Path | None) -> str:
+    """Why a page never set up window.blocks: the app did not build (the dev server answers
+    with the error instead), or a script failed; for a syntax error, the block file and line."""
+    if not errors:
+        return "the app did not build: " + page.inner_text("body").strip()
+    blank = browser.new_page()
+    scripts = [build.PACKAGE / "ui" / "_kit.js", *build.block_files(app, ".js")] if app else []
+    found = [f"{os.path.relpath(f)}, {err}" for f in scripts if (err := blank.evaluate(PARSE, f.read_text()))]
+    blank.close()
+    return "the page's script failed: " + "; ".join(errors) + "".join(f"\n  {f}" for f in found)
+
+
+def run_page(urls: list[str], offline=False, choose=None, apps=None) -> list[dict]:
     """Open each page in headless Chromium, press Run, draw every node's page and return its
     run records. The page runs
     untrusted packages, so Chromium keeps its sandbox and the page reaches no server but its
     own (offline: none at all). choose: {dataset: [files]} for a page built without its data,
-    chosen as a reader would, through the dataset's file input."""
+    chosen as a reader would, through the dataset's file input. apps: each page's app folder,
+    to name the block script that broke a page."""
     from playwright.sync_api import sync_playwright
     out = []
     with sync_playwright() as p:
         browser = p.chromium.launch(chromium_sandbox=True)
-        for url in urls:
+        for url, app in zip(urls, apps or [None] * len(urls)):
             context = browser.new_context()
             allowed = ("data:", "blob:", "file:") + (() if offline else ("{0.scheme}://{0.netloc}/".format(urlsplit(url)),))
             context.route("**/*", lambda route, request: route.continue_() if request.url.startswith(allowed) else route.abort())
-            page = context.new_page()
+            page, errors = context.new_page(), []
+            page.on("pageerror", lambda e: errors.append(f"{e.name}: {e.message}"))
             page.goto(url)
+            if not page.evaluate("() => !!window.blocks"):
+                out.append({"failed": unloaded(browser, page, errors, app)})
+                context.close()
+                continue
             if choose:
                 page.evaluate("() => window.blocks.ready")
                 for d, files in choose.items():
@@ -150,6 +191,8 @@ def check(app: Path, record: dict) -> bool:
     print(f"{app.name}: " + ("matches the baseline" if not bad else "DIFFERS"))
     for n, why in bad.items():
         print(f"  {n}: " + "; ".join(why))
+    if any(w == ["not in the baseline"] for w in bad.values()):
+        print(f"  (a node added on purpose: once the rest matches, `blocks baseline {app.name}` records it)")
     return not bad
 
 
@@ -174,15 +217,20 @@ def main(argv=None):
         for app in targets:
             out = Path("dist") / f"{app.name}.html"
             out.parent.mkdir(exist_ok=True)
-            out.write_text(build.build(app, inline=True, data=not a.no_data))
+            try:
+                out.write_text(build.build(app, inline=True, data=not a.no_data))
+            except (ValueError, SyntaxError) as e:
+                print(f"{app.name}: the app did not build: {why(e)}")
+                ok = False
+                continue
             print(f"{out}  {out.stat().st_size / 1e6:.1f} MB" + (", without its data" if a.no_data else ""))
             if not a.no_verify:
                 choose = {d: [str((app / p).resolve()) for p in v["files"]]
                           for d, v in spec.load(app)["datasets"].items()} if a.no_data else None
-                ok &= check(app, run_page([out.resolve().as_uri()], offline=True, choose=choose)[0])
+                ok &= check(app, run_page([out.resolve().as_uri()], offline=True, choose=choose, apps=[app])[0])
         sys.exit(0 if ok else 1)
     server = serve(0)
-    records = run_page([f"http://127.0.0.1:{server.server_port}/{app.name}/" for app in targets])
+    records = run_page([f"http://127.0.0.1:{server.server_port}/{app.name}/" for app in targets], apps=targets)
     if a.command == "run":
         sys.exit(0 if all([show(app, r) for app, r in zip(targets, records)]) else 1)
     if a.command == "baseline":

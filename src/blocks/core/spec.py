@@ -31,6 +31,8 @@ def _setting(arg: ast.arg, default, where) -> dict:
                 s |= vals
             elif kind == "Choices":
                 s["choices"] = [_literal(a, where) for a in m.args]
+                if s["default"] not in s["choices"]:   # else the menu shows one choice while the node runs another
+                    raise ValueError(f"{where}: its default {s['default']!r} is not one of its choices {s['choices']}")
     s["type"] = getattr(ann, "id", None) or type(s["default"]).__name__
     return s
 

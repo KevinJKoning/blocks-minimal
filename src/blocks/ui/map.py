@@ -67,14 +67,16 @@ def _grid(grid):
 def map(shapes, values=None, names=None, title=None, label=None, lines=None, grid=None, center=None, scale="linear"):  # noqa: A001 - ui.map reads best
     """Polygons or points (shapely geometries, WKB, or GeoJSON geometry dicts; a pyarrow column
     of WKB too) coloured by values, in their own coordinates (a projected CRS draws true to
-    scale). A point is a dot of one size at any zoom.
+    scale). A point is a dot of one size at any zoom: points shaded by a value measured at each
+    (stations, samples) are shapes.
     values: one value per shape: numbers, shaded on the ramp, or names (text, a yes or no),
     a colour each. Or layers {name: values}, which the reader switches between; label,
     center, scale and grid then apply to every layer, or take {name: ...} for each.
     center: the value meaning "no change" (0 for a change); colours then diverge from it.
     scale: "log" for values spread over orders of magnitude (policy-years, populations).
-    lines: geometries drawn on top, unshaded, such as a coastline, roads or wells; or
-    {name: geometries}, each in its own colour, named in a key.
+    lines: geometries drawn on top, unshaded: a coastline, roads, or polygons as outlines
+    (boundaries over a grid, which filled shapes would hide); points here are plain marks.
+    Or {name: geometries}, each in its own colour, named in a key.
     grid: (xs, ys, values), a surface beneath the shapes (an interpolation, a raster):
     values[i][j] is the cell centred on (xs[j], ys[i]). It shares its layer's ramp with the
     shapes' values, if any. The map's extent takes in shapes, lines and grid."""

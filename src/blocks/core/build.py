@@ -9,7 +9,9 @@ from __future__ import annotations
 import base64
 import html
 import json
+import os
 import sys
+import threading
 import urllib.request
 from pathlib import Path
 
@@ -46,7 +48,9 @@ def runtime_file(name: str) -> bytes:
         if spec.sha256(data) != want:
             raise ValueError(f"{name}: sha256 does not match the pin")
         path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_bytes(data)
+        part = path.with_name(f".{name}.{os.getpid()}.{threading.get_ident()}")   # whole or not at all: the cache is shared
+        part.write_bytes(data)
+        os.replace(part, path)
     return data
 
 
@@ -54,15 +58,19 @@ def lock() -> dict:
     return json.loads(runtime_file("pyodide-lock.json"))
 
 
-def packages(imports: list[str], local=()) -> list[str]:
+def packages(imports: list[str], local=(), files=None) -> list[str]:
     """The Pyodide packages the app's imports need, with their dependencies. An import that
     is none of these, nor the standard library or the app's own module, is an error now
-    rather than in the browser."""
+    rather than in the browser, naming the files (of files, {path: source}) that import it."""
     pk = lock()["packages"]
     by_import = {i: n for n, p in pk.items() for i in p.get("imports", [])}
     unknown = set(imports) - set(by_import) - sys.stdlib_module_names - {"blocks", "pyodide", "js", *local}
     if unknown:
-        raise ValueError(f"no Pyodide {PYODIDE} package provides {', '.join(sorted(unknown))}")
+        where = lambda i: [p for p, src in (files or {}).items() if p.endswith(".py") and i in spec.imports({p: src})]
+        raise ValueError("; ".join(f"{' and '.join(where(i)) or 'the app'} imports {i}" for i in sorted(unknown))
+                         + f", which is no package with a Pyodide {PYODIDE} build, nor the standard library, nor a module"
+                         " of the app's own (a .py file or folder at its top level; a node is not one). Pyodide's packages,"
+                         f" and the names each imports as, are in .cache/pyodide/{PYODIDE}/pyodide-lock.json")
     want, todo = set(), [by_import[i] for i in imports if i in by_import]
     while todo:
         n = todo.pop()
@@ -103,7 +111,7 @@ def build(app_dir: Path, inline: bool, data: bool = True) -> str:
     """The app's page. inline: the runtime is in it (an offline file), not served. data: its
     datasets are in it; without them, whoever opens it chooses them."""
     a = spec.load(app_dir)
-    pkgs = packages(a["imports"], {p.split("/")[0].removesuffix(".py") for p in a["files"]})
+    pkgs = packages(a["imports"], {p.split("/")[0].removesuffix(".py") for p in a["files"]}, a["files"])
     library = {f"blocks/{f}": (PACKAGE / f).read_bytes() for f in LIBRARY}
     baseline = Path(app_dir) / "baseline.json"
     manifest = {

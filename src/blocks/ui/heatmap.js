@@ -18,7 +18,7 @@ RENDER.heatmap = (b) => {
       h("svg:title", {}, `${b.rows[i]} · ${b.columns[j]}: ${f(v)}`)),
     writes && v != null && h("svg:text", { x: x + cw / 2, y: y + rh / 2 + 4, "text-anchor": "middle", class: b.dark[i][j] ? "on-dark" : "on-light" }, f(v))];
   }));
-  const fits = Math.floor((L - 10) / 6.2), cut = (c) => (c.length > fits ? c.slice(0, fits - 1) + "…" : c);
+  const fits = Math.floor((L - 10) / 6.2 + 1e-9), cut = (c) => (c.length > fits ? c.slice(0, fits - 1) + "…" : c);
   return h("figure", { class: "heatmap" }, b.title && h("figcaption", {}, b.title),
     h("svg:svg", { viewBox: `0 0 ${Math.max(W, L + nc * cw)} ${H}` },
       b.rows.map((r, i) => h("svg:text", { x: L - 6, y: T + i * rh + rh / 2 + 4, "text-anchor": "end" }, h("svg:title", {}, r), cut(r))),

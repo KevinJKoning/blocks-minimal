@@ -31,7 +31,14 @@ const handlers = {
       lockFileContents: await (await fetch(base + "pyodide-lock.json")).json(),
       env: { HOME: "/home/pyodide", PYTHONHASHSEED: "0", MPLBACKEND: "Agg" },
     });
-    await py.loadPackage(packages, { messageCallback: () => {} });
+    // Pyodide reports a package that failed to load and carries on; here it fails the start,
+    // after one retry (a fetch can fail under load), rather than as a ModuleNotFoundError later.
+    for (let tries = 2; tries--;) {
+      const failed = [];
+      await py.loadPackage(packages, { messageCallback: () => {}, errorCallback: (m) => failed.push(m) });
+      if (!failed.length) break;
+      if (!tries) throw new Error(`packages failed to load: ${failed.join(" ")}`);
+    }
     embedded.clear();
     write("/app", files);
     write("/lib", library);

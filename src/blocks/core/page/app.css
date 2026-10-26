@@ -17,7 +17,8 @@ a:hover { text-decoration: underline; text-underline-offset: 2px; }
 
 header { grid-column: 1 / -1; position: sticky; top: 0; z-index: 2; display: flex; align-items: center; gap: 16px;
   padding: 12px 24px; background: var(--paper); border-bottom: 1px solid var(--rule); }
-header .title { color: var(--ink); font: 600 15px var(--serif); letter-spacing: .01em; white-space: nowrap; }
+header .title { color: var(--ink); font: 600 15px var(--serif); letter-spacing: .01em; white-space: nowrap;
+  min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 header .status-text { color: var(--muted); font-size: 12px; margin-left: auto; min-width: 0; overflow: hidden;
   text-overflow: ellipsis; white-space: nowrap; }
 button { font: 500 13px var(--sans); color: var(--paper); background: var(--ink); border: 0; border-radius: 3px;
@@ -48,7 +49,7 @@ nav { position: sticky; top: 49px; align-self: start; padding: 24px 12px; border
 .dag .box.sel text { fill: var(--paper); }
 .dag .box:hover rect { stroke-width: 2; }
 
-main { padding: 40px 48px 96px; }
+main { padding: 40px 48px 96px; min-width: 0; }
 article { max-width: 720px; }
 h1 { font: 500 32px/1.2 var(--serif); margin: 0 0 16px; letter-spacing: -.01em; }
 h2 { font: 600 11px var(--sans); text-transform: uppercase; letter-spacing: .1em; color: var(--muted);
@@ -86,7 +87,7 @@ figcaption { font: 600 13px var(--sans); margin-bottom: 8px; }
 .setting output { font: 12px var(--mono); text-align: right; }
 input[type=range] { accent-color: var(--ink); width: 100%; }
 input[type=number], input[type=text], select { font: 13px var(--mono); padding: 3px 6px; border: 1px solid var(--rule);
-  background: var(--paper); border-radius: 2px; }
+  background: var(--paper); border-radius: 2px; max-width: 100%; }
 
 .nodes { padding-left: 20px; }
 .nodes li { margin-bottom: 14px; }
@@ -105,9 +106,9 @@ input[type=number], input[type=text], select { font: 13px var(--mono); padding: 
 .differs { color: var(--worse); }
 
 @media (max-width: 760px) {
-  #app { grid-template-columns: 1fr; }
+  #app { grid-template-columns: minmax(0, 1fr); }
   nav { position: static; min-height: 0; border-right: 0; border-bottom: 1px solid var(--rule); display: flex; justify-content: center; }
   main { padding: 24px 16px 64px; }
   header { padding: 10px 16px; }
-  .setting { grid-template-columns: 1fr 2fr 56px; }
+  .setting { grid-template-columns: minmax(0, 1fr) minmax(0, 2fr) 56px; }
 }
