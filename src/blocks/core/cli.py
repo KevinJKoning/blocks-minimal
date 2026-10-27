@@ -128,16 +128,16 @@ def unloaded(browser, page, errors: list[str], app: Path | None) -> str:
 
 
 def run_page(urls: list[str], offline=False, choose=None, apps=None) -> list[dict]:
-    """Open each page in headless Chromium, press Run, draw every node's page and return its
+    """Open each page in headless Edge, press Run, draw every node's page and return its
     run records. The page runs
-    untrusted packages, so Chromium keeps its sandbox and the page reaches no server but its
+    untrusted packages, so the browser keeps its sandbox and the page reaches no server but its
     own (offline: none at all). choose: {dataset: [files]} for a page built without its data,
     chosen as a reader would, through the dataset's file input. apps: each page's app folder,
     to name the block script that broke a page."""
     from playwright.sync_api import sync_playwright
     out = []
     with sync_playwright() as p:
-        browser = p.chromium.launch(chromium_sandbox=True)
+        browser = p.chromium.launch(channel="msedge", chromium_sandbox=True)
         for url, app in zip(urls, apps or [None] * len(urls)):
             context = browser.new_context()
             allowed = ("data:", "blob:", "file:") + (() if offline else ("{0.scheme}://{0.netloc}/".format(urlsplit(url)),))
