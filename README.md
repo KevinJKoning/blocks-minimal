@@ -54,7 +54,7 @@ python3.13 -m venv .venv && .venv/bin/pip install --require-hashes -r requiremen
 
 The apps' code is trusted; their packages are not. The page's Content-Security-Policy keeps
 the worker off the network (a built page reaches nothing; a served one, only its dev server's runtime files),
-headless Chromium keeps its sandbox, the dev server answers only to `127.0.0.1` and
+the headless browser keeps its sandbox, the dev server answers only to `127.0.0.1` and
 `localhost`, and the native dependencies are pinned with hashes in `requirements.txt`.
 
 ## An app
@@ -119,7 +119,7 @@ an app's `ui/` when only that app draws it; AGENTS.md has the rules for writing 
 | `src/blocks/core/graph.py`, `worker.js` | the executor in Pyodide, and the page's bridge to it |
 | `src/blocks/core/spec.py` | reads an app with `ast`: nodes, settings, metrics, datasets, order, imports |
 | `src/blocks/core/build.py` | the page as one file, with every block's files; the pinned Pyodide runtime, cached in `.cache/` |
-| `src/blocks/core/cli.py` | `serve`, `build`, `baseline`, `verify` (headless Chromium: Run, then every node's page drawn) |
+| `src/blocks/core/cli.py` | `serve`, `build`, `baseline`, `verify` (headless Edge: Run, then every node's page drawn) |
 | `src/blocks/core/page/` | `app.js` (the graph, pages, settings and the kit blocks draw with), `app.css` (the one theme) |
 | `src/blocks/ui/` | the blocks, each a `.py`, a `.js` and maybe a `.css`; `_kit.py` and `_kit.js`, what they share |
 

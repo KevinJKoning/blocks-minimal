@@ -286,7 +286,7 @@ def probe(*, url: str = "http://127.0.0.1:{other.server_port}/leak"):
     def reached(url, target=None):
         hits.clear()
         with sync_playwright() as p:
-            browser = p.chromium.launch(chromium_sandbox=True)
+            browser = p.chromium.launch(channel="msedge", chromium_sandbox=True)
             page = browser.new_page()
             page.goto(url)
             if target:
