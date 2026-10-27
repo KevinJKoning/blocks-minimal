@@ -16,13 +16,13 @@
 .map .under { display: flex; justify-content: space-between; gap: 12px; min-height: 1.4em; margin: 4px 0 0; font: 11px var(--mono); color: var(--ink); }
 .map .zoom { display: flex; gap: 10px; flex: none; }
 .map .zoom button { font-size: 13px; line-height: 1; }
-.map .scale { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 4px 16px; font: 11px var(--mono); color: var(--muted); margin: 6px 0 0; }
+.map .scale { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 6px 16px; font: 11px var(--mono); color: var(--muted); margin: 6px 0 0; }
 .map .scale .bar { position: relative; width: min(240px, calc(100% - 24px)); height: 26px; margin: 0 12px; }
 .map .scale .bar i { display: block; height: 8px; }
 .map .scale .bar span { position: absolute; top: 11px; transform: translateX(-50%); white-space: nowrap; }
 .map .scale .pin { position: absolute; top: -3px; width: 2px; height: 14px; margin-left: -1px; background: var(--ink); }
 .map .swatch { display: inline-block; width: 10px; height: 8px; margin-right: 6px; vertical-align: baseline; }
 .map .swatch.none { background: var(--wash); border: 1px solid var(--rule); }
-.map .key { display: flex; flex-wrap: wrap; gap: 4px 16px; font-size: 12px; color: var(--muted); margin: 4px 0 0; }
+.map .key { display: flex; flex-wrap: wrap; gap: 6px 16px; font-size: 12px; color: var(--muted); margin: 4px 0 0; }
 .map .key i { display: inline-block; width: 12px; height: 2px; margin-right: 6px; vertical-align: middle; }
 .map .key i.dot { width: 6px; height: 6px; border-radius: 50%; }

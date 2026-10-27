@@ -1,7 +1,11 @@
-.table .scroll { overflow: auto; max-height: 420px; }
-.table th { position: sticky; top: 0; background: var(--paper); border-bottom-color: var(--ink); white-space: nowrap; }
+.table .scroll { overflow: auto; max-height: 420px; border: 1px solid var(--rule); border-radius: 6px; }
+.table table { width: 100%; }
+.table th { position: sticky; top: 0; background: var(--wash); border-bottom-color: var(--rule); white-space: nowrap; font-size: 11.5px; }
+.table th, .table td { padding: 7px 12px; }
+.table td { font-family: var(--sans); }
 .table th.sortable { cursor: pointer; }
 .table th.sortable:hover { color: var(--accent); }
 .table th[data-sort="up"]::after { content: " ↑"; }
 .table th[data-sort="down"]::after { content: " ↓"; }
 .table td.num { text-align: right; font-variant-numeric: tabular-nums; }
+.table tbody tr:hover { background: var(--wash); }
