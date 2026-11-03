@@ -45,16 +45,15 @@ def recovery(glm, credibility, truth):
 
 
 def view(out):
-    s = out["scatter"]
+    s, terms = out["scatter"], out["coefficients"][1:]   # the intercept left out
     order = np.argsort(s["true"])
     return [
         ui.metrics(),
         ui.markdown(f"Root-mean-square error of each territory's effect: **{out['error_credibility']:.3f}** with credibility, "
                     f"against {out['error_own']:.3f} from its own experience alone and {out['error_glm']:.3f} from the GLM "
                     "alone. Credibility beats both: it trusts big territories and lets small ones lean on the model."),
-        ui.bars([r["term"] for r in out["coefficients"][1:]],
-                {"estimate": [r["estimate"] for r in out["coefficients"][1:]], "truth": [r["true"] for r in out["coefficients"][1:]]},
-                kind="dot", intervals={"estimate": ([r["low"] for r in out["coefficients"][1:]], [r["high"] for r in out["coefficients"][1:]])},
+        ui.bars([r["term"] for r in terms], {"estimate": [r["estimate"] for r in terms], "truth": [r["true"] for r in terms]},
+                kind="dot", intervals={"estimate": ([r["low"] for r in terms], [r["high"] for r in terms])},
                 reference=0, title="Coefficients against the truth, with 95% intervals (the intercept left out)",
                 label="coefficient (log scale)"),
         ui.table([{"term": r["term"], "true": r["true"], "estimate": r["estimate"], "95% low": r["low"],

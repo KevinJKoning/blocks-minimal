@@ -15,12 +15,8 @@ import numpy as np
 from blocks import Range, ui
 from seasonal import design
 
-METRICS = {
-    "rmse": {"label": "in-sample RMSE (GWh)", "goal": "min"},
-    "mape": {"label": "in-sample MAPE", "goal": "min"},
-    "sigma": {"label": "residual sd (GWh)", "goal": "min"},
-    "trend_per_year": "trend (GWh per year)",
-}
+METRICS = {"rmse": {"label": "in-sample RMSE (GWh)", "goal": "min"}, "mape": {"label": "in-sample MAPE", "goal": "min"},
+           "sigma": {"label": "residual sd (GWh)", "goal": "min"}, "trend_per_year": "trend (GWh per year)"}
 
 
 def fit(history, *, season_length: Annotated[int, Range(2, 24, 1)] = 12):

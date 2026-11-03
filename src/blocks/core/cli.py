@@ -1,13 +1,17 @@
-"""blocks serve | run | baseline | verify | build [APP ...], run from the repository root;
-with no APP, every app in projects/.
+"""blocks serve | run | baseline | verify | build | packages [APP ...], run from the repository
+root; with no APP, every app in projects/.
 
 serve     the apps at http://127.0.0.1:8765/<app>/, rebuilt on every request
 run       run each app headlessly and print every node: its status, metrics and errors
+            --set NAME=VALUE   with a setting other than its default (VALUE is JSON, else text)
+            --output NODE      also print that node's output, as JSON
+            --shots DIR        save a PNG of every page, to DIR/<app>/<node>.png
 baseline  run each app headlessly and keep its run as projects/<app>/baseline.json, if
           every node and view succeeded
 verify    run each app headlessly and compare with its baseline
 build     dist/<app>.html, one offline file, verified from file:// with the network blocked;
           --no-data leaves its datasets out, for whoever opens it to choose
+packages  what a node may import: the import names of Pyodide's packages
 """
 from __future__ import annotations
 
@@ -87,11 +91,11 @@ def serve(port: int) -> ThreadingHTTPServer:
     return server
 
 
-# Run, then open every node's page: a block that failed to draw is a failed view.
-RUN = """async () => {
+# Set the settings, run, then open every node's page: a block that failed to draw is a failed view.
+RUN = """async (settings) => {
   try { await window.blocks.ready; } catch (e) { return { failed: `Python did not start: ${e.message}` }; }
   let rec;
-  try { rec = await window.blocks.run(); } catch (e) { return { failed: e.message }; }
+  try { window.blocks.set(settings); rec = await window.blocks.run(); } catch (e) { return { failed: e.message }; }
   for (const n of Object.keys(rec.nodes)) {
     window.blocks.show(n);
     const failed = [...document.querySelectorAll("[data-failed]")].map((e) => e.textContent);
@@ -127,13 +131,14 @@ def unloaded(browser, page, errors: list[str], app: Path | None) -> str:
     return "the page's script failed: " + "; ".join(errors) + "".join(f"\n  {f}" for f in found)
 
 
-def run_page(urls: list[str], offline=False, choose=None, apps=None) -> list[dict]:
+def run_page(urls: list[str], offline=False, choose=None, apps=None, settings=None, shots=None, output=None) -> list[dict]:
     """Open each page in headless Edge, press Run, draw every node's page and return its
     run records. The page runs
     untrusted packages, so the browser keeps its sandbox and the page reaches no server but its
     own (offline: none at all). choose: {dataset: [files]} for a page built without its data,
     chosen as a reader would, through the dataset's file input. apps: each page's app folder,
-    to name the block script that broke a page."""
+    to name the block script that broke a page. settings: {name: value} set before Run.
+    shots: a folder for a PNG of every page, per app. output: a node whose output joins the record."""
     from playwright.sync_api import sync_playwright
     out = []
     with sync_playwright() as p:
@@ -154,7 +159,17 @@ def run_page(urls: list[str], offline=False, choose=None, apps=None) -> list[dic
                 for d, files in choose.items():
                     page.locator(f'input[data-dataset="{d}"]').first.set_input_files(files)
                 page.wait_for_function("() => window.blocks.state().missing.length === 0")
-            out.append(page.evaluate(RUN))
+            record = page.evaluate(RUN, settings or {})
+            if "failed" not in record:
+                if shots:
+                    folder = Path(shots) / (app.name if app else "page")
+                    folder.mkdir(parents=True, exist_ok=True)
+                    for n in [None, *record["nodes"]]:
+                        page.evaluate("(n) => window.blocks.show(n)", n)
+                        page.screenshot(path=str(folder / f"{n or '_overview'}.png"), full_page=True)
+                if output:
+                    record["output"] = page.evaluate("(n) => window.blocks.output(n)", output)
+            out.append(record)
             context.close()
         browser.close()
     return out
@@ -178,6 +193,8 @@ def show(app: Path, record: dict) -> bool:
         print(f"  {n}  {r['status']}" + (f"  {metrics}" if metrics else ""))
         if n in bad:
             print("    " + bad[n].strip().replace("\n", "\n    "))
+    if "output" in record:
+        print(json.dumps(record["output"], indent=1))
     return not bad
 
 
@@ -197,14 +214,31 @@ def check(app: Path, record: dict) -> bool:
     return not bad
 
 
+def setting(text: str):
+    """NAME=VALUE as (name, value), the value read as JSON (3, 0.5, true) or else as text."""
+    name, _, value = text.partition("=")
+    try:
+        return name, json.loads(value)
+    except json.JSONDecodeError:
+        return name, value
+
+
 def main(argv=None):
     ap = argparse.ArgumentParser(prog="blocks", description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("command", choices=["serve", "run", "baseline", "verify", "build"])
+    ap.add_argument("command", choices=["serve", "run", "baseline", "verify", "build", "packages"])
     ap.add_argument("apps", nargs="*")
     ap.add_argument("--port", type=int, default=8765)
     ap.add_argument("--no-verify", action="store_true", help="build only")
     ap.add_argument("--no-data", action="store_true", help="build: leave the datasets out of the page")
+    ap.add_argument("--set", action="append", default=[], type=setting, metavar="NAME=VALUE", help="run: a setting other than its default")
+    ap.add_argument("--output", metavar="NODE", help="run: also print this node's output")
+    ap.add_argument("--shots", metavar="DIR", help="run: save a PNG of every page")
     a = ap.parse_args(argv)
+    if a.command == "packages":
+        print(" ".join(sorted(i for p in build.lock()["packages"].values() for i in p.get("imports", []))))
+        sys.exit(0)
+    if (a.set or a.output or a.shots) and a.command != "run":
+        sys.exit("blocks: --set, --output and --shots are for run; a baseline, verify and build use the settings' defaults")
     if a.command == "serve":
         try:
             serve(a.port)
@@ -231,7 +265,8 @@ def main(argv=None):
                 ok &= check(app, run_page([out.resolve().as_uri()], offline=True, choose=choose, apps=[app])[0])
         sys.exit(0 if ok else 1)
     server = serve(0)
-    records = run_page([f"http://127.0.0.1:{server.server_port}/{app.name}/" for app in targets], apps=targets)
+    records = run_page([f"http://127.0.0.1:{server.server_port}/{app.name}/" for app in targets], apps=targets,
+                       settings=dict(a.set), shots=a.shots, output=a.output)
     if a.command == "run":
         sys.exit(0 if all([show(app, r) for app, r in zip(targets, records)]) else 1)
     if a.command == "baseline":
@@ -242,8 +277,12 @@ def main(argv=None):
                 print(f"{app.name}: no baseline recorded")
                 ok = False
                 continue
-            (app / "baseline.json").write_text(json.dumps(record, indent=1) + "\n")
-            print(f"{app.name}: baseline recorded")
+            old = app / "baseline.json"
+            changed = compare(record, json.loads(old.read_text())) if old.exists() else {}
+            old.write_text(json.dumps(record, indent=1) + "\n")
+            print(f"{app.name}: baseline recorded" + ("; what changed from the old one:" if changed else ""))
+            for n, why in changed.items():
+                print(f"  {n}: " + "; ".join(why))
         sys.exit(0 if ok else 1)
     else:
         sys.exit(0 if all([check(app, r) for app, r in zip(targets, records)]) else 1)

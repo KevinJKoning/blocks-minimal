@@ -25,9 +25,10 @@ def rows(out):
 
 
 def view(out):
-    return [ui.download("land_use_summary.csv", rows(out), title="parcels, area and assessed value per land use"),
+    table = rows(out)
+    return [ui.download("land_use_summary.csv", table, title="parcels, area and assessed value per land use"),
             ui.metrics(),
-            ui.bars([r["land use"] for r in rows(out)], {"share": [r["share of area"] for r in rows(out)]}, title="Share of the area by land use",
-                    percent=True),
-            ui.table(rows(out), title="By land use", percent=["share of area"])]
+            ui.bars([r["land use"] for r in table], {"share": [r["share of area"] for r in table]},
+                    title="Share of the area by land use", percent=True),
+            ui.table(table, title="By land use", percent=["share of area"])]
 

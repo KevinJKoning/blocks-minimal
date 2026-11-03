@@ -76,6 +76,19 @@ def imports(files: dict[str, bytes]) -> set[str]:
     return out
 
 
+def shared_settings(nodes: dict) -> dict:
+    """{name: setting}. A setting is the app's, by its name: nodes that declare the same name
+    share its value, so they must declare it alike."""
+    out, owner = {}, {}
+    for n, node in nodes.items():
+        for p, s in node["settings"].items():
+            if p in out and out[p] != s:
+                raise ValueError(f"{node['file']}: the setting {p} is also {owner[p]}'s, declared differently; "
+                                 f"nodes share a setting by its name, so declare it alike or rename one")
+            out[p], owner[p] = s, n
+    return out
+
+
 def load(app_dir: Path) -> dict:
     app_dir = Path(app_dir)
     readme = (app_dir / "README.md").read_text() if (app_dir / "README.md").exists() else f"# {app_dir.name}\n"
@@ -89,9 +102,10 @@ def load(app_dir: Path) -> dict:
     for n, node in nodes.items():
         for d in node["deps"]:
             if d not in nodes and d not in data:
-                raise ValueError(f"{node['file']}: {d} is neither a node nor a file in data/")
+                raise ValueError(f"{node['file']}: {d} is neither a node nor a file in data/ (settings go after the *)")
             if d not in nodes:
                 datasets[d] = data[d]
+    shared_settings(nodes)
     order = list(graphlib.TopologicalSorter({n: [d for d in v["deps"] if d in nodes] for n, v in nodes.items()}).static_order())
     # A built page ships these: never what is hidden (in a folder like .secrets/ too), nor what a link leads to outside.
     files = {p.relative_to(app_dir).as_posix(): inside(app_dir, p).read_bytes() for p in sorted(app_dir.rglob("*"))

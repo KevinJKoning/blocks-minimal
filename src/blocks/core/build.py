@@ -69,8 +69,8 @@ def packages(imports: list[str], local=(), files=None) -> list[str]:
         where = lambda i: [p for p, src in (files or {}).items() if p.endswith(".py") and i in spec.imports({p: src})]
         raise ValueError("; ".join(f"{' and '.join(where(i)) or 'the app'} imports {i}" for i in sorted(unknown))
                          + f", which is no package with a Pyodide {PYODIDE} build, nor the standard library, nor a module"
-                         " of the app's own (a .py file or folder at its top level; a node is not one). Pyodide's packages,"
-                         f" and the names each imports as, are in .cache/pyodide/{PYODIDE}/pyodide-lock.json")
+                         " of the app's own (a .py file or folder at its top level; a node is not one)."
+                         " `blocks packages` lists the names a node can import.")
     want, todo = set(), [by_import[i] for i in imports if i in by_import]
     while todo:
         n = todo.pop()
@@ -96,11 +96,10 @@ def block_files(app_dir: Path, ext: str) -> list[Path]:
 
 
 def blocks(app_dir: Path, ext: str) -> str:
-    """Every block's .js or .css, the library's kit first. Each script is in its own scope, so
-    a block's helpers stay its own; the kit's are every block's."""
+    """The kit (ui/_kit.js or ui/_kit.css), then every block's .js or .css. Each block script is
+    in its own scope, so a block's helpers stay its own; the kit's are every block's."""
     parts = [f"{{ // {p.name}\n{p.read_text()}}}" if ext == ".js" else p.read_text() for p in block_files(app_dir, ext)]
-    kit = [(PACKAGE / "ui" / "_kit.js").read_text()] if ext == ".js" else []   # styles have no kit
-    return "\n".join(kit + parts)
+    return "\n".join([(PACKAGE / "ui" / f"_kit{ext}").read_text(), *parts])
 
 
 def b64(data: bytes) -> str:
