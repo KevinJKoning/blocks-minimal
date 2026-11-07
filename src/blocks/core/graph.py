@@ -1,12 +1,11 @@
-"""The graph, run in Pyodide: nodes are functions, values pass in memory, and every output is
-cached by a key over the node's code, its settings and its inputs' keys. Run computes only
-the nodes whose key changed; the rest come from the cache. A run leaves a record (record),
-and verification compares one with the baseline (compare).
+"""The graph, run in Pyodide: nodes are functions, values pass in memory, and each output is
+cached by its node's key (Graph.key). Run computes only the nodes whose key changed; the rest
+come from the cache. A run leaves a record (record), which verify compares with the baseline
+(compare).
 """
 from __future__ import annotations
 
 import contextlib
-import datetime
 import hashlib
 import io
 import json
@@ -120,8 +119,10 @@ class Graph:
         self.root, self.spec = os.path.abspath(root), spec
         self.cache: dict[str, tuple[str, object, dict]] = {}   # node -> (key, output, result)
         self.modules: dict[str, types.ModuleType] = {}
+        # The app's helper modules: every .py outside nodes/ and data/. Any node may import them
+        # (the app's folder is on sys.path), so they are part of every node's key.
         helpers = sorted(os.path.join(d, n) for d, _, ns in os.walk(self.root) for n in ns
-                         if n.endswith(".py") and "nodes" not in os.path.relpath(d, self.root).split(os.sep))
+                         if n.endswith(".py") and not {"nodes", "data"} & set(os.path.relpath(d, self.root).split(os.sep)))
         self.helpers = hashlib.sha256(b"".join(self._read(p) for p in helpers)).hexdigest()
         if self.root not in sys.path:
             sys.path.insert(0, self.root)
@@ -140,7 +141,8 @@ class Graph:
         return self.modules[name]
 
     def run(self, settings: dict, data: dict) -> dict:
-        """settings {"node.param": value}, data {dataset: key}. Returns {node: result}."""
+        """settings {name: value}, data {dataset: key}. Returns {node: result}. A setting is the
+        app's, by its name: every node that declares it gets its value."""
         results, keys = {}, {}
         for name in self.spec["order"]:
             node = self.spec["nodes"][name]
@@ -148,10 +150,8 @@ class Graph:
             if failed:
                 results[name] = {"status": "blocked", "error": f"{failed} did not run"}
                 continue
-            mine = {p: settings.get(f"{name}.{p}", s["default"]) for p, s in node["settings"].items()}
-            parts = [hashlib.sha256(self._read(node["file"])).hexdigest(), self.helpers, json.dumps(mine, sort_keys=True, default=repr)]
-            parts += [data.get(d, "") if d in self.spec["datasets"] else keys[d] for d in node["deps"]]
-            key = keys[name] = hashlib.sha256("\0".join(parts).encode()).hexdigest()
+            mine = {p: settings.get(p, s["default"]) for p, s in node["settings"].items()}
+            key = keys[name] = self.key(name, mine, [data.get(d, "") if d in self.spec["datasets"] else keys[d] for d in node["deps"]])
             if name in self.cache and self.cache[name][0] == key:
                 results[name] = {**self.cache[name][2], "cached": True}
                 continue
@@ -176,6 +176,13 @@ class Graph:
             self.cache[name] = (key, value, result)
             results[name] = {**result, "cached": False}
         return results
+
+    def key(self, name, settings, input_keys):
+        """A node's key: its file, the app's helper modules, its settings and its inputs' keys (a
+        dataset's is its data key). A node whose key is unchanged comes from the cache."""
+        parts = [hashlib.sha256(self._read(self.spec["nodes"][name]["file"])).hexdigest(), self.helpers,
+                 json.dumps(settings, sort_keys=True, default=repr), *input_keys]
+        return hashlib.sha256("\0".join(parts).encode()).hexdigest()
 
     def dataset(self, d):
         """A dataset's path, or a folder's file paths in name order."""
@@ -205,9 +212,10 @@ class Graph:
 
 
 def record(results: dict, settings: dict, data: dict) -> dict:
-    keep = ("status", "key", "metrics", "digest", "error", "view_error")
-    return {"made": datetime.datetime.now(datetime.timezone.utc).isoformat(timespec="seconds"),
-            "settings": settings, "data": data,
+    """What a baseline keeps of a run: each node's status, metrics and output digest, or its error.
+    No key and no timestamp, so a baseline changes only when a result does."""
+    keep = ("status", "metrics", "digest", "error", "view_error")
+    return {"settings": settings, "data": data,
             "nodes": {n: {k: r[k] for k in keep if r.get(k) is not None} for n, r in results.items()}}
 
 

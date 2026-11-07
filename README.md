@@ -25,16 +25,18 @@ def view(out):                              # optional: how its results look
 
 - **The graph is the functions' signatures.** Positional parameters are inputs: another
   node by its name, or a file in `data/` by its stem. Keyword-only parameters are
-  settings. There is no config file: the title and description are the README's, the
+  settings, and a setting is the app's, by its name: nodes that declare the same name share
+  one value. There is no config file: the title and description are the README's, the
   packages are the imports: Pyodide's builds (numpy, pandas, scipy, statsmodels,
-  scikit-learn, shapely and some 300 more), not the venv's.
-- **Cached.** Each output is keyed by its node's code, settings and inputs' keys. Changing
+  scikit-learn, shapely and some 300 more; `blocks packages` lists them), not the venv's.
+- **Cached.** Each output is keyed by its node's code, the app's helper modules, its
+  settings and its inputs' keys (`Graph.key` in `graph.py`). Changing
   `alpha` makes `train` and what reads it stale; Run re-runs just those.
 - **The page is blocks.** The graph is the table of contents. Each node is a page of its
   docstring, settings, results (its view) and code; each dataset, a page where it can be
   replaced, under what its `data/<name>.md` says it is; the overview gathers datasets and downloads.
-- **Verified.** Every run leaves a record (settings, data keys, every node's metrics and
-  output digest). `blocks baseline` keeps one; `blocks verify` and `blocks build` compare
+- **Verified.** Every run leaves a record (settings, data keys, every node's status, metrics
+  and output digest; no cache keys or times, so it changes only when a result does). `blocks baseline` keeps one; `blocks verify` and `blocks build` compare
   against it, and the page shows each metric against it. A view that fails, in Python or
   on the page, fails them too.
 
@@ -45,6 +47,9 @@ python3.13 -m venv .venv && .venv/bin/pip install --require-hashes -r requiremen
 .venv/bin/pip install --no-deps --no-build-isolation -e . && .venv/bin/playwright install chromium
 .venv/bin/blocks serve                    # http://127.0.0.1:8765/<app>/, rebuilt on every request
 .venv/bin/blocks run parcels              # run headlessly; print each node's status, metrics and errors
+                                          # --set NAME=VALUE: another setting; --output NODE: print its output;
+                                          # --shots DIR: a PNG of every page
+.venv/bin/blocks packages                 # what a node can import (Pyodide's packages, by import name)
 .venv/bin/blocks baseline parcels         # the same, kept as projects/parcels/baseline.json if nothing failed
 .venv/bin/blocks verify [APP ...]         # compare with the baseline (no APP: every app)
 .venv/bin/blocks build [APP ...]          # dist/<app>.html (git-ignored, mostly Pyodide: 20-80 MB), verified offline from file://
@@ -75,7 +80,7 @@ projects/<app>/
 | in a node file | means |
 |---|---|
 | positional parameters | what it reads: a node's output, or a dataset's path (so no node and dataset share a name) |
-| keyword-only parameters | its settings, each a literal default: a bool is a checkbox; `Annotated[float, Range(min, max)]` a slider; `Annotated[str, Choices("a", "b")]` a menu; any other number or string a box |
+| keyword-only parameters | its settings, each a literal default, shared by name with every node that declares it alike: a bool is a checkbox; `Annotated[float, Range(min, max)]` a slider; `Annotated[str, Choices("a", "b")]` a menu; any other number or string a box |
 | the return value | its output, any Python value, passed in memory to the nodes that read it. Every number in its dicts (nested too, not in lists or tables) is a metric: recorded, compared with the baseline and shown, the unlabelled ones folded under "more numbers" (a setting the view needs to mention comes back this way too) |
 | the docstring | the top of its page (Markdown) |
 | `METRICS = {key: "label" \| {label, goal, percent}}` | labels for its numbers, in order, each key a number's path in the output (`fit.shape` for `{"fit": {"shape": ...}}`); `goal: "min" \| "max"` colours changes; `percent: True` marks a share |
@@ -119,8 +124,8 @@ an app's `ui/` when only that app draws it; AGENTS.md has the rules for writing 
 | `src/blocks/core/graph.py`, `worker.js` | the executor in Pyodide, and the page's bridge to it |
 | `src/blocks/core/spec.py` | reads an app with `ast`: nodes, settings, metrics, datasets, order, imports |
 | `src/blocks/core/build.py` | the page as one file, with every block's files; the pinned Pyodide runtime, cached in `.cache/` |
-| `src/blocks/core/cli.py` | `serve`, `build`, `baseline`, `verify` (headless Edge: Run, then every node's page drawn) |
+| `src/blocks/core/cli.py` | `serve`, `run`, `build`, `baseline`, `verify` (headless Edge: Run, then every node's page drawn), `packages` |
 | `src/blocks/core/page/` | `app.js` (the graph, pages, settings and the kit blocks draw with), `app.css` (the one theme) |
-| `src/blocks/ui/` | the blocks, each a `.py`, a `.js` and maybe a `.css`; `_kit.py` and `_kit.js`, what they share |
+| `src/blocks/ui/` | the blocks, each a `.py`, a `.js` and maybe a `.css`; `_kit.py`, `_kit.js` and `_kit.css`, what they share |
 
 Derived from `blocks`, with its run browser, plugins, sandboxed views and more left out.

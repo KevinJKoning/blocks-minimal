@@ -10,4 +10,5 @@ heating peak, a smaller summer cooling peak and noise.
 `history` reads the series. `fit` fits a simple seasonal model by least squares, a linear
 trend plus one level per position in a season of `season_length` months, and shows it
 against the history. `forecast` extends it `horizon` months ahead with an 80% prediction
-interval and delivers the forecast as a CSV.
+interval and delivers the forecast as a CSV; it reads `season_length` too, the same setting
+as `fit`'s.

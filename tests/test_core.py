@@ -78,9 +78,36 @@ def test_runs_only_what_changed(app):
     assert first["double"]["blocks"][0] == {"type": "metrics"} and first["count"]["blocks"] == [{"type": "metrics"}]
     again = g.run({}, {"numbers": "k1"})
     assert again["double"]["cached"] and again["count"]["cached"]
-    changed = g.run({"double.factor": 3}, {"numbers": "k1"})
+    changed = g.run({"factor": 3}, {"numbers": "k1"})
     assert not changed["double"]["cached"] and changed["double"]["metrics"]["total"] == 18
     assert not changed["count"]["cached"] and changed["count"]["digest"] == first["count"]["digest"]
+
+
+def test_a_setting_is_the_apps_by_its_name(app):
+    (app / "nodes" / "count.py").write_text("from typing import Annotated\nfrom blocks import Range\n\n\ndef count(double, *, factor: Annotated[int, Range(1, 5)] = 2):\n    return {'n': factor * len(double['values'])}\n")
+    g = graph.Graph(str(app), graph_spec(spec.load(app)))
+    assert g.run({"factor": 3}, {})["count"]["metrics"] == {"n": 9}
+    (app / "nodes" / "count.py").write_text("def count(double, *, factor=5):\n    return {}\n")
+    with pytest.raises(ValueError, match="setting factor is also count's"):
+        spec.load(app)
+
+
+def test_a_helper_is_in_every_key_and_data_scripts_in_none(app):
+    g = graph.Graph(str(app), graph_spec(spec.load(app)))
+    (app / "data" / "generate.py").write_text("print('makes numbers.txt')")
+    assert graph.Graph(str(app), graph_spec(spec.load(app))).helpers == g.helpers
+    (app / "shared.py").write_text("X = 1\n")
+    assert graph.Graph(str(app), graph_spec(spec.load(app))).helpers != g.helpers
+
+
+def test_a_baseline_keeps_results_not_keys_or_times(app):
+    rec = graph.record(graph.Graph(str(app), graph_spec(spec.load(app))).run({}, {}), {}, {})
+    assert "made" not in rec and all("key" not in r for r in rec["nodes"].values())
+
+
+def test_a_setting_on_the_command_line_is_json_or_text():
+    from blocks.core import cli
+    assert cli.setting("factor=3") == ("factor", 3) and cli.setting("loss=huber") == ("loss", "huber")
 
 
 def test_a_failure_blocks_what_reads_it(app):
@@ -94,7 +121,7 @@ def test_compare_with_the_baseline(app):
     g = graph.Graph(str(app), graph_spec(spec.load(app)))
     base = json.loads(graph.to_json(graph.record(g.run({}, {}), {}, {})))
     assert graph.compare(base, base) == {}
-    other = graph.record(g.run({"double.factor": 3}, {}), {}, {})
+    other = graph.record(g.run({"factor": 3}, {}), {}, {})
     assert set(graph.compare(other, base)) == {"double"}
     (app / "nodes" / "count.py").write_text(NODES["count.py"] + "\n\ndef view(out):\n    return out['nope']\n")
     broken = graph.Graph(str(app), graph_spec(spec.load(app))).run({}, {})
@@ -174,7 +201,7 @@ def test_a_folder_is_one_dataset_read_in_name_order(app):
 
 def test_packages_follow_imports():
     assert "numpy" in build.packages(["pandas"]) and build.packages(["os", "blocks", "helpers"], {"helpers"}) == []
-    with pytest.raises(ValueError, match="nosuchpackage"):
+    with pytest.raises(ValueError, match="nosuchpackage.*blocks packages"):
         build.packages(["nosuchpackage"])
     with pytest.raises(ValueError, match="nodes/a.py imports glm, which is no package"):
         build.packages(["glm"], files={"nodes/a.py": b"from glm import fit\n", "nodes/b.py": b"import os\n"})
@@ -290,7 +317,7 @@ def probe(*, url: str = "http://127.0.0.1:{other.server_port}/leak"):
             page = browser.new_page()
             page.goto(url)
             if target:
-                page.evaluate("target => window.blocks.set({'probe.url': target})", target)
+                page.evaluate("target => window.blocks.set({'url': target})", target)
             got = page.evaluate(cli.RUN)["nodes"]["probe"]["metrics"]["reached"]
             browser.close()
         return got, list(hits)
@@ -347,7 +374,7 @@ def test_an_app_brings_its_own_block(app):
     (app / "ui" / "badge.css").write_text(".badge { color: var(--ink); }\n")
     (app / "nodes" / "count.py").write_text(NODES["count.py"] + "\n\ndef view(out):\n    from ui.badge import badge\n    return [badge(f\"{out['n']} values\")]\n")
     page = build.build(app, inline=False, origin="http://127.0.0.1:8765")
-    assert "RENDER.badge = " in page and ".badge { color" in page and "ticks(" in page
+    assert "RENDER.badge = " in page and ".badge { color" in page and "ticks(" in page and ".scale .bar" in page
     assert graph.Graph(str(app), graph_spec(spec.load(app))).run({}, {})["count"]["blocks"] == [{"type": "badge", "text": "3 values"}]
     (app / "ui" / "chart.js").write_text("")
     with pytest.raises(ValueError, match="redefines a library block"):

@@ -6,16 +6,19 @@ its packages. A script in `data/` that makes or fetches a dataset is the excepti
 
 ## Iterating on an app
 
-Edit node files, then `blocks run APP` to see every node's status, metrics and errors. In
-the page, reload `/<app>/` and drive it with `window.blocks`: `set({"node.param": v})`
-marks what is stale, `run()` computes it and returns the run record, `output(node)` reads
+Edit node files, then `blocks run APP` to see every node's status, metrics and errors;
+`--set NAME=VALUE` runs it with another setting, `--output NODE` prints an output, and
+`--shots DIR` saves every page as a PNG, to look at after changing a view. In
+the page, reload `/<app>/` and drive it with `window.blocks`: `set({name: v})`
+marks what is stale (an unknown name is an error), `run()` computes it and returns the run record, `output(node)` reads
 an output, `state()` has every result and its blocks, `show(node)` opens a page. Changes
 to apps (their `ui/` too), `src/blocks/ui/`, `graph.py`, `worker.js` and `page/` show on reload; after
 changing `spec.py`, `build.py` or `cli.py`, restart `blocks serve`.
 
 - One node per file in `nodes/`, named after the file. Keep nodes small, one concern
-  each; a helper several nodes use goes outside `nodes/`. A node sees only its own
-  settings: one that others need comes back in its output, or is a small node of its own.
+  each; a helper several nodes use goes outside `nodes/` (it is in every node's key).
+  A setting is the app's, by its name: nodes that need the same one each declare it, alike,
+  and share its value.
 - Return plain values (dicts of numbers and arrays, pandas or pyarrow tables), and label
   the numbers that matter in `METRICS`.
 - The module docstring tops the node's page: what it does and why.
@@ -47,7 +50,7 @@ Growing a block stays out of the core:
 - A block that holds blocks keeps them in its `blocks` field (as `ui.row` does) and draws
   each with `paint` from the kit; the page looks there for downloads too.
 - `ui` exports only blocks. A helper stays private to its block (each script gets its own
-  scope) and moves to `ui/_kit.py` or `ui/_kit.js` once a second block needs it; block
+  scope) and moves to `ui/_kit.py`, `ui/_kit.js` or `ui/_kit.css` once a second block needs it; block
   helpers never go in `core/`.
 - A renderer's root element has the block's type as its class (`h("figure", { class:
   "map" })`). Block CSS sits under it (`.map .scale`, not `.scale`) and uses the theme's
@@ -62,4 +65,5 @@ Growing a block stays out of the core:
   in its renderer, fails it. Re-record the baseline only when results changed on purpose
   (a new node or output too).
 - `.venv/bin/python -m pytest` (`-m "not browser"` for the fast tests).
-- Packages must have a Pyodide build; they are found from the imports.
+- Packages must have a Pyodide build; they are found from the imports. `blocks packages`
+  lists the names a node can import.

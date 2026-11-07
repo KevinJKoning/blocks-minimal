@@ -1,8 +1,7 @@
 {
- "made": "2026-10-25T11:58:54+00:00",
  "settings": {
-  "layer.name": "Parcels",
-  "areas.min_area_m2": 1000
+  "name": "Parcels",
+  "min_area_m2": 1000
  },
  "data": {
   "parcels": "32543798bb4cc95c61b5742b1849b153c1f3e00783689fc847e303942a905182"
@@ -10,7 +9,6 @@
  "nodes": {
   "layer": {
    "status": "done",
-   "key": "5a27a4743324fcec836dafb059b99482dde6601f7f5d751b7c3f198170c58eb9",
    "metrics": {
     "features": 2000,
     "crs": 3857
@@ -19,7 +17,6 @@
   },
   "areas": {
    "status": "done",
-   "key": "087729677cd673c40046dc0812d7937a2717803f34df057df06585f8c4c81bae",
    "metrics": {
     "parcels": 2000,
     "slivers_dropped": 0,
@@ -29,7 +26,6 @@
   },
   "summary": {
    "status": "done",
-   "key": "0079466fbe3bd315254b7156862765da1bf8331d85787f64824c9409f4c473d8",
    "metrics": {
     "total_area_ha": 916.0770826574048,
     "residential_area_share": 0.5160514163739623,

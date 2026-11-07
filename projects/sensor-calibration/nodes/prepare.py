@@ -12,18 +12,13 @@ import numpy as np
 
 from blocks import Range, ui
 
-METRICS = {
-    "n_raw": "rows read",
-    "n_train": "train rows",
-    "n_outliers": "outliers dropped",
-}
+METRICS = {"n_raw": "rows read", "n_train": "train rows", "n_outliers": "outliers dropped"}
 
 
 def prepare(measurements, *,
             test_fraction: Annotated[float, Range(0.1, 0.5, 0.05)] = 0.25,
             seed: int = 42,
             outlier_z: Annotated[float, Range(1.5, 6, 0.5)] = 3.0):
-    # DuckDB reads the Parquet file in place (it is mounted read-only, never copied).
     data = np.array(duckdb.sql(f"SELECT reading, reference FROM read_parquet('{measurements}')").fetchall(), dtype=float)
     n_raw = len(data)
     data = data[~np.isnan(data).any(axis=1)]

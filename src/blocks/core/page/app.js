@@ -9,7 +9,7 @@ const text = (b64) => new TextDecoder().decode(Uint8Array.from(atob(b64), (c) =>
 
 const state = {
   page: decodeURIComponent(location.hash.slice(1)) || null,   // a node's name, or null: the overview
-  settings: Object.fromEntries(S.order.flatMap((n) => Object.entries(S.nodes[n].settings).map(([p, s]) => [`${n}.${p}`, s.default]))),
+  settings: Object.fromEntries(S.order.flatMap((n) => Object.entries(S.nodes[n].settings).map(([p, s]) => [p, s.default]))),
   // dataset -> {key, size, files}: files are the ones chosen here ({path: File}), else the page's.
   // A page built without its data has no key until they are chosen.
   data: Object.fromEntries(Object.entries(M.data).map(([d, v]) => [d, { key: v.key, size: v.size, files: null }])),
@@ -149,7 +149,7 @@ function stale() {
   for (const n of S.order) {
     const r = state.results[n], ran = state.ran[n], node = S.nodes[n];
     if (!r || r.status !== "done" || !ran
-      || Object.keys(node.settings).some((p) => JSON.stringify(state.settings[`${n}.${p}`]) !== JSON.stringify(ran.settings[p]))
+      || Object.keys(node.settings).some((p) => JSON.stringify(state.settings[p]) !== JSON.stringify(ran.settings[p]))
       || datasets(n).some((d) => state.data[d].key !== ran.data[d])
       || node.deps.some((d) => out.has(d))) out.add(n);
   }
@@ -278,8 +278,8 @@ function show(page) {
 }
 
 function control(n, p, s) {
-  const key = `${n}.${p}`, v = state.settings[key];
-  const set = (x) => { state.settings[key] = x; render(); };
+  const v = state.settings[p];   // a setting is the app's, by its name
+  const set = (x) => { state.settings[p] = x; render(); };
   let input;
   if (s.choices) input = h("select", { onchange: (e) => set(s.choices[e.target.selectedIndex]) },
     s.choices.map((c) => h("option", { selected: c === v }, String(c))));
@@ -292,7 +292,7 @@ function control(n, p, s) {
     const out = h("output", {}, fmt(v));
     // While dragging, only the value and the graph's state change; the page re-renders on release.
     input = [h("input", { type: "range", min: to(s.min), max: to(s.max), step: s.log ? 1 : s.step || (s.type === "int" ? 1 : "any"), value: to(v),
-      oninput: (e) => { state.settings[key] = from(+e.target.value); out.textContent = fmt(state.settings[key]); chrome(); },
+      oninput: (e) => { state.settings[p] = from(+e.target.value); out.textContent = fmt(state.settings[p]); chrome(); },
       onchange: () => render() }), out];
   } else if (typeof s.default === "number") input = h("input", { type: "number", value: v, step: s.type === "int" ? 1 : "any", onchange: (e) => set(s.type === "int" ? parseInt(e.target.value, 10) : +e.target.value) });
   else input = h("input", { type: "text", value: v, onchange: (e) => set(e.target.value) });
@@ -336,6 +336,9 @@ function dataPage(d) {
       sep(readers), ". A replacement, all of it, is used from the next Run.")];
 }
 
+// The other nodes that read setting p: a setting is the app's, by its name.
+const alsoReading = (n, p) => S.order.filter((m) => m !== n && p in S.nodes[m].settings);
+
 function nodePage(n) {
   const node = S.nodes[n], readers = S.order.filter((m) => S.nodes[m].deps.includes(n));
   return [
@@ -344,7 +347,9 @@ function nodePage(n) {
     node.doc ? markdown(node.doc) : null,
     datasets(n).length > 0 && h("p", { class: "muted" }, "Reads ", sep(datasets(n)), "."),
     Object.keys(node.settings).length > 0 && h("section", { class: "settings" }, h("h2", {}, "Settings"),
-      Object.entries(node.settings).map(([p, s]) => control(n, p, s))),
+      Object.entries(node.settings).map(([p, s]) => control(n, p, s)),
+      Object.keys(node.settings).filter((p) => alsoReading(n, p).length)
+        .map((p) => h("p", { class: "muted small" }, `${p} is also read by `, sep(alsoReading(n, p)), "."))),
     h("section", {}, h("h2", {}, "Results"), results(n)),
     h("details", { class: "about" }, h("summary", {}, "Code"),
       h("p", { class: "muted" }, node.deps.length ? ["Reads ", sep(node.deps)] : "Reads nothing", readers.length ? [". Read by ", sep(readers), "."] : "."),
@@ -396,7 +401,11 @@ window.addEventListener("hashchange", () => { state.page = decodeURIComponent(lo
 // For agents (and the tooling): the page's state and its two actions.
 window.blocks = {
   state: () => ({ status: state.status, busy: state.busy, settings: state.settings, stale: [...stale()], missing: missing(), results: state.results, record: state.record }),
-  set: (values) => { Object.assign(state.settings, values); render(); return [...stale()]; },
+  set: (values) => {
+    const unknown = Object.keys(values).filter((p) => !(p in state.settings));
+    if (unknown.length) throw new Error(`no setting ${unknown.join(", ")} (the settings: ${Object.keys(state.settings).join(", ")})`);
+    Object.assign(state.settings, values); render(); return [...stale()];
+  },
   run,
   output: (node) => call("output", { name: node }),
   show,
