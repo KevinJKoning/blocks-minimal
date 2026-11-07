@@ -317,7 +317,7 @@ def probe(*, url: str = "http://127.0.0.1:{other.server_port}/leak"):
             page = browser.new_page()
             page.goto(url)
             if target:
-                page.evaluate("target => window.blocks.set({'probe.url': target})", target)
+                page.evaluate("target => window.blocks.set({'url': target})", target)
             got = page.evaluate(cli.RUN)["nodes"]["probe"]["metrics"]["reached"]
             browser.close()
         return got, list(hits)

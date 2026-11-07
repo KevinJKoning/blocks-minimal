@@ -92,7 +92,7 @@ def serve(port: int) -> ThreadingHTTPServer:
 
 
 # Set the settings, run, then open every node's page: a block that failed to draw is a failed view.
-RUN = """async (settings) => {
+RUN = """async (settings = {}) => {
   try { await window.blocks.ready; } catch (e) { return { failed: `Python did not start: ${e.message}` }; }
   let rec;
   try { window.blocks.set(settings); rec = await window.blocks.run(); } catch (e) { return { failed: e.message }; }
