@@ -62,21 +62,21 @@ def glm(join, wind):
 def view(out):
     rows = [{"term": c["term"], "estimate": c["estimate"], "95% low": c["low"], "95% high": c["high"],
              "relativity": float(np.exp(c["estimate"]))} for c in out["coefficients"]]
+    groups, terms = out["calibration"], rows[1:]   # the intercept left out
     return [
         ui.download("coefficients.csv", out["coefficients"], title="the fitted coefficients with standard errors and 95% intervals"),
         ui.metrics(),
-        ui.bars([r["term"] for r in rows[1:]], {"relativity": [r["relativity"] for r in rows[1:]]}, kind="dot",
-                intervals={"relativity": ([np.exp(r["95% low"]) for r in rows[1:]], [np.exp(r["95% high"]) for r in rows[1:]])},
+        ui.bars([r["term"] for r in terms], {"relativity": [r["relativity"] for r in terms]}, kind="dot",
+                intervals={"relativity": ([np.exp(r["95% low"]) for r in terms], [np.exp(r["95% high"]) for r in terms])},
                 reference=1, title="Relativities with 95% intervals (the intercept left out)", label="× the base level"),
         ui.table(rows, title="Coefficients (relativity = exp(estimate), against the base levels)"),
-        ui.chart([r["predicted"] for r in out["calibration"]],
-                 {"observed": [r["observed"] for r in out["calibration"]],
-                  "observed = predicted": [r["predicted"] for r in out["calibration"]]},
+        ui.chart([r["predicted"] for r in groups],
+                 {"observed": [r["observed"] for r in groups], "observed = predicted": [r["predicted"] for r in groups]},
                  kind={"observed": "scatter", "observed = predicted": "line"},
-                 bands={"observed": ([r["low_95"] for r in out["calibration"]], [r["high_95"] for r in out["calibration"]])},
+                 bands={"observed": ([r["low_95"] for r in groups], [r["high_95"] for r in groups])},
                  title="Calibration: observed against predicted frequency, in ten groups of equal exposure",
                  x_label="predicted claims per 1,000 policy-years", y_label="observed per 1,000"),
-        ui.table(out["calibration"], title="Calibration groups", text=["group"]),
+        ui.table(groups, title="Calibration groups", text=["group"]),
         ui.markdown(f"Pearson dispersion {out['dispersion']:.2f}: the claims vary "
                     + ("more than the rating factors and wind explain, the territory effect credibility will look for."
                        if out["dispersion"] > 1.05 else "about as a Poisson model expects.")),

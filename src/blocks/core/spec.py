@@ -5,7 +5,6 @@ from __future__ import annotations
 
 import ast
 import graphlib
-import hashlib
 from pathlib import Path
 
 SKIP = {"data", "__pycache__", "baseline.json"}
@@ -26,9 +25,8 @@ def _setting(arg: ast.arg, default, where) -> dict:
         for m in marks:
             kind = getattr(m.func, "id", None) if isinstance(m, ast.Call) else None
             if kind == "Range":
-                vals = dict(zip(("min", "max", "step"), (_literal(a, where) for a in m.args)))
-                vals |= {k.arg: _literal(k.value, where) for k in m.keywords}
-                s |= vals
+                s |= dict(zip(("min", "max", "step"), (_literal(a, where) for a in m.args)))
+                s |= {k.arg: _literal(k.value, where) for k in m.keywords}
             elif kind == "Choices":
                 s["choices"] = [_literal(a, where) for a in m.args]
                 if s["default"] not in s["choices"]:   # else the menu shows one choice while the node runs another
@@ -54,9 +52,11 @@ def read_node(path: Path) -> dict:
     for k, m in metrics.items():
         if not isinstance(m, str) and (not isinstance(m, dict) or set(m) - {"label", "goal", "percent"}):
             raise ValueError(f"{path}: METRICS[{k!r}] is a label, or a dict of label, goal (\"min\" or \"max\") and percent (True for a share)")
+    doc = ast.get_docstring(tree) or ""
     return {
         "file": f"nodes/{path.name}",
-        "doc": ast.get_docstring(tree) or "",
+        "doc": doc,
+        "summary": " ".join(doc.split("\n\n")[0].split()),   # the first paragraph, on one line: the overview's
         "deps": [x.arg for x in a.posonlyargs + a.args],
         "settings": {x.arg: _setting(x, d, f"{path}: {x.arg}") for x, d in zip(a.kwonlyargs, a.kw_defaults)},
         "metrics": [{"key": k, **({"label": m} if isinstance(m, str) else {"label": k, **m})} for k, m in metrics.items()],
@@ -76,6 +76,19 @@ def imports(files: dict[str, bytes]) -> set[str]:
     return out
 
 
+def shared_settings(nodes: dict) -> dict:
+    """{name: setting}. A setting is the app's, by its name: nodes that declare the same name
+    share its value, so they must declare it alike."""
+    out, owner = {}, {}
+    for n, node in nodes.items():
+        for p, s in node["settings"].items():
+            if p in out and out[p] != s:
+                raise ValueError(f"{node['file']}: the setting {p} is also {owner[p]}'s, declared differently; "
+                                 f"nodes share a setting by its name, so declare it alike or rename one")
+            out[p], owner[p] = s, n
+    return out
+
+
 def load(app_dir: Path) -> dict:
     app_dir = Path(app_dir)
     readme = (app_dir / "README.md").read_text() if (app_dir / "README.md").exists() else f"# {app_dir.name}\n"
@@ -89,9 +102,10 @@ def load(app_dir: Path) -> dict:
     for n, node in nodes.items():
         for d in node["deps"]:
             if d not in nodes and d not in data:
-                raise ValueError(f"{node['file']}: {d} is neither a node nor a file in data/")
+                raise ValueError(f"{node['file']}: {d} is neither a node nor a file in data/ (settings go after the *)")
             if d not in nodes:
                 datasets[d] = data[d]
+    shared_settings(nodes)
     order = list(graphlib.TopologicalSorter({n: [d for d in v["deps"] if d in nodes] for n, v in nodes.items()}).static_order())
     # A built page ships these: never what is hidden (in a folder like .secrets/ too), nor what a link leads to outside.
     files = {p.relative_to(app_dir).as_posix(): inside(app_dir, p).read_bytes() for p in sorted(app_dir.rglob("*"))
@@ -125,14 +139,3 @@ def inside(app_dir: Path, p: Path) -> Path:
         raise ValueError(f"{p}: links outside the app, so a built page would carry what it leads to; copy the file into the app instead")
     return p
 
-
-def data_key(path: str, files: dict[str, bytes]) -> str:
-    """A dataset's key: a file's sha256, or a folder's over each file's name and sha256. The page
-    computes the same for a replacement (page/app.js dataKey)."""
-    if not path.endswith("/"):
-        return sha256(files[path])
-    return sha256("".join(f"{p[len(path):]}\0{sha256(b)}\n" for p, b in sorted(files.items())).encode())
-
-
-def sha256(b: bytes) -> str:
-    return hashlib.sha256(b).hexdigest()

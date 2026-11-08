@@ -1,12 +1,10 @@
-"""The graph, run in Pyodide: nodes are functions, values pass in memory, and every output is
-cached by a key over the node's code, its settings and its inputs' keys. Run computes only
-the nodes whose key changed; the rest come from the cache. A run leaves a record (record),
-and verification compares one with the baseline (compare).
+"""The graph, run in Pyodide: nodes are functions, values pass in memory, and each output is
+cached by its node's key (Graph.key). A run leaves a record, which verify compares with the
+baseline (compare).
 """
 from __future__ import annotations
 
 import contextlib
-import datetime
 import hashlib
 import io
 import json
@@ -17,6 +15,7 @@ import sys
 import time
 import traceback
 import types
+from pathlib import Path
 
 
 def plain(v):
@@ -45,9 +44,9 @@ def numbers(o, prefix=""):
             yield f"{prefix}{k}", v.item()
 
 
-def canon(h, v):
-    """Feed a value into a hash deterministically: two outputs are the same when this is."""
-    seen = set()
+def digest(v) -> str:
+    """A value's sha256, fed in deterministically: two outputs are the same when their digests are."""
+    h, seen = hashlib.sha256(), set()
 
     def feed(v):
         if v is None or isinstance(v, (bool, int, str)):
@@ -94,11 +93,6 @@ def canon(h, v):
                 h.update(re.sub(r" at 0x[0-9a-fA-F]+", "", repr(v)).encode())
 
     feed(v)
-
-
-def digest(v) -> str:
-    h = hashlib.sha256()
-    canon(h, v)
     return h.hexdigest()
 
 
@@ -108,11 +102,11 @@ def to_json(o) -> str:
         if isinstance(v, float) and not math.isfinite(v):
             return "NaN" if math.isnan(v) else ("Infinity" if v > 0 else "-Infinity")
         if isinstance(v, dict):
-            return {str(k): clean(x) for k, x in v.items()}
-        if isinstance(v, (list, tuple)):
+            return {k: clean(x) for k, x in v.items()}
+        if isinstance(v, list):
             return [clean(x) for x in v]
-        return clean(plain(v)) if hasattr(v, "to_pylist") or hasattr(v, "tolist") else v
-    return json.dumps(clean(o), default=str)
+        return v
+    return json.dumps(clean(plain(o)), default=str)
 
 
 class Graph:
@@ -120,8 +114,9 @@ class Graph:
         self.root, self.spec = os.path.abspath(root), spec
         self.cache: dict[str, tuple[str, object, dict]] = {}   # node -> (key, output, result)
         self.modules: dict[str, types.ModuleType] = {}
-        helpers = sorted(os.path.join(d, n) for d, _, ns in os.walk(self.root) for n in ns
-                         if n.endswith(".py") and "nodes" not in os.path.relpath(d, self.root).split(os.sep))
+        # The app's helper modules: every .py outside nodes/ and data/. Any node may import them
+        # (the app's folder is on sys.path), so they are part of every node's key.
+        helpers = sorted(p for p in Path(self.root).rglob("*.py") if not {"nodes", "data"} & set(p.relative_to(self.root).parts))
         self.helpers = hashlib.sha256(b"".join(self._read(p) for p in helpers)).hexdigest()
         if self.root not in sys.path:
             sys.path.insert(0, self.root)
@@ -140,7 +135,8 @@ class Graph:
         return self.modules[name]
 
     def run(self, settings: dict, data: dict) -> dict:
-        """settings {"node.param": value}, data {dataset: key}. Returns {node: result}."""
+        """settings {name: value}, data {dataset: key}. Returns {node: result}. A setting is the
+        app's, by its name: every node that declares it gets its value."""
         results, keys = {}, {}
         for name in self.spec["order"]:
             node = self.spec["nodes"][name]
@@ -148,10 +144,8 @@ class Graph:
             if failed:
                 results[name] = {"status": "blocked", "error": f"{failed} did not run"}
                 continue
-            mine = {p: settings.get(f"{name}.{p}", s["default"]) for p, s in node["settings"].items()}
-            parts = [hashlib.sha256(self._read(node["file"])).hexdigest(), self.helpers, json.dumps(mine, sort_keys=True, default=repr)]
-            parts += [data.get(d, "") if d in self.spec["datasets"] else keys[d] for d in node["deps"]]
-            key = keys[name] = hashlib.sha256("\0".join(parts).encode()).hexdigest()
+            mine = {p: settings.get(p, s["default"]) for p, s in node["settings"].items()}
+            key = keys[name] = self.key(name, mine, [data.get(d, "") if d in self.spec["datasets"] else keys[d] for d in node["deps"]])
             if name in self.cache and self.cache[name][0] == key:
                 results[name] = {**self.cache[name][2], "cached": True}
                 continue
@@ -170,12 +164,19 @@ class Graph:
             if unknown and not view_error:   # a label for no number is a typo, and it fails the run like a broken view
                 view_error = (f"METRICS labels {', '.join(unknown)}, but the output has no such number "
                               f"(its numbers: {', '.join(metrics) or 'none'})")
-            result = {"status": "done", "key": key, "seconds": round(time.perf_counter() - t0, 4), "settings": mine,
+            result = {"status": "done", "key": key, "seconds": round(time.perf_counter() - t0, 4),
                       "metrics": metrics, "digest": digest(value), "blocks": blocks, "view_error": view_error,
                       "log": log.getvalue()[-20000:]}
             self.cache[name] = (key, value, result)
             results[name] = {**result, "cached": False}
         return results
+
+    def key(self, name, settings, input_keys):
+        """A node's key: its file, the app's helper modules, its settings and its inputs' keys (a
+        dataset's is its data key). A node whose key is unchanged comes from the cache."""
+        parts = [hashlib.sha256(self._read(self.spec["nodes"][name]["file"])).hexdigest(), self.helpers,
+                 json.dumps(settings, sort_keys=True, default=repr), *input_keys]
+        return hashlib.sha256("\0".join(parts).encode()).hexdigest()
 
     def dataset(self, d):
         """A dataset's path, or a folder's file paths in name order."""
@@ -198,21 +199,17 @@ class Graph:
             return [], traceback.format_exc()
         return raw, None
 
-    def output(self, name):
-        if name not in self.cache:
-            raise KeyError(f"{name} has not run")
-        return self.cache[name][1]
-
 
 def record(results: dict, settings: dict, data: dict) -> dict:
-    keep = ("status", "key", "metrics", "digest", "error", "view_error")
-    return {"made": datetime.datetime.now(datetime.timezone.utc).isoformat(timespec="seconds"),
-            "settings": settings, "data": data,
+    """What a baseline keeps of a run: each node's status, metrics and output digest, or its error.
+    No key and no timestamp, so a baseline changes only when a result does."""
+    keep = ("status", "metrics", "digest", "error", "view_error")
+    return {"settings": settings, "data": data,
             "nodes": {n: {k: r[k] for k in keep if r.get(k) is not None} for n, r in results.items()}}
 
 
 def compare(run: dict, ref: dict, rel_tol=1e-9, abs_tol=1e-12) -> dict:
-    """{node: [what differs]} between a run and its reference (the baseline); empty: they match."""
+    """{node or dataset: [what differs]} between a run and its reference (the baseline); empty: they match."""
     def same(a, b):
         if isinstance(a, (int, float)) and isinstance(b, (int, float)):
             return math.isclose(a, b, rel_tol=rel_tol, abs_tol=abs_tol) or (math.isnan(a) and math.isnan(b))
@@ -222,7 +219,7 @@ def compare(run: dict, ref: dict, rel_tol=1e-9, abs_tol=1e-12) -> dict:
     for n in set(run["nodes"]) | set(ref["nodes"]):
         a, b = run["nodes"].get(n), ref["nodes"].get(n)
         if not a or not b:
-            out[n] = ["only in the baseline" if b else "not in the baseline"]
+            out[n] = ["only in the baseline" if b else "new, not in the baseline (blocks baseline records it)"]
         elif a["status"] != "done":
             out[n] = [(a.get("error") or a["status"]).strip().splitlines()[-1]]
         elif b["status"] != "done":
@@ -233,26 +230,31 @@ def compare(run: dict, ref: dict, rel_tol=1e-9, abs_tol=1e-12) -> dict:
             out[n] = bad + (["output differs"] if a["digest"] != b["digest"] else [])
             if a.get("view_error"):   # a failed view fails the run, whatever the baseline holds
                 out[n].append("view failed: " + a["view_error"].strip().splitlines()[-1])
+    data, ref_data = run.get("data", {}), ref.get("data", {})
+    for d in set(data) | set(ref_data):   # a dataset's key: other data, even when no result moved
+        if data.get(d) != ref_data.get(d):
+            out[d] = ["its data differs from the baseline's"]
     return {n: v for n, v in out.items() if v}
 
 
-# ------------------------------------------------------------------ what the worker calls
+# What the worker calls:
 _graph: Graph | None = None
-_baseline: dict | None = None
 
 
-def start(root, spec_json, baseline_json):
-    global _graph, _baseline
-    _graph, _baseline = Graph(root, json.loads(spec_json)), json.loads(baseline_json)
+def start(root, spec_json):
+    global _graph
+    _graph = Graph(root, json.loads(spec_json))
 
 
-def run_json(settings_json, data_json):
+def run_json(settings_json, data_json, baseline_json):
     """The run's results, its record, and how it differs from the baseline (None: no baseline)."""
-    settings, data = json.loads(settings_json), json.loads(data_json)
+    settings, data, baseline = json.loads(settings_json), json.loads(data_json), json.loads(baseline_json)
     results = _graph.run(settings, data)
     rec = json.loads(to_json(record(results, settings, data)))   # as a baseline file holds it
-    return to_json({"nodes": results, "record": rec, "differs": _baseline and compare(rec, _baseline)})
+    return to_json({"nodes": results, "record": rec, "differs": baseline and compare(rec, baseline)})
 
 
 def output_json(name):
-    return to_json(_graph.output(name))
+    if name not in _graph.cache:
+        raise KeyError(f"{name} has not run")
+    return to_json(_graph.cache[name][1])

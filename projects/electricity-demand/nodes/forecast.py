@@ -4,6 +4,9 @@ Each month's point forecast is the fitted trend plus its seasonal level. Its 80%
 interval is ± t₀.₉ · σ · √(1 + x′(X′X)⁻¹x), on the fit's degrees of freedom: the noise of a
 new month plus the uncertainty in the fitted coefficients, which grows the further the
 trend is extrapolated. The forecast is delivered as a CSV, one row per month.
+
+`season_length` is the same setting as `fit`'s: a setting is the app's, by its name, so
+declaring it here too, alike, gives both nodes one value.
 """
 from typing import Annotated
 
@@ -18,10 +21,11 @@ METRICS = {"months_ahead": "months forecast", "total_gwh": "total forecast (GWh)
            "mean_width": {"label": "mean 80% interval width (GWh)", "goal": "min"}}
 
 
-def forecast(history, fit, *, horizon: Annotated[int, Range(1, 60, 1)] = 24):
+def forecast(history, fit, *, horizon: Annotated[int, Range(1, 60, 1)] = 24,
+             season_length: Annotated[int, Range(2, 24, 1)] = 12):
     n = len(history["gwh"])
     t = np.arange(n, n + horizon)
-    X = design(t, fit["season_length"])
+    X = design(t, season_length)
     point = X @ fit["coef"]
     se = fit["sigma"] * np.sqrt(1 + np.einsum("ij,jk,ik->i", X, fit["xtx_inv"], X))
     half = stats.t.ppf(0.5 + LEVEL / 2, fit["dof"]) * se

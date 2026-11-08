@@ -7,9 +7,11 @@ below, every wheel against the pinned pyodide-lock.json.
 from __future__ import annotations
 
 import base64
+import hashlib
 import html
 import json
 import os
+import re
 import sys
 import threading
 import urllib.request
@@ -42,16 +44,20 @@ def runtime_file(name: str) -> bytes:
         raise KeyError(f"{name} is not part of Pyodide {PYODIDE}")
     path = CACHE / name
     data = path.read_bytes() if path.is_file() else b""
-    if spec.sha256(data) != want:
+    if sha256(data) != want:
         with urllib.request.urlopen(CDN + name, timeout=120) as r:  # noqa: S310 (pinned https URL)
             data = r.read()
-        if spec.sha256(data) != want:
+        if sha256(data) != want:
             raise ValueError(f"{name}: sha256 does not match the pin")
         path.parent.mkdir(parents=True, exist_ok=True)
         part = path.with_name(f".{name}.{os.getpid()}.{threading.get_ident()}")   # whole or not at all: the cache is shared
         part.write_bytes(data)
         os.replace(part, path)
     return data
+
+
+def sha256(b: bytes) -> str:
+    return hashlib.sha256(b).hexdigest()
 
 
 def lock() -> dict:
@@ -96,15 +102,31 @@ def block_files(app_dir: Path, ext: str) -> list[Path]:
 
 
 def blocks(app_dir: Path, ext: str) -> str:
-    """Every block's .js or .css, the library's kit first. Each script is in its own scope, so
-    a block's helpers stay its own; the kit's are every block's."""
+    """The kit (ui/_kit.js or ui/_kit.css), then every block's .js or .css. Each block script is
+    in its own scope, so a block's helpers stay its own; the kit's are every block's."""
     parts = [f"{{ // {p.name}\n{p.read_text()}}}" if ext == ".js" else p.read_text() for p in block_files(app_dir, ext)]
-    kit = [(PACKAGE / "ui" / "_kit.js").read_text()] if ext == ".js" else []   # styles have no kit
-    return "\n".join(kit + parts)
+    return "\n".join([(PACKAGE / "ui" / f"_kit{ext}").read_text(), *parts])
 
 
 def b64(data: bytes) -> str:
     return base64.b64encode(data).decode()
+
+
+def worker_script() -> str:
+    """The worker: Pyodide's two ES modules joined into one classic script, then worker.js.
+    Browsers refuse module workers from blob: URLs on file:// pages; Pyodide refuses classic
+    workers, which it detects by importScripts working, so that is disabled first."""
+    asm = runtime_file("pyodide.asm.mjs").decode().replace("export default _createPyodideModule;", "")
+    asm = asm.replace("import.meta.url", "self.location.href")
+    mjs = runtime_file("pyodide.mjs").decode()
+    exports = re.search(r"export\s*\{([^}]*)\};?", mjs)
+    fields = []
+    for item in exports[1].split(","):   # "dt as loadPyodide" -> "loadPyodide: dt"
+        name, _, alias = item.strip().partition(" as ")
+        fields.append(f"{alias or name}: {name}")
+    mjs = mjs.replace(exports[0], f"return {{ {', '.join(fields)} }};")
+    return (f'globalThis.importScripts = () => {{ throw new Error("importScripts is disabled"); }};\n{asm}\n'
+            f"const __pyodide = (() => {{\n{mjs}\n}})();\n{template('worker.js')}")
 
 
 def build(app_dir: Path, inline: bool, data: bool = True, *, origin: str | None = None) -> str:
@@ -123,9 +145,7 @@ def build(app_dir: Path, inline: bool, data: bool = True, *, origin: str | None 
         "files": {p: b64(b) for p, b in a["files"].items()},
         "library": {p: b64(b) for p, b in library.items()},
         # A page built without its data still says what each dataset is, for whoever chooses it.
-        "data": {d: ({"key": spec.data_key(v["path"], v["files"]), "size": sum(map(len, v["files"].values())),
-                      "files": {p: b64(b) for p, b in v["files"].items()}} if data else {"key": None, "size": None, "files": None})
-                    | {"doc": v["doc"]}
+        "data": {d: {"doc": v["doc"], "files": {p: b64(b) for p, b in v["files"].items()} if data else None}
                  for d, v in a["datasets"].items()},
         "baseline": json.loads(spec.inside(app_dir, baseline).read_text()) if baseline.exists() else None,
         "runtime": None if inline else "/_runtime/",
@@ -139,10 +159,10 @@ def build(app_dir: Path, inline: bool, data: bool = True, *, origin: str | None 
         f"<title>{html.escape(a['title'])}</title>", f"<style>{template('page/app.css')}\n{blocks(app_dir, '.css')}</style>",
         '<body><div id="app"></div>',
         script("application/json", json.dumps(manifest).replace("<", "\\u003c"), ' id="manifest"'),
-        script("text/plain", template("worker.js"), ' id="worker"'),
+        script("text/plain", worker_script(), ' id="worker"'),
     ]
-    if inline:
-        names = [*CORE, *(lock()["packages"][p]["file_name"] for p in pkgs)]
+    if inline:   # what the worker fetches: the rest of the runtime, and the packages' wheels
+        names = ["pyodide.asm.wasm", "python_stdlib.zip", "pyodide-lock.json", *(lock()["packages"][p]["file_name"] for p in pkgs)]
         parts += [script("application/octet-stream", b64(runtime_file(n)), f' data-runtime="{n}"') for n in names]
     parts.append(script("module", template("page/app.js").replace("// @blocks\n", blocks(app_dir, ".js"))))
     return "\n".join(parts) + "\n"

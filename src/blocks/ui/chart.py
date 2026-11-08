@@ -16,7 +16,7 @@ def chart(x, series, title=None, x_label=None, y_label=None, kind="line", bands=
     survival curve, a running count) or {name: kind}.
     bands: {name: (lows, highs)}, a shaded band around that series, in its colour.
     x_lines, y_lines: {name: value}, reference lines across the chart (a control limit, a
-    threshold), dashed and named.
+    threshold), dashed and labelled with the name alone (its value, if the name is "").
     x_scale, y_scale: "log" for values spread over orders of magnitude; values of 0 or less
     have no place on it, so they are left out and counted.
     x_percent, y_percent: that axis holds shares.

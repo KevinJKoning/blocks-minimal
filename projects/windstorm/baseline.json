@@ -1,10 +1,9 @@
 {
- "made": "2026-10-24T21:35:49+00:00",
  "settings": {
-  "wind.coast_speed": 60,
-  "wind.background_speed": 25,
-  "wind.decay_km": 40,
-  "credibility.k": 0
+  "coast_speed": 60,
+  "background_speed": 25,
+  "decay_km": 40,
+  "k": 0
  },
  "data": {
   "policies": "9e60d3456c6fb62080517eeb34bb35a5c4269389498ad4b6d4e9740d60b87352",
@@ -15,7 +14,6 @@
  "nodes": {
   "join": {
    "status": "done",
-   "key": "2fd30bb67255369ebf07151a0da11d32edaa9281470695a7cd34ace54d9a7812",
    "metrics": {
     "policies": 100000,
     "policy_years": 86438.33000000002,
@@ -27,7 +25,6 @@
   },
   "wind": {
    "status": "done",
-   "key": "7dc86de308a0d8dc542901e7966c54eed713ac5e31340f9d105ee9529106718d",
    "metrics": {
     "mean_load": 0.5196786363757258,
     "load_at_50km": 0.3408159771721135
@@ -36,7 +33,6 @@
   },
   "glm": {
    "status": "done",
-   "key": "1c17357fb04c063a61b78e8d7b0de4b2659f4741bfc28b81a01daaa2ba94a72a",
    "metrics": {
     "deviance": 19188.88399433795,
     "dispersion": 1.034136218183001,
@@ -47,7 +43,6 @@
   },
   "credibility": {
    "status": "done",
-   "key": "689e79669fb6d14069aa40f381795af908881dbc8206dd14666b6980ec91a259",
    "metrics": {
     "k": 10.295450856406028,
     "between_sd": 0.3116573079989507,
@@ -59,7 +54,6 @@
   },
   "rates": {
    "status": "done",
-   "key": "3ad8c83bf7e6d0de6b8e3b2ee2e40ef9c589e86811f4ecd7dd8b7294a545038b",
    "metrics": {
     "lowest": 9.85597594876334,
     "highest": 85.02324767426316,
@@ -69,7 +63,6 @@
   },
   "recovery": {
    "status": "done",
-   "key": "40dc29b856e8937b792a5852c29a3ed55904a0b4b23ccf5412e1956aa58bd7cd",
    "metrics": {
     "within_interval": 5,
     "error_own": 0.8103899491017968,

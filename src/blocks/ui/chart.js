@@ -43,9 +43,9 @@ RENDER.chart = (b) => {
   ];
   const refs = [
     ...yl.map((l) => [h("svg:line", { x1: L, x2: W - R, y1: Y(l.at), y2: Y(l.at), class: "ref" }),
-      h("svg:text", { x: W - R, y: Y(l.at) - 4, "text-anchor": "end", class: "ref-name" }, `${l.name} ${fmt(l.value, b.y_percent)}`)]),
+      h("svg:text", { x: W - R, y: Y(l.at) - 4, "text-anchor": "end", class: "ref-name" }, l.name || fmt(l.value, b.y_percent))]),
     ...xl.map((l) => [h("svg:line", { x1: X(l.at), x2: X(l.at), y1: T, y2: H - B, class: "ref" }),
-      h("svg:text", { x: X(l.at) + 4, y: T + 10, class: "ref-name" }, `${l.name} ${fmt(l.value, b.x_percent)}`)]),
+      h("svg:text", { x: X(l.at) + 4, y: T + 10, class: "ref-name" }, l.name || fmt(l.value, b.x_percent))]),
   ];
   // A step holds each value until the next x; walked backwards (a band's top), it drops first.
   const path = (pts, step, back) => pts.map(([x, y], k) => {

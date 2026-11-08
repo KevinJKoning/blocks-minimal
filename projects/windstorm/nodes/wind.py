@@ -14,8 +14,6 @@ rather than estimating it from claims that cannot separate it from everything el
 from typing import Annotated
 
 import numpy as np
-import shapely
-
 from blocks import Range, ui
 
 METRICS = {"mean_load": "mean relative wind load", "load_at_50km": "relative load 50 km inland"}
@@ -24,16 +22,17 @@ METRICS = {"mean_load": "mean relative wind load", "load_at_50km": "relative loa
 def wind(join, *, coast_speed: Annotated[float, Range(40, 80, 1)] = 60.0,
          background_speed: Annotated[float, Range(10, 40, 1)] = 25.0,
          decay_km: Annotated[float, Range(10, 100, 5)] = 40.0):
+    def speed(d):
+        return background_speed + (coast_speed - background_speed) * np.exp(-np.asarray(d) / decay_km)
+
     def offset(d):
-        speed = background_speed + (coast_speed - background_speed) * np.exp(-np.asarray(d) / decay_km)
-        return 2 * np.log(speed / coast_speed)
+        return 2 * np.log(speed(d) / coast_speed)
+
+    homes = offset(join["table"]["distance_km"].to_numpy())
     distance = np.linspace(0, 150, 151)
-    return {"offset": offset(join["table"]["distance_km"].to_numpy()),
-            "territory_offset": offset(join["territories"]["distance_km"].to_numpy()),
-            "curve": {"distance_km": distance, "speed": background_speed + (coast_speed - background_speed) * np.exp(-distance / decay_km),
-                      "load": np.exp(offset(distance))},
-            "mean_load": float(np.exp(offset(join["table"]["distance_km"].to_numpy())).mean()),
-            "load_at_50km": float(np.exp(offset(50)))}
+    return {"offset": homes, "territory_offset": offset(join["territories"]["distance_km"].to_numpy()),
+            "curve": {"distance_km": distance, "speed": speed(distance), "load": np.exp(offset(distance))},
+            "mean_load": float(np.exp(homes).mean()), "load_at_50km": float(np.exp(offset(50)))}
 
 
 def view(out):

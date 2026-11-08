@@ -1,16 +1,14 @@
 {
- "made": "2026-10-24T20:49:36+00:00",
  "settings": {
-  "fit.season_length": 12,
-  "forecast.horizon": 24
+  "season_length": 12,
+  "horizon": 24
  },
  "data": {
-  "demand": "56217181923ea7a17986f0bf79b10645cec6fca8b4799465af74961fc56b198f"
+  "demand": "3b84e3320b682669406a0f6c95a0d7182aa0a372ff41c454670cae42b27438eb"
  },
  "nodes": {
   "history": {
    "status": "done",
-   "key": "cd20746448d3e690d234a7423d437bae509374f7865fc35f634c6365e64c8b40",
    "metrics": {
     "months": 120,
     "mean_gwh": 1045.4358333333334,
@@ -20,7 +18,6 @@
   },
   "fit": {
    "status": "done",
-   "key": "fe58a92b587ff789e6136d58dffffef012b4e32fa79f4171d8151608ab5a1bc5",
    "metrics": {
     "dof": 107,
     "season_length": 12,
@@ -33,7 +30,6 @@
   },
   "forecast": {
    "status": "done",
-   "key": "dc0332d088c56a7262f9b12dd74493529656ab7fbad8e2bbc4da7a49b91df8df",
    "metrics": {
     "months_ahead": 24,
     "total_gwh": 29417.17272727272,
