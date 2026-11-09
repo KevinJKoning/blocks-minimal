@@ -1,0 +1,118 @@
+{
+ "settings": {
+  "band": 4,
+  "shrink": 5
+ },
+ "data": {
+  "listings": "e29fb822802937a6fd75682f57224795e3c9672cea2062a6e37d2f3e13c5735a",
+  "truth": "29b2ad3750f4308ab4068b23ed33af0ce38fa93f24e4d0853e32edb8b407f3b8"
+ },
+ "choices": {
+  "outliers": "correct",
+  "estimate": "median"
+ },
+ "nodes": {
+  "clean": {
+   "status": "done",
+   "metrics": {
+    "listings": 1546,
+    "repeats": 36,
+    "no_area": 76,
+    "kept": 1434
+   },
+   "digest": "9e87ad4aa584c91e03c482142340d6b3027afc1b71734a6319a6fbdffe051fcb"
+  },
+  "outliers": {
+   "status": "done",
+   "metrics": {
+    "level": 4940.315148194808,
+    "flagged": 117,
+    "corrected": 117,
+    "dropped": 0,
+    "kept": 1434
+   },
+   "digest": "2233105fe7c64c9aa1611e1ec5d7657db107628b849ba79408c8f39e4e007726"
+  },
+  "estimate": {
+   "status": "done",
+   "metrics": {
+    "neighbourhoods": 30,
+    "city_level": 4918.238755361885,
+    "thinnest": 3
+   },
+   "digest": "fda342245d7431cf37abed9ecd6ece57dc46e6c473600fa4a69f762ff3ea5508"
+  },
+  "recovery": {
+   "status": "done",
+   "metrics": {
+    "typical_error": 0.029270880925004905,
+    "within_10": 0.9333333333333333,
+    "worst": 0.17188149026244903,
+    "missing": 0
+   },
+   "digest": "7f6cc1846789bdbe3f8216cbe588c4895580cef053c468ee7d3cd590dc3a5eb7"
+  }
+ },
+ "paths": [
+  {
+   "choices": {
+    "outliers": "correct",
+    "estimate": "median"
+   },
+   "answer": {
+    "recovery.typical_error": 0.029270880925004905
+   },
+   "failed": []
+  },
+  {
+   "choices": {
+    "outliers": "correct",
+    "estimate": "shrunk"
+   },
+   "answer": {
+    "recovery.typical_error": 0.052561417024325596
+   },
+   "failed": []
+  },
+  {
+   "choices": {
+    "outliers": "drop",
+    "estimate": "median"
+   },
+   "answer": {
+    "recovery.typical_error": 0.03390928086496692
+   },
+   "failed": []
+  },
+  {
+   "choices": {
+    "outliers": "drop",
+    "estimate": "shrunk"
+   },
+   "answer": {
+    "recovery.typical_error": 0.053547814707871844
+   },
+   "failed": []
+  },
+  {
+   "choices": {
+    "outliers": "none",
+    "estimate": "median"
+   },
+   "answer": {
+    "recovery.typical_error": 0.03155289819133006
+   },
+   "failed": []
+  },
+  {
+   "choices": {
+    "outliers": "none",
+    "estimate": "shrunk"
+   },
+   "answer": {
+    "recovery.typical_error": 0.05481771704550753
+   },
+   "failed": []
+  }
+ ]
+}

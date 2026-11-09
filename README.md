@@ -84,6 +84,8 @@ folder's `README.md` asks the fork's question (`# ...`) and says what bears on i
   is evidence too. The page always shows the spread, whatever is chosen.
 - **The baseline keeps every path's answer**, and `verify` compares them all: an option
   nobody is looking at still has to run.
+- **Each option writes its own `METRICS`**, a literal in its file, never imported from the
+  helper, and where the fork's node holds an answer every option marks the same keys.
 - An option may read other inputs than its siblings do. What a fork cannot do yet is change
   which nodes come after it.
 
