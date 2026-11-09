@@ -1,20 +1,5 @@
-"""A Poisson GLM of windstorm claim frequency, with the wind load as an offset.
-
-    claims ~ Poisson(exposure · load · exp(Xβ))
-
-with a log link, and log(exposure) + log(load) as the offset. The rating factors are
-construction (frame is the base), roof age per decade, the deductible (as log(deductible /
-1,000)) and terrain (suburban is the base). Territory is deliberately not in the model: with
-300 territories, many of them nearly empty, it would be estimated from noise. Blending each
-territory's own experience with this model is `credibility`'s job.
-
-A Pearson dispersion above 1 says the claims vary more than the rating factors and the
-wind explain: here, by territory.
-
-The calibration chart sorts the policies by their predicted frequency and cuts them into ten
-groups of equal exposure. A calibrated model's observed frequency in each group sits on its
-predicted one, within the observed count's exact Poisson 95% interval.
-"""
+"""The claim-frequency GLM, shared by the options of `glm`: the fit with a given family, the
+calibration groups, and the view."""
 import numpy as np
 import statsmodels.api as sm
 from scipy import stats
@@ -22,9 +7,6 @@ from scipy import stats
 from blocks import ui
 from rating import TERMS, design
 
-METRICS = {"deviance": {"label": "deviance", "goal": "min"},
-           "dispersion": {"label": "Pearson dispersion", "goal": "min"}, "aic": {"label": "AIC", "goal": "min"},
-           "calibration_gap": {"label": "worst group's observed / predicted − 1", "goal": "min"}}
 GROUPS = 10
 
 
@@ -45,11 +27,16 @@ def calibration(expected, claims, exposure):
     return rows
 
 
-def glm(join, wind):
+def fit(join, wind, family=None):
+    """The GLM's output with this family: family(mu) makes it from the Poisson fit's
+    expected claims (None: the Poisson fit itself)."""
     t = join["table"]
     col = lambda name: t[name].to_numpy(zero_copy_only=False)
     X = design(col("construction"), col("roof_age"), col("deductible"), col("terrain"))
-    fit = sm.GLM(col("claims"), X, family=sm.families.Poisson(), offset=np.log(col("exposure")) + wind["offset"]).fit()
+    offset = np.log(col("exposure")) + wind["offset"]
+    fit = sm.GLM(col("claims"), X, family=sm.families.Poisson(), offset=offset).fit()
+    if family:
+        fit = sm.GLM(col("claims"), X, family=family(col("claims"), fit.mu), offset=offset).fit(start_params=fit.params)
     low, high = fit.conf_int().T
     groups = calibration(fit.mu, col("claims"), col("exposure"))
     return {"coefficients": [{"term": term, "estimate": float(b), "se": float(se), "low": float(lo), "high": float(hi)}
@@ -59,7 +46,7 @@ def glm(join, wind):
             "calibration_gap": max(abs(r["observed"] / r["predicted"] - 1) for r in groups)}
 
 
-def view(out):
+def show(out):
     rows = [{"term": c["term"], "estimate": c["estimate"], "95% low": c["low"], "95% high": c["high"],
              "relativity": float(np.exp(c["estimate"]))} for c in out["coefficients"]]
     groups, terms = out["calibration"], rows[1:]   # the intercept left out
@@ -79,5 +66,5 @@ def view(out):
         ui.table(groups, title="Calibration groups", text=["group"]),
         ui.markdown(f"Pearson dispersion {out['dispersion']:.2f}: the claims vary "
                     + ("more than the rating factors and wind explain, the territory effect credibility will look for."
-                       if out["dispersion"] > 1.05 else "about as a Poisson model expects.")),
+                       if out["dispersion"] > 1.05 else "about as the model expects.")),
     ]

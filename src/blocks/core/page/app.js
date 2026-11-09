@@ -1,6 +1,8 @@
 // The page: the graph on the left (its table of contents), one page of blocks on the right: the
 // overview, a node (its docstring, settings, results and code) or a dataset. Python runs in a
-// worker (worker.js); Run computes what is stale, and the graph's cache keeps the rest.
+// worker (worker.js); Run computes what is stale, and the graph's cache keeps the rest. An app
+// with forks is many analyses: the page shows one path through them, and after a run explores
+// the others, so the overview can say how far each fork moves the answer.
 
 const M = JSON.parse(document.getElementById("manifest").textContent);
 const S = M.spec;
@@ -9,15 +11,19 @@ const text = (b64) => new TextDecoder().decode(Uint8Array.from(atob(b64), (c) =>
 // {path: base64} as {path: bytes}
 const unpack = async (files) => Object.fromEntries(await Promise.all(Object.entries(files).map(async ([p, b]) => [p, await bytes(b)])));
 
+// Every way a node is written: a fork's options, or the node itself.
+const ways = (n) => (S.nodes[n].options ? Object.values(S.nodes[n].options) : [S.nodes[n]]);
 const state = {
   page: null,      // a node's or a dataset's name, or null: the overview
   // name -> value. A setting is the app's, by its name: every node that declares it reads it.
-  settings: Object.fromEntries(S.order.flatMap((n) => Object.entries(S.nodes[n].settings).map(([p, s]) => [p, s.default]))),
+  settings: Object.fromEntries(S.order.flatMap((n) => ways(n).flatMap((w) => Object.entries(w.settings).map(([p, s]) => [p, s.default])))),
+  choices: Object.fromEntries(S.forks.map((f) => [f, S.nodes[f].chosen])),   // fork -> the option this page is on
+  space: null,     // the paths explored: {at, total, paths: [{choices, answer, metrics, failed}], spread} (graph.spread)
   data: {},        // dataset -> {key, files: {path: Blob}, chosen}, once Python has its files
   results: {},     // node -> its result in the last run
   record: null,    // the last run's record
   previous: null,  // the one before it
-  differs: null,   // {node: [what differs]} from the baseline (graph.compare); null without one
+  differs: null,   // {node: [what differs]} from the baseline (graph.compare); null without one, undefined until compared
   ranWith: null,   // the settings and data keys the last run had
   status: "Starting Python…",
   ready: false,    // Python has started
@@ -126,16 +132,18 @@ async function startWorker() {
 }
 
 // Running:
+// A fork's node is its option on this page's path: S.nodes[fork] reads as that option everywhere.
+const pick = () => S.forks.forEach((f) => Object.assign(S.nodes[f], S.nodes[f].options[state.choices[f]]));
 const datasets = (n) => S.nodes[n].deps.filter((d) => d in S.datasets);
 const missing = () => Object.keys(S.datasets).filter((d) => !state.data[d]);
 // What Run would compute. The worker keys each output by its code, settings and inputs; in a
-// page the code is fixed, so a node is stale when it did not run, its settings or data changed
-// since the last run, or a node it reads is stale.
+// page the code is fixed but for a fork's option, so a node is stale when it did not run, its
+// option, settings or data changed since the last run, or a node it reads is stale.
 function stale() {
   const out = new Set(), last = state.ranWith;
   for (const n of S.order) {
     const r = state.results[n], node = S.nodes[n];
-    if (!r || r.status !== "done"
+    if (!r || r.status !== "done" || state.choices[n] !== last.choices[n]
       || Object.keys(node.settings).some((p) => JSON.stringify(state.settings[p]) !== JSON.stringify(last.settings[p]))
       || datasets(n).some((d) => state.data[d]?.key !== last.data[d])
       || node.deps.some((d) => out.has(d))) out.add(n);
@@ -158,22 +166,52 @@ async function run() {
     state.status = `Choose ${missing().join(", ")} to run`; render();
     throw new Error(state.status);
   }
-  const sent = { settings: { ...state.settings }, data: Object.fromEntries(Object.entries(state.data).map(([d, v]) => [d, v.key])) };
+  const sent = { settings: { ...state.settings }, choices: { ...state.choices }, data: Object.fromEntries(Object.entries(state.data).map(([d, v]) => [d, v.key])) };
   state.running = true; state.status = "Running…"; render();
   const t0 = performance.now();
   try {
-    const { nodes, record, differs } = await call("run", { ...sent, baseline: M.baseline });
-    Object.assign(state, { previous: state.record, record, differs, results: nodes, ranWith: sent });
+    const { nodes, record } = await call("run", sent);
+    Object.assign(state, { previous: state.record, record, differs: undefined, results: nodes, ranWith: sent });
     const ran = Object.values(nodes).filter((r) => r.status === "done" && !r.cached).length;
-    state.status = `Ran ${ran} of ${S.order.length} in ${((performance.now() - t0) / 1000).toFixed(1)} s`;
+    const done = `Ran ${ran} of ${S.order.length} in ${((performance.now() - t0) / 1000).toFixed(1)} s`;
+    state.status = done; render();   // this path's results are up while the others run
+    if (await explore(sent, done)) record.paths = state.space.paths.map(({ choices, answer, failed }) => ({ choices, answer, failed }));
+    state.differs = M.baseline && await call("compare", { record, baseline: M.baseline });
+    state.status = done + (record.paths ? ` · ${record.paths.length} paths` : "");
   } catch (e) {
     state.status = `Failed: ${e.message}`;
     throw e;
   } finally {
     state.running = false;
     render();
+    if (state.again) { state.again = false; run().catch(() => {}); }
   }
   return state.record;
+}
+
+// The other paths through the forks, each run in turn (what paths share comes from the cache),
+// and how far they move the answer. Kept until the settings or data change: another choice
+// alone only moves this page along paths already found. False when there is nothing to explore.
+async function explore(sent, done) {
+  if (!S.forks.length || !S.answer.length) return false;
+  const wanted = await call("paths", { choices: sent.choices });
+  const at = JSON.stringify([sent.settings, sent.data, wanted]);
+  if (state.space?.at === at && state.space.paths.length === wanted.length) return true;
+  state.space = { at, total: wanted.length, paths: [], spread: {} };
+  for (const choices of wanted) {
+    state.status = `${done} · path ${state.space.paths.length + 1} of ${wanted.length}…`;
+    // Only a page that shows the paths is redrawn as they arrive: a slider elsewhere keeps its grip.
+    state.page === null || S.nodes[state.page]?.options ? render() : chrome();
+    state.space.paths.push(await call("path", { settings: sent.settings, data: sent.data, choices }));
+    state.space.spread = await call("spread", { found: state.space.paths });
+  }
+  return true;
+}
+// Take other options: the page moves to that path, and what is not there yet runs.
+function take(values) {
+  Object.assign(state.choices, values); pick(); render();
+  if (!state.record) return;
+  if (busy()) state.again = true; else run().catch(() => {});
 }
 
 // Data in, files out:
@@ -247,7 +285,8 @@ function dag() {
     const p = pos[id], isData = !S.nodes[id], st = isData ? "data" : statusOf(id);
     const fits = Math.floor((p.w - 8) / 6.4);
     return h("svg:g", { class: `box ${st} ${state.page === id ? "sel" : ""}`, onclick: () => show(id) },
-      h("svg:title", {}, isData ? `${S.datasets[id]}` : `${id}: ${st}`),
+      h("svg:title", {}, isData ? `${S.datasets[id]}` : `${id}${S.nodes[id].options ? ` (${state.choices[id]})` : ""}: ${st}`),
+      S.nodes[id]?.options && h("svg:rect", { class: "behind", x: p.x + 3, y: p.y - 3, width: p.w, height: BH, rx: 3 }),
       h("svg:rect", { x: p.x, y: p.y, width: p.w, height: BH, rx: isData ? 15 : 3 }),
       h("svg:text", { x: p.x + p.w / 2, y: p.y + BH / 2 + 4, "text-anchor": "middle" }, id.length > fits ? id.slice(0, fits - 1) + "…" : id));
   });
@@ -325,11 +364,113 @@ function dataPage(d) {
 // The other nodes that read setting p: a setting is the app's, by its name.
 const alsoReading = (n, p) => S.order.filter((m) => m !== n && p in S.nodes[m].settings);
 
+// The paths:
+const same = (a, b) => S.forks.every((f) => a[f] === b[f]);
+const found = (choices) => state.space?.paths.find((p) => same(p.choices, choices));
+const spreadOf = (a) => state.space?.spread[`${a.node}.${a.key}`];
+const words = (o) => o.replaceAll("_", " ");   // an option is named by its file
+const pathName = (c) => S.forks.map((f) => `${f}: ${words(c[f])}`).join(" · ");
+// Pointing at an option lights the paths that take it, on every strip.
+const light = (f, o) => document.querySelectorAll(".strip").forEach((el) => {
+  el.classList.toggle("lit", f != null);
+  el.querySelectorAll(".dot").forEach((d) => d.classList.toggle("on", f != null && JSON.parse(d.dataset.path)[f] === o));
+});
+// A fork's options, as one control: the page's is filled, the app's own choice is ticked.
+const options = (f) => h("div", { class: "options", onmouseleave: () => light() }, Object.keys(S.nodes[f].options).map((o) =>
+  h("button", { class: `option ${state.choices[f] === o ? "here" : ""} ${!S.nodes[f].open && S.nodes[f].chosen === o ? "chosen" : ""}`,
+    title: S.nodes[f].options[o].summary, onmouseenter: () => light(f, o), onclick: () => take({ [f]: o }) }, words(o))));
+
+// One answer across the paths: a dot for each, stacked where they meet, this page's filled.
+function strip(a) {
+  // As wide as the article is now, so that a dot is a dot on a phone too.
+  const id = `${a.node}.${a.key}`, s = spreadOf(a), W = Math.min(820, document.querySelector("article").clientWidth || 820), R = 4.5, PAD = 14;
+  const dots = state.space.paths.map((p) => ({ p, v: num(p.answer[id]) })).filter((d) => Number.isFinite(d.v)).sort((x, y) => x.v - y.v);
+  const x = (v) => (s.hi > s.lo ? PAD + ((v - s.lo) / (s.hi - s.lo)) * (W - 2 * PAD) : W / 2);
+  const levels = [];
+  for (const d of dots) {
+    d.x = x(d.v);
+    d.level = levels.findIndex((last) => d.x - last >= 2 * R + 1.5);
+    if (d.level < 0) d.level = levels.length;
+    levels[d.level] = d.x;
+  }
+  const base = 8 + Math.max(levels.length, 1) * (2 * R + 1.5), H = base + 22;
+  const ends = s.hi > s.lo ? [[s.lo, "start"], [s.hi, "end"]] : [[s.lo, "middle"]];
+  return h("svg:svg", { viewBox: `0 0 ${W} ${H}`, class: "strip", role: "img" },
+    h("svg:line", { x1: x(s.lo), x2: x(s.hi), y1: base, y2: base }),
+    ends.map(([v, anchor]) => h("svg:text", { x: x(v) + (anchor === "start" ? -R : anchor === "end" ? R : 0), y: base + 16, "text-anchor": anchor }, fmt(v, a.percent))),
+    dots.map((d) => h("svg:circle", { class: `dot ${same(d.p.choices, state.choices) ? "here" : ""}`, cx: d.x, cy: base - R - 2 - d.level * (2 * R + 1.5), r: R,
+      "data-path": JSON.stringify(d.p.choices), onclick: () => take(d.p.choices) },
+      h("svg:title", {}, `${fmt(d.v, a.percent)}\n${pathName(d.p.choices)}`))));
+}
+
+// The overview's lead: the numbers the app exists to produce, and how far the forks move them.
+function answer() {
+  if (!S.answer.length) return null;
+  const sp = state.space, whole = S.forks.reduce((n, f) => n * Object.keys(S.nodes[f].options).length, 1);
+  const failed = sp ? sp.paths.filter((p) => p.failed.length) : [];
+  return h("section", { class: "answer" }, h("h2", {}, "The answer"),
+    S.answer.map((a) => {
+      const s = spreadOf(a);
+      return h("div", { class: "headline" },
+        h("p", {}, h("strong", {}, fmt(state.results[a.node]?.metrics?.[a.key], a.percent)), h("span", {}, a.label, " · ", link(a.node))),
+        s && strip(a));
+    }),
+    sp && h("p", { class: "muted small" },
+      sp.paths.length < sp.total ? `Exploring: ${sp.paths.length} of ${sp.total} paths so far. `
+        : sp.total < whole ? `One dot for this path and each of the ${sp.total - 1} beside it, which differ at one fork (${fmt(whole)} paths in all, too many to run). `
+          : `One dot for each of the ${sp.total} ways through the forks; the filled one is this page's. `,
+      failed.length > 0 && h("span", { class: "error" }, `${failed.length} failed: `, failed.map((p, i) => [i ? ", " : "", h("a", { href: "#", onclick: (e) => { e.preventDefault(); take(p.choices); } }, pathName(p.choices))]), ". ")));
+}
+
+// The forks, the one that moves the answer most first; those that barely move it are folded away.
+function forks() {
+  if (!S.forks.length) return null;
+  const a = S.answer[0], s = a && spreadOf(a), range = s ? s.hi - s.lo : 0;
+  const swing = (f) => (s ? num(s.forks[f]) : null);
+  const order = [...S.forks].sort((x, y) => (swing(y) ?? -1) - (swing(x) ?? -1));
+  const quiet = (f) => s && state.space.paths.length === state.space.total && (swing(f) ?? 0) <= 0.05 * range;
+  const row = (f) => h("li", { class: "fork" },
+    h("div", {}, link(f), S.nodes[f].open && h("span", { class: "tag", title: "No option is recorded for it in choices.json: the page takes the first" }, "open"),
+      h("p", { class: "muted" }, S.nodes[f].question)),
+    options(f),
+    s && swing(f) != null && h("div", { class: "swing", title: `Switching ${f} alone moves ${a.label} by this much, on average over the other forks` },
+      h("span", {}, h("i", { style: { width: `${range > 0 ? Math.min(100, 100 * swing(f) / range) : 0}%` } })),
+      h("span", { class: "small muted" }, a.percent ? `${fmt(100 * swing(f))} pp` : fmt(swing(f)))));
+  const loud = order.filter((f) => !quiet(f)), rest = order.filter(quiet);
+  return h("section", { class: "forks" }, h("h2", {}, "Forks"),
+    h("p", { class: "muted small" }, "Where the analysis could have gone another way", s ? `, and how far each moves ${a.label} on its own. Point at an option to see where its paths land; choose one to go there.` : "."),
+    loud.length > 0 && h("ul", {}, loud.map(row)),
+    rest.length > 0 && h("details", { open: loud.length === 0 }, h("summary", {}, `${rest.length === 1 ? "1 fork that barely moves" : `${rest.length} forks that barely move`} it`), h("ul", {}, rest.map(row))));
+}
+
+// A fork's own page starts with the fork: its question, and each option beside the others,
+// with the answer its path gives (the other forks as this page has them) and the numbers of
+// its own that every option labels.
+function forkBox(n) {
+  const node = S.nodes[n], all = Object.values(node.options);
+  const shown = node.metrics.filter((m) => !m.answer && all.every((w) => w.metrics.some((x) => x.key === m.key))).slice(0, 3);
+  const cell = (v, percent) => h("td", {}, fmt(v, percent));
+  return h("section", { class: "choice" }, h("h2", {}, "Fork", node.open && h("span", { class: "tag" }, "open")),
+    node.question && h("h3", {}, node.question),
+    node.about && markdown(node.about),
+    h("table", {},
+      h("tr", {}, h("th"), S.answer.map((a) => h("th", {}, a.label)), shown.map((m) => h("th", { class: "muted" }, m.label))),
+      Object.entries(node.options).map(([o, w]) => {
+        const p = found({ ...state.choices, [n]: o });
+        return h("tr", { class: state.choices[n] === o ? "here" : null, onclick: () => take({ [n]: o }) },
+          h("th", {}, h("label", {}, h("input", { type: "radio", name: `fork-${n}`, checked: state.choices[n] === o }), words(o),
+            !node.open && node.chosen === o && h("span", { class: "muted small" }, " ✓ chosen")), h("p", { class: "muted small" }, w.summary)),
+          S.answer.map((a) => cell(p?.answer[`${a.node}.${a.key}`], a.percent)),
+          shown.map((m) => cell(p?.metrics[n]?.[m.key], m.percent)));
+      })));
+}
+
 function nodePage(n) {
   const node = S.nodes[n], readers = readersOf(n);
   return [
     crumb(n),
     h("h1", {}, n),
+    node.options && forkBox(n),
     node.doc ? markdown(node.doc) : null,
     datasets(n).length > 0 && h("p", { class: "muted" }, "Reads ", sep(datasets(n)), "."),
     Object.keys(node.settings).length > 0 && h("section", { class: "settings" }, h("h2", {}, "Settings"),
@@ -338,7 +479,7 @@ function nodePage(n) {
         .map((p) => h("p", { class: "muted small" }, `${p} is also read by `, sep(alsoReading(n, p)), "."))),
     h("section", {}, h("h2", {}, "Results"), results(n)),
     h("details", { class: "about" }, h("summary", {}, "Code"),
-      h("p", { class: "muted" }, node.deps.length ? ["Reads ", sep(node.deps)] : "Reads nothing", readers.length ? [". Read by ", sep(readers), "."] : "."),
+      h("p", { class: "muted" }, `${node.file}. `, node.deps.length ? ["Reads ", sep(node.deps)] : "Reads nothing", readers.length ? [". Read by ", sep(readers), "."] : "."),
       h("pre", {}, text(M.files[node.file]))),
   ];
 }
@@ -348,9 +489,11 @@ function overview() {
   return [
     h("h1", {}, M.title),
     M.about && markdown(M.about),
+    answer(),
+    forks(),
     h("section", {}, h("h2", {}, "Nodes"), h("ol", { class: "nodes" }, S.order.map((n) => {
       const st = statusOf(n), m = state.results[n]?.metrics || {}, decl = S.nodes[n].metrics.slice(0, 3);
-      return h("li", {}, link(n), h("span", { class: `status ${st}` }, ` ${GLYPH[st]} ${st}`),
+      return h("li", {}, link(n), S.nodes[n].options && h("span", { class: "muted small" }, ` ${words(state.choices[n])}`), h("span", { class: `status ${st}` }, ` ${GLYPH[st]} ${st}`),
         h("p", {}, S.nodes[n].summary),
         decl.length > 0 && h("p", { class: "small muted" }, decl.map((d) => `${d.label} ${fmt(m[d.key], d.percent)}`).join(" · ")));
     }))),
@@ -359,12 +502,12 @@ function overview() {
     S.order.some((n) => offered(n).length) && h("section", {}, h("h2", {}, "Outputs"),
       h("div", { class: "cards" }, S.order.map((n) => h("div", { class: `cards ${statusOf(n) === "stale" ? "dim" : ""}` },
         offered(n).map((b) => RENDER.download(b, n, `Output · ${n}`)))))),
-    state.record && h("section", {}, h("h2", {}, "This run"),
+    state.record && differs !== undefined && h("section", {}, h("h2", {}, "This run"),
       differs === null ? h("p", { class: "muted" }, "No baseline to compare with.")
-        : Object.keys(differs).length === 0 ? h("p", { class: "ok" }, "Every node matches the baseline.")
+        : Object.keys(differs).length === 0 ? h("p", { class: "ok" }, state.record.paths ? "Every node and every path matches the baseline." : "Every node matches the baseline.")
           : h("ul", { class: "differs" }, Object.entries(differs).map(([n, why]) => h("li", {}, h("strong", {}, n), `: ${why.join("; ")}`))),
       h("p", {}, h("a", { href: URL.createObjectURL(new Blob([JSON.stringify(state.record, null, 1)])), download: "run.json" }, "↓ run.json"),
-        h("span", { class: "muted" }, " the run's record: settings, data and every node's metrics and digest"))),
+        h("span", { class: "muted" }, ` the run's record: settings, data${state.record.paths ? ", choices," : ""} and every node's metrics and digest${state.record.paths ? ", and every path's answer" : ""}`))),
   ];
 }
 
@@ -384,11 +527,18 @@ function render() {
 
 // For agents (and the tooling): the page's state and what it can do.
 window.blocks = {
-  state: () => ({ status: state.status, busy: busy(), settings: state.settings, stale: [...stale()], missing: missing(), results: state.results, record: state.record }),
+  state: () => ({ status: state.status, busy: busy(), settings: state.settings, choices: state.choices, stale: [...stale()], missing: missing(),
+    results: state.results, record: state.record, space: state.space }),
   set: (values) => {
     const unknown = Object.keys(values).filter((p) => !(p in state.settings));
     if (unknown.length) throw new Error(`no setting ${unknown.join(", ")} (the settings: ${Object.keys(state.settings).join(", ")})`);
     Object.assign(state.settings, values); render(); return [...stale()];
+  },
+  // Take these options at their forks ({fork: option}); like set, it runs nothing before the page has run.
+  choose: (values) => {
+    const unknown = Object.entries(values).filter(([f, o]) => !S.nodes[f]?.options?.[o]).map(([f, o]) => `${f}=${o}`);
+    if (unknown.length) throw new Error(`no fork and option ${unknown.join(", ")} (the forks: ${S.forks.map((f) => `${f}: ${Object.keys(S.nodes[f].options).join(", ")}`).join("; ") || "none"})`);
+    take(values); return [...stale()];
   },
   run,
   output: (node) => call("output", { name: node }),
@@ -397,6 +547,7 @@ window.blocks = {
 };
 const hashPage = () => decodeURIComponent(location.hash.slice(1)) || null;
 window.addEventListener("hashchange", () => show(hashPage()));
+window.addEventListener("resize", () => document.querySelector(".strip") && render());   // a strip is drawn to the width it had
 document.getElementById("app").append(h("header"), h("nav"), h("main", {}, h("article")));
 show(hashPage());
 window.blocks.ready = startWorker().catch((e) => { state.status = `Failed to start: ${e.message}`; render(); throw e; });

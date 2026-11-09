@@ -28,6 +28,8 @@ def view(out):                             # optional: the node's results, in or
 projects/<app>/
   README.md        "# Title", then the overview's text
   nodes/<name>.py  one node: def <name>(inputs..., *, settings...)
+  nodes/<name>/    a fork: the node written more than one way, <option>.py each; README.md asks its question
+  choices.json     {fork: option}: the app's choice at each fork it has decided
   data/<name>.*    a dataset, read by a parameter <name>: its path
   data/<name>/     a dataset of files (exports by month, say): their paths, in name order
   data/<name>.md   what the dataset is, atop its page, for whoever replaces it
@@ -46,7 +48,8 @@ projects/<app>/
 - **Every number in the output's dicts** (nested too, not in lists or tables) is a metric:
   recorded, compared with the baseline, shown. `METRICS = {key: "label" | {label, goal,
   percent}}` labels the ones that matter, in order (`fit.shape` for `{"fit": {"shape": ...}}`);
-  `goal: "min"` or `"max"` colours changes, `percent: True` marks a share.
+  `goal: "min"` or `"max"` colours changes, `percent: True` marks a share, and `answer: True`
+  marks a number the app exists to produce: the overview leads with it.
 - **Packages** are found from the imports, and come from Pyodide, not the venv: the names
   they import as are in `.cache/pyodide/<version>/pyodide-lock.json`. Node code runs only in
   the page, never with native Python.
@@ -58,15 +61,43 @@ projects/<app>/
   graphlib's, not the file names'. A node's page is its docstring (its first paragraph is its summary on the
   overview, on one line), settings, results and code; a dataset's page lets a reader replace it.
 
+## Forks
+
+An analysis is a string of judgment calls, and a reader shown one path through them can only
+second-guess each from the code. So a judgment call is written both ways: a **fork** is a
+folder `nodes/<name>/` whose files are each a whole node `<name>`, an **option**, with its own
+docstring, settings, `METRICS` and view; what the options share is a helper module's. The
+folder's `README.md` asks the fork's question (`# ...`) and says what bears on it.
+
+- **A run takes one option at each fork**: the app's choice (`choices.json`), else the first
+  by name, and the fork is *open*, for a person to decide. `blocks choose` records a choice.
+- **Run explores every path** through the forks when the app has an answer (`answer: True`).
+  Outputs are kept by key, so paths share all they have in common: a hundred paths cost a
+  few runs of each node, and moving the page to another path costs nothing. Past 64 paths,
+  only the page's path and those one fork away from it are run (`graph.paths`).
+- **The overview is the map**: the answer on the page's path, a dot for every path's answer,
+  and the forks, the one that moves the answer most first (`graph.spread`: how far the answer
+  moves when that fork alone changes, in the answer's units); the forks that barely move it
+  are folded away. A fork's page sets its options side by side.
+- **A fork is decided on evidence about the fork**, its options' own numbers and views, not
+  by which answer pleases; an answer scored against a known truth (windstorm's `recovery`)
+  is evidence too. The page always shows the spread, whatever is chosen.
+- **The baseline keeps every path's answer**, and `verify` compares them all: an option
+  nobody is looking at still has to run.
+- An option may read other inputs than its siblings do. What a fork cannot do yet is change
+  which nodes come after it.
+
 ## Commands
 
 ```sh
 .venv/bin/blocks run APP          # headless: every node's status, metrics and errors
     --set NAME=VALUE              #   with another setting (VALUE is JSON, else text)
+    --choose FORK=OPTION          #   along another path; every path's answer is printed either way
     --output NODE                 #   print only that node's output, as JSON
     --shots DIR [NODE ...]        #   a PNG of those pages (_overview too), else of all: DIR/<app>/<node>.png
+.venv/bin/blocks choose APP FORK=OPTION ...   # record the app's choice in choices.json
 .venv/bin/blocks baseline APP     # keep the run as baseline.json, if nothing failed
-.venv/bin/blocks verify [APP]     # compare with the baseline (graph.compare): metrics, digests, data keys; a failed view fails it
+.venv/bin/blocks verify [APP]     # compare with the baseline (graph.compare): metrics, digests, data keys, paths; a failed view fails it
 .venv/bin/blocks build [APP]      # dist/<app>.html, offline, verified; --no-data leaves the data out
 .venv/bin/blocks serve            # http://127.0.0.1:8765/<app>/, rebuilt on every request
 .venv/bin/python -m pytest -m "not browser"

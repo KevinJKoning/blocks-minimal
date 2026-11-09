@@ -1,0 +1,5 @@
+{
+ "wind": "decay",
+ "glm": "poisson",
+ "credibility": "buhlmann_straub"
+}

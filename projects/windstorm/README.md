@@ -18,3 +18,9 @@ wind load from the inland decay of a hurricane's wind. `glm` fits a Poisson GLM 
 frequency on the rating factors with that offset. `credibility` blends each territory's own
 experience with the GLM (Bühlmann–Straub), and `rates` sets every territory's base rate.
 `recovery` scores it all against the truth.
+
+Three of those steps are judgment calls, so each is a fork, written every way worth
+defending: whether to take the wind physics as given (`wind`), which distribution the claim
+counts follow (`glm`), and how much a territory's own experience should count
+(`credibility`). The answer below is the rates' typical error against the truth, on this
+path and on every other.

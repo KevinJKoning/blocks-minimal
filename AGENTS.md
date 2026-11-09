@@ -11,7 +11,7 @@ two are short enough to read whole, and they are the reference.
    page: `--shots DIR NODE` draws only that one. A new app: check its numbers with `--output`
    first, then look at all its pages once.
 3. `blocks baseline APP` when the results are right. A baseline holds each node's metrics
-   and output digest, not its view: re-record it after adding a node or an output key, or
+   and output digest (and, with forks, the choices and every path's answer), not its view: re-record it after adding a node or an output key, or
    changing results on purpose; a change to a view alone needs none.
 4. `blocks verify APP` and `.venv/bin/python -m pytest -m "not browser"` must pass;
    `blocks build APP` verifies the offline page too.
@@ -19,6 +19,29 @@ two are short enough to read whole, and they are the reference.
 The venv has none of the app's packages: check numbers natively with the standard library
 only (a `data/` script is the one thing to run natively). In the page, `window.blocks`
 (end of `page/app.js`) drives it.
+
+## Forks
+
+README's Forks section has the model; this is when to make one.
+
+- When you meet a judgment call a reasonable analyst could make another way (a method, a
+  threshold that matters, what to do with the awkward rows), do not pick: write the options
+  (`nodes/<name>/<option>.py`), put what they share in a helper module, and ask the question
+  in the folder's `README.md`, with what bears on it. An option to beat (do nothing, the
+  naive rule) is worth its file: it says what the others buy.
+- Mark the app's answer (`answer: True` in `METRICS`), few numbers, ideally one: what the
+  app is for, in units a reader can weigh. Check that it can tell the options apart: an
+  answer no fork can move is measuring the wrong thing.
+- Leave a fork open (no entry in `choices.json`) until its person has decided it, and say
+  what you would choose and why in the README. `blocks choose` once they have; then
+  `blocks baseline`, since the baseline holds the choices and every path's answer.
+- `blocks run APP` prints each path's answer and how far each fork moves it; `--choose
+  FORK=OPTION` runs, prints and draws another path. Every option must run: a failed path
+  fails `verify`.
+- When someone points at a result and asks for it another way, that is a new option, or a
+  new fork: not a rewrite of the node they were looking at.
+- Retire an option nobody would defend by deleting its file; a fork left with one option goes
+  back to `nodes/<name>.py`.
 
 ## Nodes and views
 
@@ -47,7 +70,8 @@ has the class `<name>`, and an optional `<name>.css` styles it, every rule under
   `records`, `S`) and `_kit.js` (`hue`, `ticks`, `logTicks`, `place`, `legend`).
 - A block's own classes never reuse the page's (`page/app.css`): `card`, `cards`,
   `card-label`, `setting`, `settings`, `button`, `crumb`, `dag`, `nodes`, `prose`, `status`,
-  `differs`, `secondary`, `dim`, `ok`, `about`, `title`; it may use `muted`, `small`, `note`
+  `differs`, `secondary`, `dim`, `ok`, `about`, `title`, `answer`, `headline`, `strip`,
+  `forks`, `fork`, `options`, `option`, `swing`, `choice`, `tag`; it may use `muted`, `small`, `note`
   and `error` as the page does.
 - A helper stays in its block until a second block needs it; then it moves to `_kit.py`,
   `_kit.js` or `_kit.css`. Colours are the theme's variables (`--ink`, `--ramp-hi`,

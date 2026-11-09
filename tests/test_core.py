@@ -44,7 +44,8 @@ def app(tmp_path):
 
 
 def graph_spec(a):
-    return {"order": a["order"], "nodes": a["nodes"], "datasets": {d: v["path"] for d, v in a["datasets"].items()}}
+    return {"order": a["order"], "nodes": a["nodes"], "forks": a["forks"], "answer": a["answer"],
+            "datasets": {d: v["path"] for d, v in a["datasets"].items()}}
 
 
 def test_reads_the_graph_from_signatures(app):
@@ -86,6 +87,98 @@ def test_runs_only_what_changed(app):
     changed = g.run({"factor": 3}, {"numbers": "k1"})
     assert not changed["double"]["cached"] and changed["double"]["metrics"]["total"] == 18
     assert not changed["count"]["cached"] and changed["count"]["digest"] == first["count"]["digest"]
+
+
+@pytest.fixture
+def forked(app):
+    """The app with count written two ways (a fork), each scaled by a setting of its own, and
+    its n as the answer."""
+    (app / "nodes" / "count.py").unlink()
+    (app / "nodes" / "count").mkdir()
+    for option, n in {"length": "len(double['values'])", "largest": "max(double['values'])"}.items():
+        (app / "nodes" / "count" / f"{option}.py").write_text(
+            f'"""By {option}."""\nMETRICS = {{"n": {{"label": "how many", "answer": True}}}}\n\n\n'
+            f"def count(double, *, {option}_scale=1):\n    return {{'n': {option}_scale * {n}}}\n")
+    (app / "nodes" / "count" / "README.md").write_text("# What counts?\n\nThe length or the largest.\n")
+    return app
+
+
+def test_a_fork_is_a_node_written_more_than_one_way(forked):
+    a = spec.load(forked)
+    count = a["nodes"]["count"]
+    assert a["forks"] == ["count"] and list(count["options"]) == ["largest", "length"]
+    assert count["open"] and count["chosen"] == "largest" and count["file"] == "nodes/count/largest.py"   # undecided: the first
+    assert count["question"] == "What counts?" and count["about"] == "The length or the largest."
+    assert a["answer"] == [{"node": "count", "key": "n", "label": "how many"}]
+    (forked / "choices.json").write_text('{"count": "length"}')
+    count = spec.load(forked)["nodes"]["count"]
+    assert not count["open"] and count["chosen"] == "length" and count["summary"] == "By length."
+    assert "nodes/count/README.md" in spec.load(forked)["files"]
+    (forked / "choices.json").write_text('{"count": "width"}')
+    with pytest.raises(ValueError, match="count has no option width"):
+        spec.load(forked)
+    (forked / "choices.json").write_text('{"double": "x"}')
+    with pytest.raises(ValueError, match="double is no fork"):
+        spec.load(forked)
+    (forked / "choices.json").unlink()
+    (forked / "nodes" / "count" / "length.py").unlink()
+    with pytest.raises(ValueError, match="a fork needs two options"):
+        spec.load(forked)
+
+
+def test_paths_share_what_they_have_in_common(forked):
+    g = graph.Graph(str(forked), graph_spec(spec.load(forked)))
+    first = g.run({}, {})
+    assert first["count"]["metrics"] == {"n": 6}                      # largest, the first option
+    other = g.run({}, {}, {"count": "length"})
+    assert other["double"]["cached"] and not other["count"]["cached"] and other["count"]["metrics"] == {"n": 3}
+    assert g.run({}, {})["count"]["cached"]                           # and back: both options are kept
+    # A path leaves the page's own run as the one whose outputs it can ask for.
+    found = g.path({}, {}, {"count": "length"})
+    assert found == {"choices": {"count": "length"}, "metrics": {"double": {"total": 12}, "count": {"n": 3}}, "answer": {"count.n": 3}, "failed": []}
+    assert g.cache[g.last["count"]][0] == {"n": 6}
+    # Other settings start a round; what the round before last made is let go.
+    keys = set(g.cache)
+    g.run({"factor": 3}, {})
+    g.run({"factor": 4}, {})
+    assert not keys & set(g.cache)
+
+
+def test_spread_says_how_far_each_fork_moves_the_answer():
+    found = [{"choices": {"a": x, "b": y}, "answer": {"n.v": v}}
+             for (x, y), v in {("p", "s"): 1.0, ("p", "t"): 1.5, ("q", "s"): 5.0, ("q", "t"): 5.5, ("r", "s"): 3.0, ("r", "t"): None}.items()]
+    s = graph.spread(found, ["a", "b"])["n.v"]
+    assert (s["lo"], s["hi"]) == (1.0, 5.5) and s["forks"] == {"a": 4.0, "b": 0.5}   # a failed path's answer is left out
+    assert graph.spread([], ["a"]) == {}
+    forks = {"a": ["p", "q", "r"], "b": ["s", "t"]}
+    assert len(graph.paths(forks, {"a": "q", "b": "t"})) == 6
+    near = graph.paths(forks, {"a": "q", "b": "t"}, limit=5)          # too many: this path and those one fork away
+    assert near == [{"a": "q", "b": "t"}, {"a": "p", "b": "t"}, {"a": "r", "b": "t"}, {"a": "q", "b": "s"}]
+
+
+def test_a_baseline_keeps_every_paths_answer(forked, capsys):
+    from blocks.core import cli
+    g = graph.Graph(str(forked), graph_spec(spec.load(forked)))
+    def rec(**settings):
+        r = graph.record(g.run(settings, {}), settings, {}, {"count": "largest"})
+        keep = lambda p: {k: p[k] for k in ("choices", "answer", "failed")}
+        return json.loads(graph.to_json({**r, "paths": [keep(g.path(settings, {}, c)) for c in graph.paths({"count": ["largest", "length"]}, {})]}))
+    base = rec()
+    assert graph.compare(base, base) == {}
+    assert cli.show(forked, base) and "2 paths through count; this one: count=largest" in capsys.readouterr().out
+    moved = rec(length_scale=2)                                       # only the other path's answer moves
+    assert graph.compare(moved, base) == {"path count=length": ["count.n: 3 → 6"]}
+    assert graph.compare({**base, "choices": {"count": "length"}}, base)["choices"] == ["count=largest in the baseline (blocks baseline records the path chosen now)"]
+    assert graph.compare({**base, "paths": base["paths"][:1]}, base) == {"paths": ["1 only in the baseline"]}
+    base["paths"][1]["failed"] = ["count"]
+    assert not cli.show(forked, base) and "count=length  FAILED: count" in capsys.readouterr().out
+
+
+def test_choose_records_a_forks_option(forked, capsys):
+    from blocks.core import cli
+    assert cli.record_choices(forked, {"count": "length"}) and json.loads((forked / "choices.json").read_text()) == {"count": "length"}
+    assert not cli.record_choices(forked, {"count": "width"}) and "no option width" in capsys.readouterr().out
+    assert json.loads((forked / "choices.json").read_text()) == {"count": "length"}   # as it was
 
 
 def test_a_setting_is_the_apps_by_its_name(app):

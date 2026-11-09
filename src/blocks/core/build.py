@@ -141,7 +141,8 @@ def build(app_dir: Path, inline: bool, data: bool = True, *, origin: str | None 
     baseline = Path(app_dir) / "baseline.json"
     manifest = {
         "title": a["title"], "about": a["about"], "packages": pkgs,
-        "spec": {"order": a["order"], "nodes": a["nodes"], "datasets": {d: v["path"] for d, v in a["datasets"].items()}},
+        "spec": {"order": a["order"], "nodes": a["nodes"], "forks": a["forks"], "answer": a["answer"],
+                 "datasets": {d: v["path"] for d, v in a["datasets"].items()}},
         "files": {p: b64(b) for p, b in a["files"].items()},
         "library": {p: b64(b) for p, b in library.items()},
         # A page built without its data still says what each dataset is, for whoever chooses it.

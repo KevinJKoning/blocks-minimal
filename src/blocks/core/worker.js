@@ -54,9 +54,16 @@ const handlers = {
     }
     write("/app", files);
   },
-  run({ settings, data, baseline }) {
-    return JSON.parse(graph.run_json(JSON.stringify(settings), JSON.stringify(data), JSON.stringify(baseline)));
+  run({ settings, data, choices }) {
+    return JSON.parse(graph.run_json(JSON.stringify(settings), JSON.stringify(data), JSON.stringify(choices)));
   },
+  // The forks' paths: which to explore, one of them run, and how far those found move the answer.
+  paths({ choices }) { return JSON.parse(graph.paths_json(JSON.stringify(choices))); },
+  path({ settings, data, choices }) {
+    return JSON.parse(graph.path_json(JSON.stringify(settings), JSON.stringify(data), JSON.stringify(choices)));
+  },
+  spread({ found }) { return JSON.parse(graph.spread_json(JSON.stringify(found))); },
+  compare({ record, baseline }) { return JSON.parse(graph.compare_json(JSON.stringify(record), JSON.stringify(baseline))); },
   output({ name }) { return JSON.parse(graph.output_json(name)); },
 };
 

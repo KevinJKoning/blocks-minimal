@@ -3,9 +3,11 @@
 serve      the apps at http://127.0.0.1:8765/<app>/, rebuilt on every request
 run        run each app headlessly and print every node: its status, metrics and errors
              --set NAME=VALUE   with a setting other than its default (VALUE is JSON, else text)
+             --choose FORK=OPTION  along another path than the app's choices
              --output NODE      print that node's output instead, as JSON
              --shots DIR [NODE ...]  save a picture of those pages (_overview is the overview's),
                                 or of every page, as DIR/<app>/<node>.png
+choose     APP FORK=OPTION ...: record those choices in projects/<app>/choices.json
 baseline   run, and keep the run as projects/<app>/baseline.json if nothing failed
 verify     run, and compare with the baseline (graph.compare)
 build      dist/<app>.html, one offline file, verified from file:// with the network blocked
@@ -24,7 +26,7 @@ from pathlib import Path
 from urllib.parse import urlsplit
 
 from . import build, spec
-from .graph import compare
+from .graph import compare, path_name, spread
 
 PROJECTS = Path("projects")
 
@@ -85,9 +87,10 @@ def serve(port: int) -> ThreadingHTTPServer:
     return server
 
 
-RUN = """async (settings) => {
+RUN = """async (given) => {
+  const [settings, choices] = given || [{}, {}];
   try { await window.blocks.ready; } catch (e) { return { failed: `Python did not start: ${e.message}` }; }
-  try { window.blocks.set(settings || {}); return await window.blocks.run(); } catch (e) { return { failed: e.message }; }
+  try { window.blocks.set(settings); window.blocks.choose(choices); return await window.blocks.run(); } catch (e) { return { failed: e.message }; }
 }"""
 FAILED = "() => [...document.querySelectorAll('[data-failed]')].map((e) => e.textContent).join('\\n')"
 
@@ -115,8 +118,9 @@ def unloaded(browser, page, errors: list[str], app: Path) -> str:
     return "the page's script failed: " + "; ".join(errors) + "".join(f"\n  {f}" for f in found)
 
 
-def run_page(url: str, app: Path, offline=False, settings=None, choose=None, shots=None, pages=(), output=None) -> dict:
-    """The run record of the app's page in headless Edge: settings set, Run pressed, then
+def run_page(url: str, app: Path, offline=False, settings=None, choices=None, choose=None, shots=None, pages=(), output=None) -> dict:
+    """The run record of the app's page in headless Edge: settings and choices set, Run pressed
+    (every path through the forks is run with it, and is in the record), then
     every node's page drawn (a block marked data-failed is a failed view), and a picture saved
     in the folder shots of each page named in pages (of every page, when none is). The page runs
     untrusted packages, so the browser keeps its sandbox and the page reaches no server but its
@@ -137,7 +141,7 @@ def run_page(url: str, app: Path, offline=False, settings=None, choose=None, sho
             for d, files in choose.items():
                 page.locator(f'input[data-dataset="{d}"]').first.set_input_files(files)
             page.wait_for_function("() => window.blocks.state().missing.length === 0")
-        record = page.evaluate(RUN, settings or {})
+        record = page.evaluate(RUN, [settings or {}, choices or {}])
         if "failed" in record:
             return record
         unknown = set(pages) - {*record["nodes"], "_overview"}
@@ -170,7 +174,40 @@ def show(app: Path, record: dict) -> bool:
             failure = r.get("error") or "its view failed:\n" + r["view_error"]
             print("    " + failure.strip().replace("\n", "\n    "))
             ok = False
-    return ok
+    return ok and show_paths(app, record)
+
+
+def show_paths(app: Path, record: dict) -> bool:
+    """Print how far the forks move each answer, then every path's; True when no path failed."""
+    found = record.get("paths")
+    if not found:
+        return True
+    a = spec.load(app)
+    num = lambda v: f"{v:.6g}" if isinstance(v, float) else str(v)
+    print(f"  {len(found)} paths through {', '.join(a['forks'])}; this one: {path_name(record['choices'])}")
+    for answer, s in spread(found, a["forks"]).items():
+        here = record["nodes"].get(answer.split(".")[0], {}).get("metrics", {}).get(answer.split(".", 1)[1])
+        print(f"    {answer}  {num(here)} here, {num(s['lo'])} to {num(s['hi'])} across them")
+        print("      moved by  " + ",  ".join(f"{f} {num(v)}" for f, v in sorted(s["forks"].items(), key=lambda x: -(x[1] or 0)) if v is not None))
+    for p in found:
+        print(f"    {path_name(p['choices'])}  " + (f"FAILED: {', '.join(p['failed'])} (run it with --choose to see why)" if p["failed"]
+                                                    else ",  ".join(f"{k}={num(v)}" for k, v in p["answer"].items())))
+    return not any(p["failed"] for p in found)
+
+
+def record_choices(app: Path, choices: dict) -> bool:
+    """Record the app's choice at these forks in choices.json, beside those it holds."""
+    path = app / "choices.json"
+    kept = json.loads(path.read_text()) if path.exists() else {}
+    path.write_text(json.dumps(kept | choices, indent=1) + "\n")
+    try:
+        spec.load(app)
+    except ValueError as e:   # no such fork or option: leave the file as it was
+        path.write_text(json.dumps(kept, indent=1) + "\n") if kept else path.unlink()
+        print(f"{app.name}: {e}")
+        return False
+    print(f"{app.name}: chose {path_name(choices)}; blocks baseline {app.name} records the path's results")
+    return True
 
 
 def verify(app: Path, record: dict) -> bool:
@@ -216,10 +253,11 @@ def main(argv=None):
 
 def commands(argv):
     ap = argparse.ArgumentParser(prog="blocks", description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("command", choices=["serve", "run", "baseline", "verify", "build"])
+    ap.add_argument("command", choices=["serve", "run", "choose", "baseline", "verify", "build"])
     ap.add_argument("apps", nargs="*")
     ap.add_argument("--port", type=int, default=8765)
     ap.add_argument("--set", action="append", default=[], type=setting)
+    ap.add_argument("--choose", action="append", default=[], type=lambda t: tuple(t.partition("=")[::2]))
     ap.add_argument("--output")
     ap.add_argument("--shots", nargs="+", metavar=("DIR", "NODE"))
     ap.add_argument("--no-data", action="store_true")
@@ -231,8 +269,14 @@ def commands(argv):
             sys.exit(f"blocks serve: port {a.port} is taken ({e.strerror}); pick another with --port")
         print(f"http://127.0.0.1:{a.port}/<app>/")
         threading.Event().wait()
-    if (a.set or a.output or a.shots) and a.command != "run":
-        sys.exit("blocks: --set, --output and --shots are for run; baseline, verify and build use the settings' defaults")
+    if a.command == "choose":
+        picks = dict(t.partition("=")[::2] for t in a.apps[1:])
+        if not picks or not all(picks.values()):
+            sys.exit("blocks choose APP FORK=OPTION ...")
+        sys.exit(0 if record_choices(apps(a.apps[:1])[0], picks) else 1)
+    if (a.set or a.choose or a.output or a.shots) and a.command != "run":
+        sys.exit("blocks: --set, --choose, --output and --shots are for run; baseline, verify and build use the settings' defaults "
+                 "and the app's choices")
     shots, pages = (Path(a.shots[0]), a.shots[1:]) if a.shots else (None, [])
     server, ok = serve(0), True
     for app in apps(a.apps):
@@ -250,7 +294,7 @@ def commands(argv):
             url = page.resolve().as_uri()
             if a.no_data:
                 choose = {d: [str((app / p).resolve()) for p in v["files"]] for d, v in spec.load(app)["datasets"].items()}
-        record = run_page(url, app, offline=a.command == "build", settings=dict(a.set), choose=choose,
+        record = run_page(url, app, offline=a.command == "build", settings=dict(a.set), choices=dict(a.choose), choose=choose,
                           shots=shots and shots / app.name, pages=pages, output=a.output)
         if a.command == "run" and "output" in record:
             print(json.dumps(record["output"], indent=1))
