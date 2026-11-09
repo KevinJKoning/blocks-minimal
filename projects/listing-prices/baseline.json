@@ -1,0 +1,195 @@
+{
+ "settings": {
+  "factor": 3,
+  "prior_listings": 10
+ },
+ "data": {
+  "listings": "1fef45559af3887824f90186b99c4b3d95b6cd1163f7e75cf32872dde6443322",
+  "truth": "7fe47f09f3ca7b67e576c67d7139445a6ad5289515cc47d71cd1e4573c525742"
+ },
+ "choices": {
+  "screen": "city_ratio",
+  "estimate": "mean",
+  "pooling": "own"
+ },
+ "nodes": {
+  "clean": {
+   "status": "done",
+   "metrics": {
+    "listings": 3352,
+    "no_area": 187,
+    "repeats": 86,
+    "kept": 3079
+   },
+   "digest": "fba1db98bf5ec05adc304b68814f584682bf05f45f2ea948ba4d9aa8c356787d"
+  },
+  "screen": {
+   "status": "done",
+   "metrics": {
+    "dropped": 260,
+    "kept": 2819
+   },
+   "digest": "ac0c706d73aef761b093bee85f068f06839bedba8c0208363d72b323006effac"
+  },
+  "estimate": {
+   "status": "done",
+   "metrics": {
+    "city": 3159.379407616361,
+    "neighbourhoods": 30,
+    "listings_used": 2819
+   },
+   "digest": "eaa19ccf292925d1bda42c13653693e3972b7e9f18ca8aee437fb9a205fdd577"
+  },
+  "pooling": {
+   "status": "done",
+   "metrics": {
+    "mean_weight": 1
+   },
+   "digest": "e37632ee4fb94e41af68a0543f8ac2aefb3eb3d324b7d81f38275fc6bee62ca7"
+  },
+  "score": {
+   "status": "done",
+   "metrics": {
+    "median_error": 0.02443946176073708,
+    "worst_error": 0.1469209483297571,
+    "within_10": 0.9333333333333333,
+    "unrated": 0
+   },
+   "digest": "ef504966e027c639a9f9e2718a24d4a35873dd1cc2fc1d8eece9d740bab39c82"
+  }
+ },
+ "paths": [
+  {
+   "choices": {
+    "screen": "city_ratio",
+    "estimate": "mean",
+    "pooling": "own"
+   },
+   "answer": {
+    "score.median_error": 0.02443946176073708
+   },
+   "failed": []
+  },
+  {
+   "choices": {
+    "screen": "city_ratio",
+    "estimate": "mean",
+    "pooling": "shrunk"
+   },
+   "answer": {
+    "score.median_error": 0.04247968879328867
+   },
+   "failed": []
+  },
+  {
+   "choices": {
+    "screen": "city_ratio",
+    "estimate": "median",
+    "pooling": "own"
+   },
+   "answer": {
+    "score.median_error": 0.020447533607392265
+   },
+   "failed": []
+  },
+  {
+   "choices": {
+    "screen": "city_ratio",
+    "estimate": "median",
+    "pooling": "shrunk"
+   },
+   "answer": {
+    "score.median_error": 0.04408143719166191
+   },
+   "failed": []
+  },
+  {
+   "choices": {
+    "screen": "neighbourhood_ratio",
+    "estimate": "mean",
+    "pooling": "own"
+   },
+   "answer": {
+    "score.median_error": 0.02216553655647191
+   },
+   "failed": []
+  },
+  {
+   "choices": {
+    "screen": "neighbourhood_ratio",
+    "estimate": "mean",
+    "pooling": "shrunk"
+   },
+   "answer": {
+    "score.median_error": 0.044472369625485064
+   },
+   "failed": []
+  },
+  {
+   "choices": {
+    "screen": "neighbourhood_ratio",
+    "estimate": "median",
+    "pooling": "own"
+   },
+   "answer": {
+    "score.median_error": 0.01920820514554855
+   },
+   "failed": []
+  },
+  {
+   "choices": {
+    "screen": "neighbourhood_ratio",
+    "estimate": "median",
+    "pooling": "shrunk"
+   },
+   "answer": {
+    "score.median_error": 0.042290227147236736
+   },
+   "failed": []
+  },
+  {
+   "choices": {
+    "screen": "none",
+    "estimate": "mean",
+    "pooling": "own"
+   },
+   "answer": {
+    "score.median_error": 0.2962839495205538
+   },
+   "failed": []
+  },
+  {
+   "choices": {
+    "screen": "none",
+    "estimate": "mean",
+    "pooling": "shrunk"
+   },
+   "answer": {
+    "score.median_error": 0.2870522227601231
+   },
+   "failed": []
+  },
+  {
+   "choices": {
+    "screen": "none",
+    "estimate": "median",
+    "pooling": "own"
+   },
+   "answer": {
+    "score.median_error": 0.019807888190895684
+   },
+   "failed": []
+  },
+  {
+   "choices": {
+    "screen": "none",
+    "estimate": "median",
+    "pooling": "shrunk"
+   },
+   "answer": {
+    "score.median_error": 0.03785360335652577
+   },
+   "failed": []
+  }
+ ]
+}

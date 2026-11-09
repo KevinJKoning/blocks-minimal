@@ -1,0 +1,68 @@
+{
+ "settings": {
+  "from_week": 45
+ },
+ "data": {
+  "sales": "7fed6b2b5030eae544724e1c80e125118877e7c5381d51fb6221692409231546",
+  "truth": "bb2074edc2eae117a378de2cdf0a18630ba4c9bea49252924ba4ae1490a25b78"
+ },
+ "choices": {
+  "estimate": "did"
+ },
+ "nodes": {
+  "panel": {
+   "status": "done",
+   "metrics": {
+    "from_week": 45,
+    "stores": 40,
+    "store_weeks": 2080,
+    "promoted_stores": 20,
+    "promo_weeks": 8
+   },
+   "digest": "6d95fb40f94f19a27520da36fe20ce2c7546488f747e39ac585d57a80820d7d2"
+  },
+  "estimate": {
+   "status": "done",
+   "metrics": {
+    "lift": 0.10063432560461205,
+    "low": 0.08821728493279282,
+    "high": 0.11305136627643128,
+    "promoted_stores": 20,
+    "other_stores": 20
+   },
+   "digest": "a9f19ea900802c246a18f1ef69ea70b4f3f1436efb03d8c0d1aa203d93988d29"
+  },
+  "score": {
+   "status": "done",
+   "metrics": {
+    "truth": 0.079196,
+    "estimate": 0.10063432560461205,
+    "low": 0.08821728493279282,
+    "high": 0.11305136627643128,
+    "error": 0.02143832560461205,
+    "abs_error": 0.02143832560461205
+   },
+   "digest": "45c284800d65583160b5111b6d94b7c567cce0925785364c55b4cc6d927c4ad5"
+  }
+ },
+ "paths": [
+  {
+   "choices": {
+    "estimate": "did"
+   },
+   "answer": {
+    "estimate.lift": 0.10063432560461205
+   },
+   "failed": []
+  },
+  {
+   "choices": {
+    "estimate": "naive"
+   },
+   "answer": {
+    "estimate.lift": 0.17216574365654336
+   },
+   "failed": []
+  }
+ ]
+}
