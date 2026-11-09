@@ -3,9 +3,10 @@ from ._kit import block, plain
 
 def bars(categories, series, title=None, label=None, kind="bar", intervals=None, reference=None, percent=False):
     """Values per named category, one row each, in the order given: series is {name: values};
-    kind "bar" draws bars from the reference (or 0), "dot" draws dots, for estimates;
-    intervals {name: (lows, highs)} draws error bars; reference is a value to draw a line at
-    (0 for a change, 1 for a relativity); percent: the values are shares."""
+    kind "bar" draws each bar from the reference (from 0 without one) to its value, "dot" a dot
+    at it, for estimates; intervals {name: (lows, highs)} draws error bars; reference, a value
+    (0 for a change, 1 for a relativity), is also marked by a dashed line across the rows;
+    percent: the values are shares."""
     if kind not in ("bar", "dot"):
         raise ValueError(f"ui.bars: kind is bar or dot, not {kind!r}")
     cats, intervals = [str(c) for c in plain(categories)], intervals or {}

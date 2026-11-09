@@ -1,5 +1,6 @@
-"""Read the monthly demand series from its yearly exports, in name order (2015.csv first):
-one row per month, in order, with no gaps.
+"""Read the monthly demand series from its yearly exports, in name order (2015.csv first).
+
+The exports must hold one row per month, in order, with no gaps.
 
 Months are given as `YYYY-MM`; for charts each is also placed on a decimal-year axis
 (January 2015 is 2015.0, July 2015 is 2015.5).

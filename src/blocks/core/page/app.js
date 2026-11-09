@@ -1,29 +1,31 @@
-// The page: the graph on the left (the table of contents), one page of blocks on the right
-// (the overview, or a node: its docstring, settings, results and code). Python runs in a
-// worker; Run computes what is stale and the graph's cache keeps the rest.
+// The page: the graph on the left (its table of contents), one page of blocks on the right: the
+// overview, a node (its docstring, settings, results and code) or a dataset. Python runs in a
+// worker (worker.js); Run computes what is stale, and the graph's cache keeps the rest.
 
 const M = JSON.parse(document.getElementById("manifest").textContent);
 const S = M.spec;
 const bytes = async (b64) => new Uint8Array(await (await fetch(`data:application/octet-stream;base64,${b64}`)).arrayBuffer());
 const text = (b64) => new TextDecoder().decode(Uint8Array.from(atob(b64), (c) => c.charCodeAt(0)));
+// {path: base64} as {path: bytes}
+const unpack = async (files) => Object.fromEntries(await Promise.all(Object.entries(files).map(async ([p, b]) => [p, await bytes(b)])));
 
 const state = {
-  page: decodeURIComponent(location.hash.slice(1)) || null,   // a node's name, or null: the overview
-  settings: Object.fromEntries(S.order.flatMap((n) => Object.entries(S.nodes[n].settings).map(([p, s]) => [`${n}.${p}`, s.default]))),
-  // dataset -> {key, size, files}: files are the ones chosen here ({path: File}), else the page's.
-  // A page built without its data has no key until they are chosen.
-  data: Object.fromEntries(Object.entries(M.data).map(([d, v]) => [d, { key: v.key, size: v.size, files: null }])),
-  results: {},   // node -> its result in the last run
-  record: null,  // the last run's record
-  differs: null, // {node: [what differs]} from the baseline (core/graph.py compare); null without one
-  previous: null,
-  ran: {},       // node -> {settings, data} it last ran with
+  page: null,      // a node's or a dataset's name, or null: the overview
+  // name -> value. A setting is the app's, by its name: every node that declares it reads it.
+  settings: Object.fromEntries(S.order.flatMap((n) => Object.entries(S.nodes[n].settings).map(([p, s]) => [p, s.default]))),
+  data: {},        // dataset -> {key, files: {path: Blob}, chosen}, once Python has its files
+  results: {},     // node -> its result in the last run
+  record: null,    // the last run's record
+  previous: null,  // the one before it
+  differs: null,   // {node: [what differs]} from the baseline (graph.compare); null without one
+  ranWith: null,   // the settings and data keys the last run had
   status: "Starting Python…",
-  busy: true,     // the worker is starting or running
-  running: false, // a run is going
+  ready: false,    // Python has started
+  running: false,
 };
+const busy = () => !state.ready || state.running;
 
-// ------------------------------------------------------------------ DOM
+// DOM:
 function h(tag, attrs = {}, ...kids) {
   const svg = tag.startsWith("svg:");
   const el = svg ? document.createElementNS("http://www.w3.org/2000/svg", tag.slice(4)) : document.createElement(tag);
@@ -94,69 +96,54 @@ function markdown(src) {
   return h("div", { class: "prose", html: out.join("\n") });
 }
 
-// ------------------------------------------------------------------ the worker
+// The worker:
 let worker, seq = 0;
 const pending = new Map();
 const call = (type, args = {}, transfer = []) => new Promise((resolve, reject) => {
   pending.set(++seq, { resolve, reject });
   worker.postMessage({ id: seq, type, ...args }, transfer);
 });
-const runtimeEl = (name) => document.querySelector(`script[data-runtime="${name}"]`);
-async function runtimeText(name) {
-  return M.runtime ? (await fetch(M.runtime + name)).text() : new TextDecoder().decode(await bytes(runtimeEl(name).textContent));
-}
 async function startWorker() {
-  // Pyodide's ES modules, joined into one classic worker script: browsers refuse module
-  // workers from blob: URLs on file:// pages. Pyodide refuses classic workers, which it
-  // detects by importScripts working, so that is disabled first.
-  const dropMap = (s) => s.replace(/\n\/\/# sourceMappingURL=\S+\s*$/, "\n");
-  const asm = dropMap(await runtimeText("pyodide.asm.mjs"))
-    .replace(/export\s+default\s+_createPyodideModule;?\s*$/, "\n").replace(/import\.meta\.url/g, "self.location.href");
-  const mjs = dropMap(await runtimeText("pyodide.mjs"));
-  const m = mjs.match(/export\s*\{([^}]*)\};?/);
-  const ret = m[1].split(",").map((s) => { const [a, b] = s.trim().split(/\s+as\s+/); return `${b || a}: ${a}`; }).join(", ");
-  const src = `globalThis.importScripts = () => { throw new Error("importScripts is disabled"); };\n${asm}\nconst __pyodide = (() => {\n${mjs.replace(m[0], `return { ${ret} };`)}\n})();\n${document.getElementById("worker").textContent}`;
-  worker = new Worker(URL.createObjectURL(new Blob([src], { type: "text/javascript" })));
+  // The worker's script is Pyodide and worker.js, joined by the build (build.worker_script).
+  worker = new Worker(URL.createObjectURL(new Blob([document.getElementById("worker").textContent], { type: "text/javascript" })));
   worker.onmessage = ({ data: { id, ok, result, error } }) => {
     const p = pending.get(id); pending.delete(id);
     ok ? p.resolve(result) : p.reject(new Error(error));
   };
   worker.onerror = (e) => { for (const p of pending.values()) p.reject(new Error(e.message || "the worker failed")); pending.clear(); };
-  const runtime = {}, transfer = [];
-  if (!M.runtime) for (const el of document.querySelectorAll("script[data-runtime]")) {
-    runtime[el.dataset.runtime] = (await bytes(el.textContent)).buffer;
-    transfer.push(runtime[el.dataset.runtime]);
-  }
-  const decode = async (o) => Object.fromEntries(await Promise.all(Object.entries(o).map(async ([p, b]) => [p, (await bytes(b)).buffer])));
-  const data = await decode(Object.assign({}, ...Object.values(M.data).map((v) => v.files || {})));
+  // An offline page holds the runtime; a served one leaves the worker to fetch it from M.runtime.
+  const runtime = {};
+  for (const el of document.querySelectorAll("script[data-runtime]")) runtime[el.dataset.runtime] = await bytes(el.textContent);
   state.status = `Loading Python and ${M.packages.length} packages…`; render();
   await call("init", {
     base: M.runtime && new URL(M.runtime, location.href).href, runtime, packages: M.packages,
-    files: await decode(M.files), library: await decode(M.library), data, spec: S, baseline: M.baseline,
-  }, transfer);
-  state.status = "";
-  state.busy = false;
-  render();
+    files: await unpack(M.files), library: await unpack(M.library), spec: S,
+  }, Object.values(runtime).map((b) => b.buffer));
+  for (const [d, { files }] of Object.entries(M.data)) {
+    if (files) await putData(d, Object.fromEntries(Object.entries(await unpack(files)).map(([p, b]) => [p, new Blob([b])])), false);
+  }
+  state.ready = true; state.status = ""; render();
 }
 
-// ------------------------------------------------------------------ running
+// Running:
 const datasets = (n) => S.nodes[n].deps.filter((d) => d in S.datasets);
+const missing = () => Object.keys(S.datasets).filter((d) => !state.data[d]);
 // What Run would compute. The worker keys each output by its code, settings and inputs; in a
-// built page the code is fixed, so a node is stale exactly when its settings or data changed
-// since it ran, or a node it reads is stale.
+// page the code is fixed, so a node is stale when it did not run, its settings or data changed
+// since the last run, or a node it reads is stale.
 function stale() {
-  const out = new Set();
+  const out = new Set(), last = state.ranWith;
   for (const n of S.order) {
-    const r = state.results[n], ran = state.ran[n], node = S.nodes[n];
-    if (!r || r.status !== "done" || !ran
-      || Object.keys(node.settings).some((p) => JSON.stringify(state.settings[`${n}.${p}`]) !== JSON.stringify(ran.settings[p]))
-      || datasets(n).some((d) => state.data[d].key !== ran.data[d])
+    const r = state.results[n], node = S.nodes[n];
+    if (!r || r.status !== "done"
+      || Object.keys(node.settings).some((p) => JSON.stringify(state.settings[p]) !== JSON.stringify(last.settings[p]))
+      || datasets(n).some((d) => state.data[d]?.key !== last.data[d])
       || node.deps.some((d) => out.has(d))) out.add(n);
   }
   return out;
 }
 function statusOf(n) {
-  if (state.busy && state.running) return stale().has(n) ? "running" : "done";
+  if (state.running) return stale().has(n) ? "running" : "done";
   const r = state.results[n];
   if (!r) return "pending";
   if (r.status !== "done") return r.status;
@@ -166,72 +153,70 @@ const GLYPH = { pending: "○", stale: "↻", running: "…", done: "●", error
 
 // Returns the run record, or throws when the run itself failed (a node's failure is in the record).
 async function run() {
-  if (state.busy) throw new Error("a run is already going");
+  if (busy()) throw new Error("Python is starting or running");
   if (missing().length) {
     state.status = `Choose ${missing().join(", ")} to run`; render();
     throw new Error(state.status);
   }
-  let failed = null;
-  state.busy = state.running = true; state.status = "Running…"; render();
-  const data = Object.fromEntries(Object.entries(state.data).map(([d, v]) => [d, v.key]));
+  const sent = { settings: { ...state.settings }, data: Object.fromEntries(Object.entries(state.data).map(([d, v]) => [d, v.key])) };
+  state.running = true; state.status = "Running…"; render();
+  const t0 = performance.now();
   try {
-    const t0 = performance.now();
-    const { nodes, record, differs } = await call("run", { settings: state.settings, data });
-    state.previous = state.record;
-    state.record = record;
-    state.differs = differs;
-    state.results = nodes;
-    for (const [n, r] of Object.entries(nodes)) if (r.status === "done") state.ran[n] = { settings: r.settings, data };
+    const { nodes, record, differs } = await call("run", { ...sent, baseline: M.baseline });
+    Object.assign(state, { previous: state.record, record, differs, results: nodes, ranWith: sent });
     const ran = Object.values(nodes).filter((r) => r.status === "done" && !r.cached).length;
     state.status = `Ran ${ran} of ${S.order.length} in ${((performance.now() - t0) / 1000).toFixed(1)} s`;
   } catch (e) {
     state.status = `Failed: ${e.message}`;
-    failed = e;
+    throw e;
+  } finally {
+    state.running = false;
+    render();
   }
-  state.busy = state.running = false;
-  render();
-  if (failed) throw failed;
   return state.record;
 }
 
-const missing = () => Object.keys(state.data).filter((d) => state.data[d].key == null);
+// Data in, files out:
 const sha = async (buf) => [...new Uint8Array(await crypto.subtle.digest("SHA-256", buf))].map((b) => b.toString(16).padStart(2, "0")).join("");
-// A dataset's key, as spec.data_key computes it: the same bytes (and names) are the same data.
+// A dataset's key: its file's sha256, or a folder's over each file's name and sha256. The same
+// bytes (and names) are the same data.
 async function dataKey(path, bufs) {
   if (!path.endsWith("/")) return sha(bufs[path]);
   const sums = await Promise.all(Object.keys(bufs).sort().map(async (p) => `${p.slice(path.length)}\0${await sha(bufs[p])}\n`));
   return sha(new TextEncoder().encode(sums.join("")));
 }
-// Replace a dataset whole: a file, or every file of a folder (its old files go).
-async function replaceData(d, chosen) {
-  const path = S.datasets[d], folder = path.endsWith("/");
-  const files = Object.fromEntries((folder ? chosen : chosen.slice(0, 1)).map((f) => [folder ? path + f.name : path, f]));
+// Give Python a dataset's files ({path: Blob}), all of them, in place of what it had.
+async function putData(d, files, chosen) {
+  const path = S.datasets[d];
   const bufs = Object.fromEntries(await Promise.all(Object.entries(files).map(async ([p, f]) => [p, await f.arrayBuffer()])));
-  const key = await dataKey(path, bufs);
   await call("dataset", { path, files: bufs });
-  state.data[d] = { key, size: Object.values(files).reduce((n, f) => n + f.size, 0), files };
+  state.data[d] = { key: await dataKey(path, bufs), files, chosen };
   render();
 }
-const save = async (name, blob) => h("a", { href: URL.createObjectURL(await blob), download: name }).click();
-// [path, Blob] for each of a dataset's files: those chosen here, or the page's own.
-const dataFiles = (d) => (state.data[d].files ? Object.entries(state.data[d].files)
-  : Object.entries(M.data[d].files || {}).map(([p, b]) => [p, bytes(b).then((u) => new Blob([u]))]));
+// The files a reader chose for a dataset: one file, or a folder's files, by their names.
+function choose(d, chosen) {
+  const path = S.datasets[d];
+  return putData(d, Object.fromEntries(path.endsWith("/") ? chosen.map((f) => [path + f.name, f]) : [[path, chosen[0]]]), true);
+}
+const save = (name, blob) => h("a", { href: URL.createObjectURL(blob), download: name }).click();
 
-// Data in and files out: a card with what the file is and a button that acts on it.
+// A card: what a file is, and buttons that act on it.
 const card = (label, name, detail, ...buttons) => h("div", { class: "card" },
   h("div", {}, h("span", { class: "card-label" }, label), h("strong", {}, name), h("span", { class: "muted small" }, detail)), buttons);
 function dataCard(d) {
-  const v = state.data[d], path = S.datasets[d], folder = path.endsWith("/"), count = Object.keys(v.files || M.data[d].files || {}).length;
-  const name = folder ? path.slice("data/".length) : (v.files ? Object.values(v.files)[0].name : path.split("/").pop());
-  const detail = v.key == null ? `Not in this page: choose ${folder ? "its files" : "the file"} to run`
-    : `${folder ? `${count} files · ` : ""}${size(v.size)}${v.files ? " · chosen here" : ""}`;
-  return card("Input", name, detail,
-    h("label", { class: `button secondary ${state.busy ? "disabled" : ""}` }, v.key == null ? "Choose…" : "Replace…",
-      h("input", { type: "file", multiple: folder, "data-dataset": d, disabled: state.busy, onchange: (e) => e.target.files.length && replaceData(d, [...e.target.files]) })),
-    v.key != null && h("button", { class: "secondary", onclick: () => dataFiles(d).forEach(([p, b]) => save(v.files ? b.name : p.split("/").pop(), b)) }, "Download"));
+  const v = state.data[d], path = S.datasets[d], folder = path.endsWith("/");
+  let detail = M.data[d].files ? "" : `Not in this page: choose ${folder ? "its files" : "the file"} to run`;
+  if (v) {
+    const files = Object.values(v.files);
+    detail = `${folder ? `${files.length} files · ` : ""}${size(files.reduce((n, f) => n + f.size, 0))}${v.chosen ? " · chosen here" : ""}`;
+  }
+  return card("Input", path.slice("data/".length), detail,
+    h("label", { class: `button secondary ${busy() ? "disabled" : ""}` }, v ? "Replace…" : "Choose…",
+      h("input", { type: "file", multiple: folder, "data-dataset": d, disabled: busy(), onchange: (e) => e.target.files.length && choose(d, [...e.target.files]) })),
+    v && h("button", { class: "secondary", onclick: () => Object.entries(v.files).forEach(([p, f]) => save(p.split("/").pop(), f)) }, "Download"));
 }
 
-// ------------------------------------------------------------------ blocks
+// Blocks:
 // The kit a block's renderer may use, all of it here: h, fmt, num, size, markdown, card, save,
 // bytes; paint(block, node), to draw a block's own blocks; S, the app's spec; records(), the
 // page's run, last run and baseline; the classes muted, small, note and error; and ui/_kit.js.
@@ -240,7 +225,7 @@ const RENDER = {};
 const records = () => ({ run: state.record, last: state.previous, baseline: M.baseline });
 // @blocks
 
-// ------------------------------------------------------------------ the graph
+// The graph:
 function dag() {
   const nodeIds = [...Object.keys(S.datasets), ...S.order];
   const deps = (id) => (S.nodes[id] ? S.nodes[id].deps : []);
@@ -269,17 +254,21 @@ function dag() {
   return h("svg:svg", { viewBox: `0 0 ${W} ${H}`, width: W, class: "dag" }, edges, boxes);
 }
 
-// ------------------------------------------------------------------ pages
+// Pages:
+// Links are plain #name anchors; the hashchange listener below shows the page they name.
 function show(page) {
   state.page = page;
   history.replaceState(null, "", page ? `#${encodeURIComponent(page)}` : location.pathname + location.search);
   render();
   window.scrollTo(0, 0);
 }
+const link = (x) => h("a", { href: `#${encodeURIComponent(x)}` }, x);
+const sep = (xs) => xs.flatMap((x, i) => (i ? [", ", link(x)] : [link(x)]));
+const crumb = (x) => h("p", { class: "crumb" }, h("a", { href: "#" }, M.title), " / ", x);
 
 function control(n, p, s) {
-  const key = `${n}.${p}`, v = state.settings[key];
-  const set = (x) => { state.settings[key] = x; render(); };
+  const v = state.settings[p];
+  const set = (x) => { state.settings[p] = x; render(); };
   let input;
   if (s.choices) input = h("select", { onchange: (e) => set(s.choices[e.target.selectedIndex]) },
     s.choices.map((c) => h("option", { selected: c === v }, String(c))));
@@ -292,7 +281,7 @@ function control(n, p, s) {
     const out = h("output", {}, fmt(v));
     // While dragging, only the value and the graph's state change; the page re-renders on release.
     input = [h("input", { type: "range", min: to(s.min), max: to(s.max), step: s.log ? 1 : s.step || (s.type === "int" ? 1 : "any"), value: to(v),
-      oninput: (e) => { state.settings[key] = from(+e.target.value); out.textContent = fmt(state.settings[key]); chrome(); },
+      oninput: (e) => { state.settings[p] = from(+e.target.value); out.textContent = fmt(state.settings[p]); chrome(); },
       onchange: () => render() }), out];
   } else if (typeof s.default === "number") input = h("input", { type: "number", value: v, step: s.type === "int" ? 1 : "any", onchange: (e) => set(s.type === "int" ? parseInt(e.target.value, 10) : +e.target.value) });
   else input = h("input", { type: "text", value: v, onchange: (e) => set(e.target.value) });
@@ -325,26 +314,28 @@ function results(n) {
 // A block's own blocks are in its "blocks" field (ui.row's); downloads inside them count too.
 const within = (b) => [b, ...(b.blocks || []).flatMap(within)];
 const offered = (n) => (state.results[n]?.status === "done" ? state.results[n].blocks.flatMap(within).filter((b) => b.type === "download") : []);
-const link = (x) => h("a", { href: `#${x}`, onclick: (e) => { e.preventDefault(); show(x); } }, x);
-const sep = (xs) => xs.flatMap((x, i) => (i ? [", ", link(x)] : [link(x)]));
-const crumb = (x) => h("p", { class: "crumb" }, h("a", { href: "#", onclick: (e) => { e.preventDefault(); show(null); } }, M.title), " / ", x);
+const readersOf = (x) => S.order.filter((m) => S.nodes[m].deps.includes(x));
 
 function dataPage(d) {
-  const readers = S.order.filter((m) => S.nodes[m].deps.includes(d));
   return [crumb(d), h("h1", {}, d), M.data[d].doc && markdown(M.data[d].doc), h("div", { class: "cards" }, dataCard(d)),
     h("p", { class: "muted" }, `${S.datasets[d]} in the app${S.datasets[d].endsWith("/") ? ", whose files its readers get by name" : ""}. Read by `,
-      sep(readers), ". A replacement, all of it, is used from the next Run.")];
+      sep(readersOf(d)), ". A replacement, all of it, is used from the next Run.")];
 }
 
+// The other nodes that read setting p: a setting is the app's, by its name.
+const alsoReading = (n, p) => S.order.filter((m) => m !== n && p in S.nodes[m].settings);
+
 function nodePage(n) {
-  const node = S.nodes[n], readers = S.order.filter((m) => S.nodes[m].deps.includes(n));
+  const node = S.nodes[n], readers = readersOf(n);
   return [
     crumb(n),
     h("h1", {}, n),
     node.doc ? markdown(node.doc) : null,
     datasets(n).length > 0 && h("p", { class: "muted" }, "Reads ", sep(datasets(n)), "."),
     Object.keys(node.settings).length > 0 && h("section", { class: "settings" }, h("h2", {}, "Settings"),
-      Object.entries(node.settings).map(([p, s]) => control(n, p, s))),
+      Object.entries(node.settings).map(([p, s]) => control(n, p, s)),
+      Object.keys(node.settings).filter((p) => alsoReading(n, p).length)
+        .map((p) => h("p", { class: "muted small" }, `${p} is also read by `, sep(alsoReading(n, p)), "."))),
     h("section", {}, h("h2", {}, "Results"), results(n)),
     h("details", { class: "about" }, h("summary", {}, "Code"),
       h("p", { class: "muted" }, node.deps.length ? ["Reads ", sep(node.deps)] : "Reads nothing", readers.length ? [". Read by ", sep(readers), "."] : "."),
@@ -353,55 +344,59 @@ function nodePage(n) {
 }
 
 function overview() {
-  const failing = state.differs;
+  const differs = state.differs;
   return [
     h("h1", {}, M.title),
     M.about && markdown(M.about),
     h("section", {}, h("h2", {}, "Nodes"), h("ol", { class: "nodes" }, S.order.map((n) => {
       const st = statusOf(n), m = state.results[n]?.metrics || {}, decl = S.nodes[n].metrics.slice(0, 3);
-      return h("li", {}, h("a", { href: `#${n}`, onclick: (e) => { e.preventDefault(); show(n); } }, n),
-        h("span", { class: `status ${st}` }, ` ${GLYPH[st]} ${st}`),
-        h("p", {}, (S.nodes[n].doc.split("\n")[0] || "")),
+      return h("li", {}, link(n), h("span", { class: `status ${st}` }, ` ${GLYPH[st]} ${st}`),
+        h("p", {}, S.nodes[n].summary),
         decl.length > 0 && h("p", { class: "small muted" }, decl.map((d) => `${d.label} ${fmt(m[d.key], d.percent)}`).join(" · ")));
     }))),
     // The app's front door: everything that goes in and everything that comes out.
-    Object.keys(M.data).length > 0 && h("section", {}, h("h2", {}, "Inputs"), h("div", { class: "cards" }, Object.keys(M.data).map(dataCard))),
+    Object.keys(S.datasets).length > 0 && h("section", {}, h("h2", {}, "Inputs"), h("div", { class: "cards" }, Object.keys(S.datasets).map(dataCard))),
     S.order.some((n) => offered(n).length) && h("section", {}, h("h2", {}, "Outputs"),
       h("div", { class: "cards" }, S.order.map((n) => h("div", { class: `cards ${statusOf(n) === "stale" ? "dim" : ""}` },
         offered(n).map((b) => RENDER.download(b, n, `Output · ${n}`)))))),
     state.record && h("section", {}, h("h2", {}, "This run"),
-      failing === null ? h("p", { class: "muted" }, "No baseline to compare with.")
-        : Object.keys(failing).length === 0 ? h("p", { class: "ok" }, "Every node matches the baseline.")
-          : h("ul", { class: "differs" }, Object.entries(failing).map(([n, why]) => h("li", {}, h("strong", {}, n), `: ${why.join("; ")}`))),
-      h("p", {}, h("a", { href: "#", onclick: (e) => { e.preventDefault(); h("a", { href: URL.createObjectURL(new Blob([JSON.stringify(state.record, null, 1)], { type: "application/json" })), download: "run.json" }).click(); } }, "↓ run.json"),
+      differs === null ? h("p", { class: "muted" }, "No baseline to compare with.")
+        : Object.keys(differs).length === 0 ? h("p", { class: "ok" }, "Every node matches the baseline.")
+          : h("ul", { class: "differs" }, Object.entries(differs).map(([n, why]) => h("li", {}, h("strong", {}, n), `: ${why.join("; ")}`))),
+      h("p", {}, h("a", { href: URL.createObjectURL(new Blob([JSON.stringify(state.record, null, 1)])), download: "run.json" }, "↓ run.json"),
         h("span", { class: "muted" }, " the run's record: settings, data and every node's metrics and digest"))),
   ];
 }
 
-// ------------------------------------------------------------------ render
+// Render:
 function chrome() {
   document.querySelector("header").replaceChildren(
-    h("a", { class: "title", href: "#", onclick: (e) => { e.preventDefault(); show(null); } }, M.title),
+    h("a", { class: "title", href: "#" }, M.title),
     h("span", { class: "status-text" }, state.status),
-    h("button", { onclick: () => run().catch(() => {}), disabled: state.busy }, "Run"));
+    h("button", { onclick: () => run().catch(() => {}), disabled: busy() }, "Run"));
   document.querySelector("nav").replaceChildren(dag());
 }
 function render() {
   chrome();
-  document.querySelector("main article").replaceChildren(...[S.nodes[state.page] ? nodePage(state.page) : M.data[state.page] ? dataPage(state.page) : overview()].flat(Infinity).filter(Boolean));
+  const page = S.nodes[state.page] ? nodePage(state.page) : S.datasets[state.page] ? dataPage(state.page) : overview();
+  document.querySelector("main article").replaceChildren(...page.flat(Infinity).filter(Boolean));
 }
 
-window.addEventListener("hashchange", () => { state.page = decodeURIComponent(location.hash.slice(1)) || null; render(); });
-
-// For agents (and the tooling): the page's state and its two actions.
+// For agents (and the tooling): the page's state and what it can do.
 window.blocks = {
-  state: () => ({ status: state.status, busy: state.busy, settings: state.settings, stale: [...stale()], missing: missing(), results: state.results, record: state.record }),
-  set: (values) => { Object.assign(state.settings, values); render(); return [...stale()]; },
+  state: () => ({ status: state.status, busy: busy(), settings: state.settings, stale: [...stale()], missing: missing(), results: state.results, record: state.record }),
+  set: (values) => {
+    const unknown = Object.keys(values).filter((p) => !(p in state.settings));
+    if (unknown.length) throw new Error(`no setting ${unknown.join(", ")} (the settings: ${Object.keys(state.settings).join(", ")})`);
+    Object.assign(state.settings, values); render(); return [...stale()];
+  },
   run,
   output: (node) => call("output", { name: node }),
   show,
   ready: null,
 };
+const hashPage = () => decodeURIComponent(location.hash.slice(1)) || null;
+window.addEventListener("hashchange", () => show(hashPage()));
 document.getElementById("app").append(h("header"), h("nav"), h("main", {}, h("article")));
-render();
+show(hashPage());
 window.blocks.ready = startWorker().catch((e) => { state.status = `Failed to start: ${e.message}`; render(); throw e; });

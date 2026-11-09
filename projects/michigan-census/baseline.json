@@ -1,9 +1,8 @@
 {
- "made": "2026-10-24T20:33:30+00:00",
  "settings": {
-  "periods.comparison": "2010\u20132014 \u2192 2020\u20132024",
-  "geography.name": "Michigan",
-  "maps.measure": "65 and older"
+  "comparison": "2010\u20132014 \u2192 2020\u20132024",
+  "name": "Michigan",
+  "measure": "65 and older"
  },
  "data": {
   "census": "711a8a53672d1c2cc153f45c8cc40ff6ec2e3f39ce77883126354bcf4142d2af",
@@ -12,7 +11,6 @@
  "nodes": {
   "ingest": {
    "status": "done",
-   "key": "54eda110a720a43ec48042e96e680960c4a0ae1c79390e504edf671246bf6b87",
    "metrics": {
     "records": 252,
     "missing_moes": 337
@@ -21,7 +19,6 @@
   },
   "periods": {
    "status": "done",
-   "key": "f5d80a236dcc43294b1c5ed180e50b91b2698c86c354aa9b6fc959c39e342ebb",
    "metrics": {
     "start_year": 2014,
     "end_year": 2024
@@ -30,19 +27,16 @@
   },
   "shapes": {
    "status": "done",
-   "key": "6b76cd53f11ae10c4eb910e4c675ce24308c283cbe6e77d4fa957966305e55a6",
    "metrics": {},
    "digest": "5177ad2cd6eef0172b4791227be6bad0c17b14bd55d14d8c82fb9e313dbaa4de"
   },
   "geography": {
    "status": "done",
-   "key": "1398bd794c0cc75c911501b4a3efe86359b1f67f908cfaf0986f56c671c5bbec",
    "metrics": {},
    "digest": "2a39281ebd151c961e94a0c3c20f1181005fea86a5f3f0d6b8dde9e44c80a7fb"
   },
   "counties": {
    "status": "done",
-   "key": "5620a33ac5c6675be74290faa689db8f27554599a4b379b973ba8cf8c274501a",
    "metrics": {
     "growing": 43,
     "declining": 40
@@ -51,13 +45,11 @@
   },
   "maps": {
    "status": "done",
-   "key": "763573436610ef8be8636f21f986f01b0c4d51362a841814103c5a97099418ab",
    "metrics": {},
    "digest": "4fc869cdcc54473dd7330491767932451f958acfc112ca184c5911d8fc413ae7"
   },
   "demographics": {
    "status": "done",
-   "key": "2f467c9e501fdde004b7392c3fd7e49df5854f107ca652e92910b5aa294e6fef",
    "metrics": {
     "under18_pp": -1.758314382985354,
     "older_pp": 4.035253241550654
@@ -66,7 +58,6 @@
   },
   "population": {
    "status": "done",
-   "key": "47424a6fe99e9934a78f00e0f601c307fee1370cb3c0a182cb81c210de5a9410",
    "metrics": {
     "latest_population": 10077761,
     "change": 188737,

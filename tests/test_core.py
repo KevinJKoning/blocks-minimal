@@ -1,6 +1,6 @@
 """The core without a browser: reading an app, running its graph, comparing runs, building a
 page. A tiny app is written per test; the example apps are checked in the browser
-(test_apps, `-m browser`)."""
+(`test_example_apps_match_their_baselines`, `-m browser`)."""
 import io
 import json
 from pathlib import Path
@@ -58,6 +58,11 @@ def test_reads_the_graph_from_signatures(app):
     assert list(a["datasets"]) == ["numbers"]
 
 
+def test_a_nodes_summary_is_its_first_paragraph(app):
+    (app / "nodes" / "count.py").write_text('"""How many numbers\nthere are.\n\nMore."""\n' + NODES["count.py"])
+    assert spec.load(app)["nodes"]["count"]["summary"] == "How many numbers there are."
+
+
 def test_unknown_input_is_an_error(app):
     (app / "nodes" / "bad.py").write_text("def bad(nothing):\n    return 1\n")
     with pytest.raises(ValueError, match="neither a node nor a file"):
@@ -78,9 +83,45 @@ def test_runs_only_what_changed(app):
     assert first["double"]["blocks"][0] == {"type": "metrics"} and first["count"]["blocks"] == [{"type": "metrics"}]
     again = g.run({}, {"numbers": "k1"})
     assert again["double"]["cached"] and again["count"]["cached"]
-    changed = g.run({"double.factor": 3}, {"numbers": "k1"})
+    changed = g.run({"factor": 3}, {"numbers": "k1"})
     assert not changed["double"]["cached"] and changed["double"]["metrics"]["total"] == 18
     assert not changed["count"]["cached"] and changed["count"]["digest"] == first["count"]["digest"]
+
+
+def test_a_setting_is_the_apps_by_its_name(app):
+    (app / "nodes" / "count.py").write_text("from typing import Annotated\nfrom blocks import Range\n\n\ndef count(double, *, factor: Annotated[int, Range(1, 5)] = 2):\n    return {'n': factor * len(double['values'])}\n")
+    g = graph.Graph(str(app), graph_spec(spec.load(app)))
+    assert g.run({"factor": 3}, {})["count"]["metrics"] == {"n": 9}
+    (app / "nodes" / "count.py").write_text("def count(double, *, factor=5):\n    return {}\n")
+    with pytest.raises(ValueError, match="setting factor is also count's"):
+        spec.load(app)
+
+
+def test_a_helper_is_in_every_key_and_data_scripts_in_none(app):
+    g = graph.Graph(str(app), graph_spec(spec.load(app)))
+    (app / "data" / "generate.py").write_text("print('makes numbers.txt')")
+    assert graph.Graph(str(app), graph_spec(spec.load(app))).helpers == g.helpers
+    (app / "shared.py").write_text("X = 1\n")
+    assert graph.Graph(str(app), graph_spec(spec.load(app))).helpers != g.helpers
+
+
+def test_a_baseline_keeps_results_not_keys_or_times(app):
+    rec = graph.record(graph.Graph(str(app), graph_spec(spec.load(app))).run({}, {}), {}, {})
+    assert "made" not in rec and all("key" not in r for r in rec["nodes"].values())
+
+
+def test_a_setting_on_the_command_line_is_json_or_text():
+    from blocks.core import cli
+    assert cli.setting("factor=3") == ("factor", 3) and cli.setting("loss=huber") == ("loss", "huber")
+
+
+def test_a_baseline_is_kept_then_verified(app, capsys):
+    from blocks.core import cli
+    rec = json.loads(graph.to_json(graph.record(graph.Graph(str(app), graph_spec(spec.load(app))).run({}, {}), {}, {})))
+    assert not cli.verify(app, rec) and "no baseline yet" in capsys.readouterr().out
+    assert cli.baseline(app, rec) and cli.verify(app, rec)
+    rec["nodes"]["new"] = {"status": "done", "metrics": {}, "digest": "d"}
+    assert not cli.verify(app, rec) and "new, not in the baseline" in capsys.readouterr().out
 
 
 def test_a_failure_blocks_what_reads_it(app):
@@ -94,7 +135,7 @@ def test_compare_with_the_baseline(app):
     g = graph.Graph(str(app), graph_spec(spec.load(app)))
     base = json.loads(graph.to_json(graph.record(g.run({}, {}), {}, {})))
     assert graph.compare(base, base) == {}
-    other = graph.record(g.run({"double.factor": 3}, {}), {}, {})
+    other = graph.record(g.run({"factor": 3}, {}), {}, {})
     assert set(graph.compare(other, base)) == {"double"}
     (app / "nodes" / "count.py").write_text(NODES["count.py"] + "\n\ndef view(out):\n    return out['nope']\n")
     broken = graph.Graph(str(app), graph_spec(spec.load(app))).run({}, {})
@@ -102,6 +143,8 @@ def test_compare_with_the_baseline(app):
     assert graph.compare(graph.record(broken, {}, {}), base) == {"count": ["view failed: KeyError: 'nope'"]}
     failed_base = {**base, "nodes": {**base["nodes"], "count": {"status": "error", "error": "Traceback\nValueError: x"}}}
     assert graph.compare(base, failed_base) == {"count": ["error in the baseline"]}
+    assert graph.compare({**base, "data": {"numbers": "new"}}, {**base, "data": {"numbers": "old"}}) == {
+        "numbers": ["its data differs from the baseline's"]}
     nan = {"nodes": {"n": {"status": "done", "metrics": {"m": float("nan")}, "digest": "d"}}}
     assert graph.compare(nan, nan) == {}
 
@@ -128,9 +171,15 @@ def test_builds_one_page(app):
     assert manifest["title"] == "Doubling" and manifest["runtime"] == "/_runtime/"
     assert "connect-src data: http://127.0.0.1:8765/_runtime/;" in page and "connect-src data:;" in build.build(app, inline=True)
     assert set(manifest["files"]) == {"README.md", "nodes/double.py", "nodes/count.py"}
-    assert manifest["spec"]["datasets"] == {"numbers": "data/numbers.txt"} and set(manifest["data"]["numbers"]) == {"key", "size", "files", "doc"}
+    assert manifest["spec"]["datasets"] == {"numbers": "data/numbers.txt"} and set(manifest["data"]["numbers"]["files"]) == {"data/numbers.txt"}
     bare = json.loads(build.build(app, inline=False, data=False, origin="http://127.0.0.1:8765").split('id="manifest">')[1].split("</script>")[0])
-    assert bare["data"] == {"numbers": {"key": None, "size": None, "files": None, "doc": ""}}
+    assert bare["data"] == {"numbers": {"doc": "", "files": None}}
+
+
+def test_the_worker_script_is_pyodide_as_one_classic_script():
+    script = build.worker_script()
+    assert "export default" not in script and "import.meta.url" not in script
+    assert "loadPyodide: " in script and script.endswith(build.template("worker.js"))
 
 
 def test_a_baseline_cannot_link_outside_the_app(app, tmp_path_factory):
@@ -168,13 +217,11 @@ def test_a_folder_is_one_dataset_read_in_name_order(app):
     a = spec.load(app)
     assert a["datasets"]["numbers"]["path"] == "data/numbers/" and list(a["datasets"]["numbers"]["files"]) == ["data/numbers/a.txt", "data/numbers/b.txt"]
     assert graph.Graph(str(app), graph_spec(a)).run({}, {})["double"]["metrics"]["total"] == 12
-    key = spec.data_key("data/numbers/", a["datasets"]["numbers"]["files"])
-    assert key != spec.data_key("data/numbers/", {"data/numbers/c.txt": b"1", "data/numbers/b.txt": b"2 3"})
 
 
 def test_packages_follow_imports():
     assert "numpy" in build.packages(["pandas"]) and build.packages(["os", "blocks", "helpers"], {"helpers"}) == []
-    with pytest.raises(ValueError, match="nosuchpackage"):
+    with pytest.raises(ValueError, match="nosuchpackage.*pyodide-lock.json"):
         build.packages(["nosuchpackage"])
     with pytest.raises(ValueError, match="nodes/a.py imports glm, which is no package"):
         build.packages(["glm"], files={"nodes/a.py": b"from glm import fit\n", "nodes/b.py": b"import os\n"})
@@ -230,10 +277,27 @@ def test_a_page_that_does_not_load_says_why(app, tmp_path_factory, monkeypatch):
     monkeypatch.chdir(top)
     server = cli.serve(0)
     url = f"http://127.0.0.1:{server.server_port}/demo/"
-    assert "projects/demo/ui/badge.js, line 2" in cli.run_page([url], apps=[app])[0]["failed"]
+    assert "projects/demo/ui/badge.js, line 2" in cli.run_page(url, app)["failed"]
     (app / "ui" / "badge.js").unlink()
     (app / "nodes" / "count.py").write_text("def count(double):\n    return {\n")
-    assert "SyntaxError in projects/demo/nodes/count.py, line 2" in cli.run_page([url], apps=[app])[0]["failed"]
+    assert "SyntaxError in projects/demo/nodes/count.py, line 2" in cli.run_page(url, app)["failed"]
+    server.shutdown()
+
+
+@pytest.mark.browser
+def test_shots_are_of_the_pages_named(app, tmp_path_factory, monkeypatch):
+    import shutil
+    from blocks.core import cli
+    top = tmp_path_factory.mktemp("repo")
+    app = Path(shutil.copytree(app, top / "projects" / "demo"))
+    monkeypatch.chdir(top)
+    server = cli.serve(0)
+    url = f"http://127.0.0.1:{server.server_port}/demo/"
+    cli.run_page(url, app, shots=top / "one", pages=["count", "_overview"])
+    assert sorted(p.name for p in (top / "one").iterdir()) == ["_overview.png", "count.png"]
+    cli.run_page(url, app, shots=top / "all")
+    assert sorted(p.name for p in (top / "all").iterdir()) == ["_overview.png", "count.png", "double.png"]
+    assert "--shots names no page nope" in cli.run_page(url, app, shots=top / "no", pages=["nope"])["failed"]
     server.shutdown()
 
 
@@ -290,7 +354,7 @@ def probe(*, url: str = "http://127.0.0.1:{other.server_port}/leak"):
             page = browser.new_page()
             page.goto(url)
             if target:
-                page.evaluate("target => window.blocks.set({'probe.url': target})", target)
+                page.evaluate("target => window.blocks.set({'url': target})", target)
             got = page.evaluate(cli.RUN)["nodes"]["probe"]["metrics"]["reached"]
             browser.close()
         return got, list(hits)
@@ -314,8 +378,7 @@ def test_example_apps_match_their_baselines():
     from blocks.core import cli
     apps = cli.apps()
     server = cli.serve(0)
-    records = cli.run_page([f"http://127.0.0.1:{server.server_port}/{a.name}/" for a in apps])
-    assert all(cli.check(a, r) for a, r in zip(apps, records))
+    assert all([cli.verify(a, cli.run_page(f"http://127.0.0.1:{server.server_port}/{a.name}/", a)) for a in apps])
     server.shutdown()
 
 
@@ -347,7 +410,7 @@ def test_an_app_brings_its_own_block(app):
     (app / "ui" / "badge.css").write_text(".badge { color: var(--ink); }\n")
     (app / "nodes" / "count.py").write_text(NODES["count.py"] + "\n\ndef view(out):\n    from ui.badge import badge\n    return [badge(f\"{out['n']} values\")]\n")
     page = build.build(app, inline=False, origin="http://127.0.0.1:8765")
-    assert "RENDER.badge = " in page and ".badge { color" in page and "ticks(" in page
+    assert "RENDER.badge = " in page and ".badge { color" in page and "ticks(" in page and ".scale .bar" in page
     assert graph.Graph(str(app), graph_spec(spec.load(app))).run({}, {})["count"]["blocks"] == [{"type": "badge", "text": "3 values"}]
     (app / "ui" / "chart.js").write_text("")
     with pytest.raises(ValueError, match="redefines a library block"):

@@ -72,7 +72,9 @@ def map(shapes, values=None, names=None, title=None, label=None, lines=None, gri
     values: one value per shape: numbers, shaded on the ramp, or names (text, a yes or no),
     a colour each. Or layers {name: values}, which the reader switches between; label,
     center, scale and grid then apply to every layer, or take {name: ...} for each.
-    center: the value meaning "no change" (0 for a change); colours then diverge from it.
+    center: the value meaning "no change" (0 for a change); colours then diverge from it:
+    values above it shade toward --ramp-hi (blue, in the default theme), below toward
+    --ramp-neg (rust), and the centre itself is --ramp-lo (pale).
     scale: "log" for values spread over orders of magnitude (policy-years, populations).
     lines: geometries drawn on top, unshaded: a coastline, roads, or polygons as outlines
     (boundaries over a grid, which filled shapes would hide); points here are plain marks.
