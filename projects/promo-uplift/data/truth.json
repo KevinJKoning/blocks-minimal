@@ -1,0 +1,99 @@
+{
+ "uplift": 0.1,
+ "uplift_means": "weekly sales in a promotion week are this share higher than they would have been, in a treated store (multiplicative)",
+ "promo_weeks": [
+  45,
+  52
+ ],
+ "treated_stores": [
+  "S02",
+  "S05",
+  "S08",
+  "S09",
+  "S13",
+  "S15",
+  "S17",
+  "S19",
+  "S21",
+  "S22",
+  "S25",
+  "S26",
+  "S27",
+  "S28",
+  "S29",
+  "S30",
+  "S31",
+  "S33",
+  "S37",
+  "S38"
+ ],
+ "season": {
+  "untreated": 0.1,
+  "treated": 0.13
+ },
+ "season_shape": "cos(2\u03c0 (week - 47) / 52)",
+ "trend_per_week": 0.001,
+ "noise_sd_log": 0.05,
+ "outliers": [
+  [
+   "S30",
+   49,
+   2.47
+  ],
+  [
+   "S29",
+   52,
+   0.22
+  ],
+  [
+   "S30",
+   47,
+   0.33
+  ],
+  [
+   "S26",
+   12,
+   0.21
+  ],
+  [
+   "S19",
+   12,
+   0.17
+  ],
+  [
+   "S05",
+   44,
+   0.25
+  ],
+  [
+   "S10",
+   36,
+   0.22
+  ],
+  [
+   "S07",
+   2,
+   2.9
+  ],
+  [
+   "S24",
+   26,
+   3.03
+  ],
+  [
+   "S18",
+   23,
+   0.31
+  ],
+  [
+   "S39",
+   45,
+   0.19
+  ],
+  [
+   "S11",
+   19,
+   2.72
+  ]
+ ]
+}

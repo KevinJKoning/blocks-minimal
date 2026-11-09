@@ -1,0 +1,143 @@
+{
+ "settings": {},
+ "data": {
+  "sales": "fae823cb7d87e6e134eecf94fbd01b1667b20ce9870eb11c78dee85a4e47baeb",
+  "truth": "832f48c33342a69b49c1ae5a9dbb140bb060c93d1e3b4c8f276e3e9f32b2acef"
+ },
+ "choices": {
+  "clean": "cap",
+  "estimate": "did"
+ },
+ "nodes": {
+  "prepare": {
+   "status": "done",
+   "metrics": {
+    "stores": 40,
+    "treated_stores": 20,
+    "store_weeks": 2080,
+    "promo_store_weeks": 160
+   },
+   "digest": "6a42eab510d1086b2fd713635eb090578a81cc8bad92849dc68321df57cc4445"
+  },
+  "clean": {
+   "status": "done",
+   "metrics": {
+    "flagged": 12,
+    "largest": 1.6795733894401819,
+    "changed": 12
+   },
+   "digest": "ff20df6e7997afeb0817ba4679b4adb88d74b2097aeb27e8bd46ca5d58496dc5"
+  },
+  "estimate": {
+   "status": "done",
+   "metrics": {
+    "uplift": 0.14020206028918247,
+    "low": 0.12802865386160622,
+    "high": 0.1525068391101314,
+    "stores": 20
+   },
+   "digest": "017172210479c1c11671f258be13efbb1ec5d03a9ca55cb238f5208e2b3ffb6a"
+  },
+  "recovery": {
+   "status": "done",
+   "metrics": {
+    "truth": 0.1,
+    "error": 0.04020206028918247,
+    "covered": 0
+   },
+   "digest": "3719ab77019a3d6326ea386f87d5a78b1d15f7a6bf9d4201baaf64d909eb8ab1"
+  }
+ },
+ "paths": [
+  {
+   "choices": {
+    "clean": "cap",
+    "estimate": "did"
+   },
+   "answer": {
+    "estimate.uplift": 0.14020206028918247
+   },
+   "failed": []
+  },
+  {
+   "choices": {
+    "clean": "cap",
+    "estimate": "naive"
+   },
+   "answer": {
+    "estimate.uplift": 0.3067917870435015
+   },
+   "failed": []
+  },
+  {
+   "choices": {
+    "clean": "cap",
+    "estimate": "scaled"
+   },
+   "answer": {
+    "estimate.uplift": 0.11188712234882203
+   },
+   "failed": []
+  },
+  {
+   "choices": {
+    "clean": "exclude",
+    "estimate": "did"
+   },
+   "answer": {
+    "estimate.uplift": 0.1386128833332183
+   },
+   "failed": []
+  },
+  {
+   "choices": {
+    "clean": "exclude",
+    "estimate": "naive"
+   },
+   "answer": {
+    "estimate.uplift": 0.30806466030653845
+   },
+   "failed": []
+  },
+  {
+   "choices": {
+    "clean": "exclude",
+    "estimate": "scaled"
+   },
+   "answer": {
+    "estimate.uplift": 0.09972083707203949
+   },
+   "failed": []
+  },
+  {
+   "choices": {
+    "clean": "keep",
+    "estimate": "did"
+   },
+   "answer": {
+    "estimate.uplift": 0.14487637231319983
+   },
+   "failed": []
+  },
+  {
+   "choices": {
+    "clean": "keep",
+    "estimate": "naive"
+   },
+   "answer": {
+    "estimate.uplift": 0.3003320788217174
+   },
+   "failed": []
+  },
+  {
+   "choices": {
+    "clean": "keep",
+    "estimate": "scaled"
+   },
+   "answer": {
+    "estimate.uplift": 0.12943272981645682
+   },
+   "failed": []
+  }
+ ]
+}
