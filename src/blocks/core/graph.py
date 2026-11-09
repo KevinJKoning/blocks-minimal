@@ -193,13 +193,16 @@ class Graph:
 
     def path(self, settings, data, choices) -> dict:
         """One path through the forks, run, as the page's map of them holds it: its choices,
-        the answer it gives ({node.key: number}), each node's metrics and what failed."""
+        the answer it gives ({node.key: number}), each node's metrics, what failed and why
+        (the first failure, in full: a path nobody is looking at has nowhere else to show it)."""
         last = self.last   # the page's own path is still the one whose outputs it can ask for
         results, self.last = self.run(settings, data, choices), last
         metrics = {n: r["metrics"] for n, r in results.items() if r["status"] == "done"}
+        failed = [n for n, r in results.items() if r["status"] != "done" or r.get("view_error")]
+        why = next((r.get("error") or r["view_error"] for r in results.values() if r["status"] == "error" or r.get("view_error")), None)
         return {"choices": choices, "metrics": metrics,
                 "answer": {f"{a['node']}.{a['key']}": metrics.get(a["node"], {}).get(a["key"]) for a in self.spec["answer"]},
-                "failed": [n for n, r in results.items() if r["status"] != "done" or r.get("view_error")]}
+                "failed": failed, **({"error": why} if failed else {})}
 
     def key(self, name, settings, input_keys, choices=None):
         """A node's key: its file (a fork's: its option's), the app's helper modules, its settings

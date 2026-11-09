@@ -178,20 +178,32 @@ def show(app: Path, record: dict) -> bool:
 
 
 def show_paths(app: Path, record: dict) -> bool:
-    """Print how far the forks move each answer, then every path's; True when no path failed."""
+    """Print how far the forks move each answer, then every path's (a failed one's error, in
+    full) and the forks that move no answer at all; True when no path failed."""
     found = record.get("paths")
     if not found:
+        if record.get("choices"):
+            print("  NOTE: the app has forks but marks no answer (answer: True in METRICS), so their paths are not run or compared.")
         return True
     a = spec.load(app)
     num = lambda v: f"{v:.6g}" if isinstance(v, float) else str(v)
     print(f"  {len(found)} paths through {', '.join(a['forks'])}; this one: {path_name(record['choices'])}")
-    for answer, s in spread(found, a["forks"]).items():
+    moved = spread(found, a["forks"])
+    for answer, s in moved.items():
         here = record["nodes"].get(answer.split(".")[0], {}).get("metrics", {}).get(answer.split(".", 1)[1])
         print(f"    {answer}  {num(here)} here, {num(s['lo'])} to {num(s['hi'])} across them")
-        print("      moved by  " + ",  ".join(f"{f} {num(v)}" for f, v in sorted(s["forks"].items(), key=lambda x: -(x[1] or 0)) if v is not None))
+        by = ",  ".join(f"{f} {num(v)}" for f, v in sorted(s["forks"].items(), key=lambda x: -(x[1] or 0)) if v is not None)
+        print(f"      moved by  {by}") if by else None
     for p in found:
-        print(f"    {path_name(p['choices'])}  " + (f"FAILED: {', '.join(p['failed'])} (run it with --choose to see why)" if p["failed"]
+        print(f"    {path_name(p['choices'])}  " + (f"FAILED: {', '.join(p['failed'])}" if p["failed"]
                                                     else ",  ".join(f"{k}={num(v)}" for k, v in p["answer"].items())))
+        if p["failed"]:
+            print("      " + (p.get("error") or "").strip().replace("\n", "\n      "))
+    # A fork whose options all give the same answers is not being judged by them.
+    still = [f for f in a["forks"] if moved and all(not s["forks"].get(f) for s in moved.values())]
+    if still and not any(p["failed"] for p in found):
+        print(f"    NOTE: {', '.join(still)} {'moves' if len(still) == 1 else 'move'} no answer at all: every option gives the same. "
+              "Either the answer does not depend on it, or it measures the wrong thing to judge it by.")
     return not any(p["failed"] for p in found)
 
 

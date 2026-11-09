@@ -51,6 +51,9 @@ def read_node(path: Path, name: str, file: str) -> dict:
     if name in {x.asname or x.name.split(".")[0] for n in tree.body if isinstance(n, (ast.Import, ast.ImportFrom)) for x in n.names}:
         raise ValueError(f"{path}: imports a name {name}, which the node's own function {name}() shadows; import it under another name")
     consts = {t.id: s.value for s in tree.body if isinstance(s, ast.Assign) for t in s.targets if isinstance(t, ast.Name)}
+    if any((x.asname or x.name) == "METRICS" for n in tree.body if isinstance(n, ast.ImportFrom) for x in n.names):
+        raise ValueError(f"{path}: imports METRICS, which is read from the node's own source and so would label nothing; "
+                         "write METRICS = {...} out in this file (a fork's options each write their own)")
     metrics = _literal(consts["METRICS"], f"{path}: METRICS") if "METRICS" in consts else {}
     for k, m in metrics.items():
         if not isinstance(m, str) and (not isinstance(m, dict) or set(m) - {"label", "goal", "percent", "answer"}):
@@ -78,6 +81,11 @@ def read_fork(folder: Path, chosen: str | None) -> dict:
         raise ValueError(f"{folder}: a fork needs two options or more; a node written one way is nodes/{folder.name}.py")
     if chosen is not None and chosen not in options:
         raise ValueError(f"choices.json: {folder.name} has no option {chosen} (its options: {', '.join(options)})")
+    answers = {o: sorted(m["key"] for m in v["metrics"] if m.get("answer")) for o, v in options.items()}
+    if len({tuple(a) for a in answers.values()}) > 1:   # else the answer would come and go with the option chosen
+        marked = "; ".join(f"{o}: {', '.join(a) or 'none'}" for o, a in answers.items())
+        raise ValueError(f"{folder}: its options mark different answers ({marked}); "
+                         "every option's METRICS marks the same keys answer: True")
     readme = (folder / "README.md").read_text() if (folder / "README.md").is_file() else ""
     head, _, about = readme.partition("\n")
     return {**options[chosen or next(iter(options))], "options": options, "chosen": chosen or next(iter(options)),

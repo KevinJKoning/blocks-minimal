@@ -175,7 +175,7 @@ async function run() {
     const ran = Object.values(nodes).filter((r) => r.status === "done" && !r.cached).length;
     const done = `Ran ${ran} of ${S.order.length} in ${((performance.now() - t0) / 1000).toFixed(1)} s`;
     state.status = done; render();   // this path's results are up while the others run
-    if (await explore(sent, done)) record.paths = state.space.paths.map(({ choices, answer, failed }) => ({ choices, answer, failed }));
+    if (await explore(sent, done)) record.paths = state.space.paths.map(({ choices, answer, failed, error }) => ({ choices, answer, failed, ...(error && { error }) }));
     state.differs = M.baseline && await call("compare", { record, baseline: M.baseline });
     state.status = done + (record.paths ? ` · ${record.paths.length} paths` : "");
   } catch (e) {

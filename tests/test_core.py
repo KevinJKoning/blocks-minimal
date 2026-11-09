@@ -121,7 +121,14 @@ def test_a_fork_is_a_node_written_more_than_one_way(forked):
     with pytest.raises(ValueError, match="double is no fork"):
         spec.load(forked)
     (forked / "choices.json").unlink()
-    (forked / "nodes" / "count" / "length.py").unlink()
+    length = forked / "nodes" / "count" / "length.py"
+    length.write_text(length.read_text().replace('"answer": True', '"answer": False'))
+    with pytest.raises(ValueError, match="its options mark different answers"):
+        spec.load(forked)
+    length.write_text("from shared import METRICS\n\n\ndef count(double):\n    return {'n': 1}\n")
+    with pytest.raises(ValueError, match="imports METRICS"):
+        spec.load(forked)
+    length.unlink()
     with pytest.raises(ValueError, match="a fork needs two options"):
         spec.load(forked)
 
@@ -161,7 +168,7 @@ def test_a_baseline_keeps_every_paths_answer(forked, capsys):
     g = graph.Graph(str(forked), graph_spec(spec.load(forked)))
     def rec(**settings):
         r = graph.record(g.run(settings, {}), settings, {}, {"count": "largest"})
-        keep = lambda p: {k: p[k] for k in ("choices", "answer", "failed")}
+        keep = lambda p: {k: p[k] for k in ("choices", "answer", "failed", "error") if k in p}
         return json.loads(graph.to_json({**r, "paths": [keep(g.path(settings, {}, c)) for c in graph.paths({"count": ["largest", "length"]}, {})]}))
     base = rec()
     assert graph.compare(base, base) == {}
@@ -170,8 +177,14 @@ def test_a_baseline_keeps_every_paths_answer(forked, capsys):
     assert graph.compare(moved, base) == {"path count=length": ["count.n: 3 → 6"]}
     assert graph.compare({**base, "choices": {"count": "length"}}, base)["choices"] == ["count=largest in the baseline (blocks baseline records the path chosen now)"]
     assert graph.compare({**base, "paths": base["paths"][:1]}, base) == {"paths": ["1 only in the baseline"]}
-    base["paths"][1]["failed"] = ["count"]
-    assert not cli.show(forked, base) and "count=length  FAILED: count" in capsys.readouterr().out
+    (forked / "nodes" / "count" / "length.py").write_text('METRICS = {"n": {"label": "how many", "answer": True}}\n\n\ndef count(double):\n    raise ValueError("no")\n')
+    g = graph.Graph(str(forked), graph_spec(spec.load(forked)))
+    broken = rec()                                                    # a failed path says why, where it is printed
+    assert broken["paths"][1]["failed"] == ["count"] and not cli.show(forked, broken)
+    out = capsys.readouterr().out
+    assert "count=length  FAILED: count" in out and "ValueError: no" in out
+    same = {**base, "paths": [{**p, "answer": {"count.n": 6}} for p in base["paths"]]}
+    assert cli.show(forked, same) and "NOTE: count moves no answer at all" in capsys.readouterr().out
 
 
 def test_choose_records_a_forks_option(forked, capsys):
