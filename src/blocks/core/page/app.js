@@ -18,7 +18,7 @@ const state = {
   // name -> value. A setting is the app's, by its name: every node that declares it reads it.
   settings: Object.fromEntries(S.order.flatMap((n) => ways(n).flatMap((w) => Object.entries(w.settings).map(([p, s]) => [p, s.default])))),
   choices: Object.fromEntries(S.forks.map((f) => [f, S.nodes[f].chosen])),   // fork -> the option this page is on
-  space: null,     // the paths explored: {at, total, paths: [{choices, answer, metrics, failed}], spread} (graph.spread)
+  space: null,     // the paths explored: {paths: [{choices, answer, metrics, failed}], spread} (graph.explore, graph.spread)
   data: {},        // dataset -> {key, files: {path: Blob}, chosen}, once Python has its files
   results: {},     // node -> its result in the last run
   record: null,    // the last run's record
@@ -171,13 +171,16 @@ async function run() {
   const t0 = performance.now();
   try {
     const { nodes, record } = await call("run", sent);
-    Object.assign(state, { previous: state.record, record, differs: undefined, results: nodes, ranWith: sent });
+    const inputs = (r) => JSON.stringify(r && [r.settings, r.data]);
+    const space = inputs(state.ranWith) === inputs(sent) ? state.space : null;   // paths found with other settings or data are not this run's
+    Object.assign(state, { previous: state.record, record, differs: undefined, results: nodes, ranWith: sent, space });
     const ran = Object.values(nodes).filter((r) => r.status === "done" && !r.cached).length;
     const done = `Ran ${ran} of ${S.order.length} in ${((performance.now() - t0) / 1000).toFixed(1)} s`;
-    state.status = done; render();   // this path's results are up while the others run
-    if (await explore(sent, done)) record.paths = state.space.paths.map(({ choices, answer, failed, error }) => ({ choices, answer, failed, ...(error && { error }) }));
-    state.differs = M.baseline && await call("compare", { record, baseline: M.baseline });
-    state.status = done + (record.paths ? ` · ${record.paths.length} paths` : "");
+    state.status = `${done}${S.forks.length ? " · running the other paths…" : ""}`; render();   // this path's results are up meanwhile
+    // The other paths through the forks (what they share comes from the cache), and the baseline's verdict on them all.
+    const all = await call("explore", { ...sent, record, baseline: M.baseline });
+    Object.assign(state, { record: all.record, differs: all.differs, space: all.paths.length ? all : null });
+    state.status = done + (all.paths.length ? ` · ${all.paths.length} paths` : "");
   } catch (e) {
     state.status = `Failed: ${e.message}`;
     throw e;
@@ -189,24 +192,6 @@ async function run() {
   return state.record;
 }
 
-// The other paths through the forks, each run in turn (what paths share comes from the cache),
-// and how far they move the answer. Kept until the settings or data change: another choice
-// alone only moves this page along paths already found. False when there is nothing to explore.
-async function explore(sent, done) {
-  if (!S.forks.length || !S.answer.length) return false;
-  const wanted = await call("paths", { choices: sent.choices });
-  const at = JSON.stringify([sent.settings, sent.data, wanted]);
-  if (state.space?.at === at && state.space.paths.length === wanted.length) return true;
-  state.space = { at, total: wanted.length, paths: [], spread: {} };
-  for (const choices of wanted) {
-    state.status = `${done} · path ${state.space.paths.length + 1} of ${wanted.length}…`;
-    // Only a page that shows the paths is redrawn as they arrive: a slider elsewhere keeps its grip.
-    state.page === null || S.nodes[state.page]?.options ? render() : chrome();
-    state.space.paths.push(await call("path", { settings: sent.settings, data: sent.data, choices }));
-    state.space.spread = await call("spread", { found: state.space.paths });
-  }
-  return true;
-}
 // Take other options: the page moves to that path, and what is not there yet runs.
 function take(values) {
   Object.assign(state.choices, values); pick(); render();
@@ -416,9 +401,8 @@ function answer() {
         s && strip(a));
     }),
     sp && h("p", { class: "muted small" },
-      sp.paths.length < sp.total ? `Exploring: ${sp.paths.length} of ${sp.total} paths so far. `
-        : sp.total < whole ? `One dot for this path and each of the ${sp.total - 1} beside it, which differ at one fork (${fmt(whole)} paths in all, too many to run). `
-          : `One dot for each of the ${sp.total} ways through the forks; the filled one is this page's. `,
+      sp.paths.length < whole ? `One dot for this path and each of the ${sp.paths.length - 1} one fork away from it (${fmt(whole)} paths in all, too many to run). `
+        : `One dot for each of the ${whole} ways through the forks; the filled one is this page's. `,
       failed.length > 0 && h("span", { class: "error" }, `${failed.length} failed: `, failed.map((p, i) => [i ? ", " : "", h("a", { href: "#", onclick: (e) => { e.preventDefault(); take(p.choices); } }, pathName(p.choices))]), ". ")));
 }
 
@@ -428,7 +412,7 @@ function forks() {
   const a = S.answer[0], s = a && spreadOf(a), range = s ? s.hi - s.lo : 0;
   const swing = (f) => (s ? num(s.forks[f]) : null);
   const order = [...S.forks].sort((x, y) => (swing(y) ?? -1) - (swing(x) ?? -1));
-  const quiet = (f) => s && state.space.paths.length === state.space.total && (swing(f) ?? 0) <= 0.05 * range;
+  const quiet = (f) => s && (swing(f) ?? 0) <= 0.05 * range;
   const row = (f) => h("li", { class: "fork" },
     h("div", {}, link(f), S.nodes[f].open && h("span", { class: "tag", title: "No option is recorded for it in choices.json: the page takes the first" }, "open"),
       h("p", { class: "muted" }, S.nodes[f].question)),

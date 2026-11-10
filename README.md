@@ -64,30 +64,25 @@ projects/<app>/
 ## Forks
 
 An analysis is a string of judgment calls, and a reader shown one path through them can only
-second-guess each from the code. So a judgment call is written both ways: a **fork** is a
-folder `nodes/<name>/` whose files are each a whole node `<name>`, an **option**, with its own
-docstring, settings, `METRICS` and view; what the options share is a helper module's. The
+second-guess each from the code. So a judgment call is written every way worth defending: a
+**fork** is a folder `nodes/<name>/` whose files are each a whole node `<name>`, an
+**option**, with its own docstring, settings, view and `METRICS` (a literal in its file; an
+answer is marked by every option alike). What options share is a helper module's. The
 folder's `README.md` asks the fork's question (`# ...`) and says what bears on it.
 
-- **A run takes one option at each fork**: the app's choice (`choices.json`), else the first
-  by name, and the fork is *open*, for a person to decide. `blocks choose` records a choice.
-- **Run explores every path** through the forks when the app has an answer (`answer: True`).
-  Outputs are kept by key, so paths share all they have in common: a hundred paths cost a
-  few runs of each node, and moving the page to another path costs nothing. Past 64 paths,
-  only the page's path and those one fork away from it are run (`graph.paths`).
-- **The overview is the map**: the answer on the page's path, a dot for every path's answer,
-  and the forks, the one that moves the answer most first (`graph.spread`: how far the answer
-  moves when that fork alone changes, in the answer's units); the forks that barely move it
-  are folded away. A fork's page sets its options side by side.
-- **A fork is decided on evidence about the fork**, its options' own numbers and views, not
-  by which answer pleases; an answer scored against a known truth (windstorm's `recovery`)
-  is evidence too. The page always shows the spread, whatever is chosen.
-- **The baseline keeps every path's answer**, and `verify` compares them all: an option
-  nobody is looking at still has to run.
-- **Each option writes its own `METRICS`**, a literal in its file, never imported from the
-  helper, and where the fork's node holds an answer every option marks the same keys.
-- An option may read other inputs than its siblings do. What a fork cannot do yet is change
-  which nodes come after it.
+- **A run takes one option at each fork**: the app's choice (`choices.json`, written by
+  `blocks choose`), else the first by name, and the fork is *open*, for a person to decide.
+- **Run then runs every other path**, if the app marks an answer. Outputs are kept by key, so
+  paths share all they have in common, and moving the page to another path costs nothing.
+  Past 64 paths, only the page's path and those one fork from it are run (`graph.paths`).
+- **The overview is the map**: the answer on this path, a dot for every path's, and the forks,
+  the one that moves the answer most first (`graph.spread`: how far the answer moves when
+  that fork alone changes); those that barely move it are folded away. A fork's page sets its
+  options side by side, with the answer each gives and their own numbers.
+- **The baseline keeps the choices and every path's answer**, and `verify` compares them all:
+  an option nobody is looking at still has to run.
+- An option may read other inputs than its siblings. A fork cannot yet change which nodes
+  come after it.
 
 ## Commands
 

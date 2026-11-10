@@ -165,7 +165,7 @@ class Graph:
                 results[name] = {"status": "blocked", "error": f"{failed} did not run"}
                 continue
             mine = {p: settings.get(p, s["default"]) for p, s in node["settings"].items()}
-            key = keys[name] = self.key(name, mine, [data.get(d, "") if d in self.spec["datasets"] else keys[d] for d in node["deps"]], choices)
+            key = keys[name] = self.key(node, mine, [data.get(d, "") if d in self.spec["datasets"] else keys[d] for d in node["deps"]])
             if key in self.cache:
                 self.used[key] = self.round
                 results[name] = {**self.cache[key][1], "cached": True}
@@ -192,9 +192,9 @@ class Graph:
         return results
 
     def path(self, settings, data, choices) -> dict:
-        """One path through the forks, run, as the page's map of them holds it: its choices,
-        the answer it gives ({node.key: number}), each node's metrics, what failed and why
-        (the first failure, in full: a path nobody is looking at has nowhere else to show it)."""
+        """One path through the forks, run: its choices, the answer it gives ({node.key: number}),
+        each node's metrics, what failed and why (the first failure, in full: a path nobody is
+        looking at has nowhere else to show it)."""
         last = self.last   # the page's own path is still the one whose outputs it can ask for
         results, self.last = self.run(settings, data, choices), last
         metrics = {n: r["metrics"] for n, r in results.items() if r["status"] == "done"}
@@ -204,10 +204,16 @@ class Graph:
                 "answer": {f"{a['node']}.{a['key']}": metrics.get(a["node"], {}).get(a["key"]) for a in self.spec["answer"]},
                 "failed": failed, **({"error": why} if failed else {})}
 
-    def key(self, name, settings, input_keys, choices=None):
+    def explore(self, settings, data, choices) -> list[dict]:
+        """Every path through the forks (paths), run: what they share comes from the cache.
+        Nothing, for an app with no fork or no answer to compare them by."""
+        forks = {f: list(self.spec["nodes"][f]["options"]) for f in self.spec["forks"]}
+        return [self.path(settings, data, c) for c in paths(forks, choices)] if forks and self.spec["answer"] else []
+
+    def key(self, node, settings, input_keys):
         """A node's key: its file (a fork's: its option's), the app's helper modules, its settings
         and its inputs' keys (a dataset's is its data key). An output with this key comes from the cache."""
-        parts = [hashlib.sha256(self._read(self.at(name, choices or {})["file"])).hexdigest(), self.helpers,
+        parts = [hashlib.sha256(self._read(node["file"])).hexdigest(), self.helpers,
                  json.dumps(settings, sort_keys=True, default=repr), *input_keys]
         return hashlib.sha256("\0".join(parts).encode()).hexdigest()
 
@@ -330,30 +336,22 @@ def start(root, spec_json):
     _graph = Graph(root, json.loads(spec_json))
 
 
-def run_json(settings_json, data_json, choices_json):
-    """The run's results and its record, as a baseline file holds it."""
-    settings, data, choices = json.loads(settings_json), json.loads(data_json), json.loads(choices_json)
-    results = _graph.run(settings, data, choices)
-    return to_json({"nodes": results, "record": record(results, settings, data, choices)})
+def run_json(args_json):
+    """{settings, data, choices}: the run's results and its record."""
+    a = json.loads(args_json)
+    results = _graph.run(a["settings"], a["data"], a["choices"])
+    return to_json({"nodes": results, "record": record(results, a["settings"], a["data"], a["choices"])})
 
 
-def path_json(settings_json, data_json, choices_json):
-    return to_json(_graph.path(json.loads(settings_json), json.loads(data_json), json.loads(choices_json)))
-
-
-def paths_json(choices_json):
-    """The paths to explore from these choices, in the order the forks come."""
-    forks = {f: list(_graph.spec["nodes"][f]["options"]) for f in _graph.spec["forks"]}
-    return to_json(paths(forks, json.loads(choices_json)))
-
-
-def spread_json(found_json):
-    return to_json(spread(json.loads(found_json), _graph.spec["forks"]))
-
-
-def compare_json(record_json, baseline_json):
-    """How a record (its paths with it) differs from the baseline."""
-    return to_json(compare(json.loads(record_json), json.loads(baseline_json)))
+def explore_json(args_json):
+    """{settings, data, choices, record, baseline}, after a run: the other paths ({paths,
+    spread}), the record with each path's answer in it, as a baseline file holds it, and how
+    that differs from the baseline (None: no baseline)."""
+    a = json.loads(args_json)
+    found = json.loads(to_json(_graph.explore(a["settings"], a["data"], a["choices"])))
+    rec = {**a["record"], **({"paths": [{k: v for k, v in p.items() if k != "metrics"} for p in found]} if found else {})}
+    return to_json({"paths": found, "spread": spread(found, _graph.spec["forks"]), "record": rec,
+                    "differs": a["baseline"] and compare(rec, a["baseline"])})
 
 
 def output_json(name):

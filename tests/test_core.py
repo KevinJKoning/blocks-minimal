@@ -167,9 +167,9 @@ def test_a_baseline_keeps_every_paths_answer(forked, capsys):
     from blocks.core import cli
     g = graph.Graph(str(forked), graph_spec(spec.load(forked)))
     def rec(**settings):
-        r = graph.record(g.run(settings, {}), settings, {}, {"count": "largest"})
-        keep = lambda p: {k: p[k] for k in ("choices", "answer", "failed", "error") if k in p}
-        return json.loads(graph.to_json({**r, "paths": [keep(g.path(settings, {}, c)) for c in graph.paths({"count": ["largest", "length"]}, {})]}))
+        graph._graph = g   # as the worker has it: a run, then the other paths
+        r = json.loads(graph.run_json(json.dumps({"settings": settings, "data": {}, "choices": {"count": "largest"}})))["record"]
+        return json.loads(graph.explore_json(json.dumps({"settings": settings, "data": {}, "choices": {"count": "largest"}, "record": r, "baseline": None})))["record"]
     base = rec()
     assert graph.compare(base, base) == {}
     assert cli.show(forked, base) and "2 paths through count; this one: count=largest" in capsys.readouterr().out
@@ -190,7 +190,7 @@ def test_a_baseline_keeps_every_paths_answer(forked, capsys):
 def test_choose_records_a_forks_option(forked, capsys):
     from blocks.core import cli
     assert cli.record_choices(forked, {"count": "length"}) and json.loads((forked / "choices.json").read_text()) == {"count": "length"}
-    assert not cli.record_choices(forked, {"count": "width"}) and "no option width" in capsys.readouterr().out
+    assert not cli.record_choices(forked, {"count": "width"}) and "no fork and option count=width" in capsys.readouterr().out
     assert json.loads((forked / "choices.json").read_text()) == {"count": "length"}   # as it was
 
 

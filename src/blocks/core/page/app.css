@@ -142,10 +142,8 @@ button:focus-visible, .button:focus-visible, input:focus-visible, select:focus-v
 .choice h3 { margin: 0 0 10px; }
 .choice table { width: 100%; margin: 4px 0 8px; }
 .choice tr:last-child > * { border-bottom: 0; }
-.choice tr[class], .choice tr:not(:first-child) { cursor: pointer; }
-.choice tr:not(:first-child):hover { background: var(--wash); }
-.choice tr.here { background: var(--wash); }
-.choice th label { cursor: pointer; }
+.choice tr:not(:first-child) { cursor: pointer; }
+.choice tr:not(:first-child):hover, .choice tr.here { background: var(--wash); }
 .choice th p { margin: 2px 0 0 21px; font-weight: 400; max-width: 46ch; }
 .choice th.muted { font-weight: 400; }
 .choice input[type=radio] { accent-color: var(--ink); margin: 0 8px 0 0; vertical-align: -2px; }

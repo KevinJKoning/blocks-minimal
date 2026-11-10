@@ -209,15 +209,14 @@ def show_paths(app: Path, record: dict) -> bool:
 
 def record_choices(app: Path, choices: dict) -> bool:
     """Record the app's choice at these forks in choices.json, beside those it holds."""
-    path = app / "choices.json"
+    nodes, path = spec.load(app)["nodes"], app / "choices.json"
+    unknown = [f"{f}={o}" for f, o in choices.items() if o not in nodes.get(f, {}).get("options", {})]
+    if unknown:
+        forks = "; ".join(f"{f}: {', '.join(v['options'])}" for f, v in nodes.items() if "options" in v)
+        print(f"{app.name}: no fork and option {', '.join(unknown)} (the forks: {forks or 'none'})")
+        return False
     kept = json.loads(path.read_text()) if path.exists() else {}
     path.write_text(json.dumps(kept | choices, indent=1) + "\n")
-    try:
-        spec.load(app)
-    except ValueError as e:   # no such fork or option: leave the file as it was
-        path.write_text(json.dumps(kept, indent=1) + "\n") if kept else path.unlink()
-        print(f"{app.name}: {e}")
-        return False
     print(f"{app.name}: chose {path_name(choices)}; blocks baseline {app.name} records the path's results")
     return True
 

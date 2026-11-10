@@ -97,17 +97,10 @@ def read_nodes(app_dir: Path) -> dict:
     path = app_dir / "choices.json"
     choices = json.loads(inside(app_dir, path).read_text()) if path.exists() else {}
     nodes = {}
-    for p in sorted((app_dir / "nodes").iterdir()):
-        if p.name.startswith((".", "_")):
-            continue
-        if p.is_dir():
-            if p.name in nodes:
-                raise ValueError(f"{p}: both a node file and a fork's folder")
-            nodes[p.name] = read_fork(p, choices.get(p.name))
-        elif p.suffix == ".py":
-            if p.stem in nodes:
-                raise ValueError(f"{p}: both a node file and a fork's folder")
-            nodes[p.stem] = read_node(p, p.stem, f"nodes/{p.name}")
+    for p in sorted(p for p in (app_dir / "nodes").iterdir() if not p.name.startswith((".", "_")) and (p.is_dir() or p.suffix == ".py")):
+        if p.stem in nodes:
+            raise ValueError(f"{p}: both a node file and a fork's folder")
+        nodes[p.stem] = read_fork(p, choices.get(p.name)) if p.is_dir() else read_node(p, p.stem, f"nodes/{p.name}")
     unknown = [f for f in choices if "options" not in nodes.get(f, {})]
     if unknown:
         raise ValueError(f"choices.json: {', '.join(unknown)} is no fork (the forks: {', '.join(n for n in nodes if 'options' in nodes[n]) or 'none'})")
