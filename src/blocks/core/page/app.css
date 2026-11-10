@@ -134,6 +134,9 @@ button:focus-visible, .button:focus-visible, input:focus-visible, select:focus-v
 .option:hover { background: var(--wash); }
 .option.here, .option.here:hover { color: var(--paper); background: var(--ink); font-weight: 600; }
 .option.chosen::after { content: " ✓"; }
+.decided { display: flex; flex-wrap: wrap; gap: 2px 18px; justify-content: flex-end; grid-column: span 2; font-variant-numeric: tabular-nums; }
+.decided .chosen { font-weight: 600; }
+.decided .chosen::after { content: " ✓"; }
 .swing { display: grid; gap: 3px; text-align: right; font-variant-numeric: tabular-nums; }
 .swing > span:first-child { display: block; height: 4px; border-radius: 2px; background: var(--wash); }
 .swing i { display: block; height: 100%; border-radius: 2px; background: var(--ink); }
@@ -142,9 +145,10 @@ button:focus-visible, .button:focus-visible, input:focus-visible, select:focus-v
 .choice h3 { margin: 0 0 10px; }
 .choice table { width: 100%; margin: 4px 0 8px; }
 .choice tr:last-child > * { border-bottom: 0; }
-.choice tr:not(:first-child) { cursor: pointer; }
-.choice tr:not(:first-child):hover, .choice tr.here { background: var(--wash); }
-.choice th p { margin: 2px 0 0 21px; font-weight: 400; max-width: 46ch; }
+.choice.live tr:not(:first-child) { cursor: pointer; }
+.choice.live tr:not(:first-child):hover, .choice tr.here { background: var(--wash); }
+.choice th p { margin: 2px 0 0; font-weight: 400; max-width: 46ch; }
+.choice.live th p { margin-left: 21px; }
 .choice th.muted { font-weight: 400; }
 .choice input[type=radio] { accent-color: var(--ink); margin: 0 8px 0 0; vertical-align: -2px; }
 
@@ -157,6 +161,7 @@ button:focus-visible, .button:focus-visible, input:focus-visible, select:focus-v
   .setting { grid-template-columns: minmax(0, 1fr) minmax(0, 2fr) 44px; gap: 8px; }
   .card { flex-wrap: wrap; }
   .fork { grid-template-columns: minmax(0, 1fr); }
+  .decided { grid-column: auto; justify-content: flex-start; }
   .swing { grid-template-columns: 104px auto; align-items: center; justify-content: start; gap: 10px; }
   .choice { padding: 14px; overflow-x: auto; }
 }

@@ -133,6 +133,25 @@ def test_a_fork_is_a_node_written_more_than_one_way(forked):
         spec.load(forked)
 
 
+def test_an_offline_page_is_the_one_path_decided(forked):
+    manifest = lambda **kw: json.loads(build.build(forked, **kw).split('id="manifest">')[1].split("</script>")[0])
+    served = manifest(inline=False, origin="http://x")                # where the app is worked out: every option
+    assert served["decisions"] is None and served["spec"]["forks"] == ["count"] and "nodes/count/length.py" in served["files"]
+    with pytest.raises(ValueError, match="count: still open"):        # an open fork is no decision yet
+        build.build(forked, inline=True)
+    (forked / "choices.json").write_text('{"count": "length"}')
+    page = manifest(inline=True)
+    assert page["spec"]["forks"] == [] and page["spec"]["nodes"]["count"]["file"] == "nodes/count/length.py" and "options" not in page["spec"]["nodes"]["count"]
+    assert "nodes/count/largest.py" not in page["files"] and "nodes/count/README.md" in page["files"]
+    assert page["decisions"] == {"count": {"question": "What counts?", "about": "The length or the largest.", "chosen": "length",
+                                           "options": {"largest": "By largest.", "length": "By length."}}}
+    # It runs that path only, and is compared on it: the baseline's other paths are not its to answer for.
+    g = graph.Graph(str(forked), page["spec"])
+    rec = json.loads(graph.to_json(graph.record(g.run({}, {}, {"count": "length"}), {}, {}, {"count": "length"})))
+    assert g.explore({}, {}, {"count": "length"}) == []
+    assert graph.compare(rec, {**rec, "paths": [{"choices": {"count": "largest"}, "answer": {"count.n": 6}, "failed": []}]}) == {}
+
+
 def test_paths_share_what_they_have_in_common(forked):
     g = graph.Graph(str(forked), graph_spec(spec.load(forked)))
     first = g.run({}, {})

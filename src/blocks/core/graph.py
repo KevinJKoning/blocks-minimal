@@ -310,7 +310,8 @@ def compare(run: dict, ref: dict, rel_tol=1e-9, abs_tol=1e-12) -> dict:
                 out[n].append("view failed: " + a["view_error"].strip().splitlines()[-1])
     if run.get("choices", {}) != ref.get("choices", {}):   # another path than the baseline took: its nodes say how it differs
         out["choices"] = [f"{path_name(ref.get('choices', {})) or 'none'} in the baseline (blocks baseline records the path chosen now)"]
-    got, kept = ({path_name(p["choices"]): p for p in r.get("paths", [])} for r in (run, ref))
+    # An offline page runs one path, and is compared on that: only a run that explored the paths answers for them.
+    got, kept = ({path_name(p["choices"]): p for p in r.get("paths", [])} for r in (run, ref if "paths" in run else {}))
     new, gone = len(got.keys() - kept.keys()), len(kept.keys() - got.keys())
     out["paths"] = ([f"{new} new, not in the baseline (blocks baseline records them)"] if new else []) + ([f"{gone} only in the baseline"] if gone else [])
     for n in got.keys() & kept.keys():

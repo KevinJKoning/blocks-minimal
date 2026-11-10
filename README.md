@@ -81,6 +81,11 @@ folder's `README.md` asks the fork's question (`# ...`) and says what bears on i
   options side by side, with the answer each gives and their own numbers.
 - **The baseline keeps the choices and every path's answer**, and `verify` compares them all:
   an option nobody is looking at still has to run.
+- **All of that is the served page, where an app is worked out. The built page is what was
+  worked out**: it carries and runs only the path chosen, so a reader reproduces the result,
+  or tries other data and settings, at the cost of one run. Its forks are decisions: the
+  question, the option taken, and the answer each alternative gave in the baseline. An app
+  with a fork still open does not build (`build.decided`).
 - An option may read other inputs than its siblings. A fork cannot yet change which nodes
   come after it.
 
@@ -95,7 +100,7 @@ folder's `README.md` asks the fork's question (`# ...`) and says what bears on i
 .venv/bin/blocks choose APP FORK=OPTION ...   # record the app's choice in choices.json
 .venv/bin/blocks baseline APP     # keep the run as baseline.json, if nothing failed
 .venv/bin/blocks verify [APP]     # compare with the baseline (graph.compare): metrics, digests, data keys, paths; a failed view fails it
-.venv/bin/blocks build [APP]      # dist/<app>.html, offline, verified; --no-data leaves the data out
+.venv/bin/blocks build [APP]      # dist/<app>.html, offline, one path, verified; --no-data leaves the data out
 .venv/bin/blocks serve            # http://127.0.0.1:8765/<app>/, rebuilt on every request
 .venv/bin/python -m pytest -m "not browser"
 ```

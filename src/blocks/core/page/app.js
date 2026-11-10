@@ -2,10 +2,13 @@
 // overview, a node (its docstring, settings, results and code) or a dataset. Python runs in a
 // worker (worker.js); Run computes what is stale, and the graph's cache keeps the rest. An app
 // with forks is many analyses: the page shows one path through them, and after a run explores
-// the others, so the overview can say how far each fork moves the answer.
+// the others, so the overview can say how far each fork moves the answer. That is the served
+// page, where an app is worked out. The offline page (build.decided) runs the one path chosen:
+// its forks are decisions (M.decisions), shown with what each alternative gave in the baseline.
 
 const M = JSON.parse(document.getElementById("manifest").textContent);
-const S = M.spec;
+const S = M.spec, D = M.decisions;
+const FORKS = D ? Object.keys(D) : S.forks;
 const bytes = async (b64) => new Uint8Array(await (await fetch(`data:application/octet-stream;base64,${b64}`)).arrayBuffer());
 const text = (b64) => new TextDecoder().decode(Uint8Array.from(atob(b64), (c) => c.charCodeAt(0)));
 // {path: base64} as {path: bytes}
@@ -17,7 +20,7 @@ const state = {
   page: null,      // a node's or a dataset's name, or null: the overview
   // name -> value. A setting is the app's, by its name: every node that declares it reads it.
   settings: Object.fromEntries(S.order.flatMap((n) => ways(n).flatMap((w) => Object.entries(w.settings).map(([p, s]) => [p, s.default])))),
-  choices: Object.fromEntries(S.forks.map((f) => [f, S.nodes[f].chosen])),   // fork -> the option this page is on
+  choices: Object.fromEntries(FORKS.map((f) => [f, (D?.[f] || S.nodes[f]).chosen])),   // fork -> the option this page is on
   space: null,     // the paths explored: {paths: [{choices, answer, metrics, failed}], spread} (graph.explore, graph.spread)
   data: {},        // dataset -> {key, files: {path: Blob}, chosen}, once Python has its files
   results: {},     // node -> its result in the last run
@@ -350,11 +353,12 @@ function dataPage(d) {
 const alsoReading = (n, p) => S.order.filter((m) => m !== n && p in S.nodes[m].settings);
 
 // The paths:
-const same = (a, b) => S.forks.every((f) => a[f] === b[f]);
-const found = (choices) => state.space?.paths.find((p) => same(p.choices, choices));
+const same = (a, b) => FORKS.every((f) => a[f] === b[f]);
+const paths = () => (D ? M.baseline?.paths : state.space?.paths) || [];   // an offline page's are the baseline's
+const found = (choices) => paths().find((p) => same(p.choices, choices));
 const spreadOf = (a) => state.space?.spread[`${a.node}.${a.key}`];
 const words = (o) => o.replaceAll("_", " ");   // an option is named by its file
-const pathName = (c) => S.forks.map((f) => `${f}: ${words(c[f])}`).join(" · ");
+const pathName = (c) => FORKS.map((f) => `${f}: ${words(c[f])}`).join(" · ");
 // Pointing at an option lights the paths that take it, on every strip.
 const light = (f, o) => document.querySelectorAll(".strip").forEach((el) => {
   el.classList.toggle("lit", f != null);
@@ -427,23 +431,39 @@ function forks() {
     rest.length > 0 && h("details", { open: loud.length === 0 }, h("summary", {}, `${rest.length === 1 ? "1 fork that barely moves" : `${rest.length} forks that barely move`} it`), h("ul", {}, rest.map(row))));
 }
 
+// An offline page's forks are decisions: what was chosen at each, and what the first answer was
+// along each alternative when the baseline was recorded. Nothing here runs.
+function decisions() {
+  const a = S.answer[0], id = a && `${a.node}.${a.key}`;
+  const values = paths().map((p) => num(p.answer[id])).filter(Number.isFinite);
+  const gave = (f, o) => { const p = a && found({ ...state.choices, [f]: o }); return p ? ` ${fmt(p.answer[id], a.percent)}` : ""; };
+  return h("section", { class: "forks" }, h("h2", {}, "Decisions"),
+    h("p", { class: "muted small" }, "Where the analysis could have gone another way, and the way it went (✓)",
+      values.length > 0 ? `, with the ${a.label} each alternative gave when the app was built. Across all ${values.length} ways through, it ran from ${fmt(Math.min(...values), a.percent)} to ${fmt(Math.max(...values), a.percent)}.` : "."),
+    h("ul", {}, FORKS.map((f) => h("li", { class: "fork" },
+      h("div", {}, link(f), h("p", { class: "muted" }, D[f].question)),
+      h("div", { class: "decided" }, Object.keys(D[f].options).map((o) => h("span", { class: o === D[f].chosen ? "chosen" : "muted" }, words(o), gave(f, o))))))));
+}
+
 // A fork's own page starts with the fork: its question, and each option beside the others,
 // with the answer its path gives (the other forks as this page has them) and the numbers of
-// its own that every option labels.
+// its own that every option labels. On an offline page it is a decision: the same table, of
+// what the baseline recorded, with nothing to choose.
 function forkBox(n) {
-  const node = S.nodes[n], all = Object.values(node.options);
-  const shown = node.metrics.filter((m) => !m.answer && all.every((w) => w.metrics.some((x) => x.key === m.key))).slice(0, 3);
+  const node = S.nodes[n], d = D?.[n], fork = d || node;
+  const options = d ? d.options : Object.fromEntries(Object.entries(node.options).map(([o, w]) => [o, w.summary]));
+  const shown = d ? [] : node.metrics.filter((m) => !m.answer && Object.values(node.options).every((w) => w.metrics.some((x) => x.key === m.key))).slice(0, 3);
   const cell = (v, percent) => h("td", {}, fmt(v, percent));
-  return h("section", { class: "choice" }, h("h2", {}, "Fork", node.open && h("span", { class: "tag" }, "open")),
-    node.question && h("h3", {}, node.question),
-    node.about && markdown(node.about),
+  return h("section", { class: `choice ${d ? "" : "live"}` }, h("h2", {}, d ? "Decision" : "Fork", node.open && h("span", { class: "tag" }, "open")),
+    fork.question && h("h3", {}, fork.question),
+    fork.about && markdown(fork.about),
     h("table", {},
       h("tr", {}, h("th"), S.answer.map((a) => h("th", {}, a.label)), shown.map((m) => h("th", { class: "muted" }, m.label))),
-      Object.entries(node.options).map(([o, w]) => {
+      Object.entries(options).map(([o, summary]) => {
         const p = found({ ...state.choices, [n]: o });
-        return h("tr", { class: state.choices[n] === o ? "here" : null, onclick: () => take({ [n]: o }) },
-          h("th", {}, h("label", {}, h("input", { type: "radio", name: `fork-${n}`, checked: state.choices[n] === o }), words(o),
-            !node.open && node.chosen === o && h("span", { class: "muted small" }, " ✓ chosen")), h("p", { class: "muted small" }, w.summary)),
+        return h("tr", { class: state.choices[n] === o ? "here" : null, onclick: !d && (() => take({ [n]: o })) },
+          h("th", {}, h("label", {}, !d && h("input", { type: "radio", name: `fork-${n}`, checked: state.choices[n] === o }), words(o),
+            !node.open && fork.chosen === o && h("span", { class: "muted small" }, " ✓ chosen")), h("p", { class: "muted small" }, summary)),
           S.answer.map((a) => cell(p?.answer[`${a.node}.${a.key}`], a.percent)),
           shown.map((m) => cell(p?.metrics[n]?.[m.key], m.percent)));
       })));
@@ -454,7 +474,7 @@ function nodePage(n) {
   return [
     crumb(n),
     h("h1", {}, n),
-    node.options && forkBox(n),
+    (node.options || D?.[n]) && forkBox(n),
     node.doc ? markdown(node.doc) : null,
     datasets(n).length > 0 && h("p", { class: "muted" }, "Reads ", sep(datasets(n)), "."),
     Object.keys(node.settings).length > 0 && h("section", { class: "settings" }, h("h2", {}, "Settings"),
@@ -474,7 +494,7 @@ function overview() {
     h("h1", {}, M.title),
     M.about && markdown(M.about),
     answer(),
-    forks(),
+    D ? FORKS.length > 0 && decisions() : forks(),
     h("section", {}, h("h2", {}, "Nodes"), h("ol", { class: "nodes" }, S.order.map((n) => {
       const st = statusOf(n), m = state.results[n]?.metrics || {}, decl = S.nodes[n].metrics.slice(0, 3);
       return h("li", {}, link(n), S.nodes[n].options && h("span", { class: "muted small" }, ` ${words(state.choices[n])}`), h("span", { class: `status ${st}` }, ` ${GLYPH[st]} ${st}`),

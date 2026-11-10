@@ -1,6 +1,9 @@
 """An app as one HTML page: the app's files, its data and the page's script, plus the Pyodide
 runtime, embedded (`inline`, the offline file) or linked from the dev server's /_runtime/.
 
+A served page is where an app is worked out: it runs every path through the forks. The
+offline file is what was worked out (decided): one path, and the forks as decisions made.
+
 The runtime is downloaded once into .cache/ and checked: the core files against the pins
 below, every wheel against the pinned pyodide-lock.json.
 """
@@ -129,13 +132,33 @@ def worker_script() -> str:
             f"const __pyodide = (() => {{\n{mjs}\n}})();\n{template('worker.js')}")
 
 
+def decided(a: dict) -> tuple[dict, dict]:
+    """The app along the one path it chose, and its decisions. Each fork is the node its chosen
+    option is, and the other options' files are left out; a decision keeps the fork's question,
+    what was chosen and what else was considered. An open fork is no decision yet."""
+    undecided = [f for f in a["forks"] if a["nodes"][f]["open"]]
+    if undecided:
+        raise ValueError(f"{', '.join(undecided)}: still open, and an offline page shows what was decided; "
+                         f"blocks choose {a['name']} {' '.join(f'{f}=OPTION' for f in undecided)} records the choice")
+    nodes, files, decisions = dict(a["nodes"]), dict(a["files"]), {}
+    for f in a["forks"]:
+        fork = a["nodes"][f]
+        decisions[f] = {"question": fork["question"], "about": fork["about"], "chosen": fork["chosen"],
+                        "options": {o: v["summary"] for o, v in fork["options"].items()}}
+        nodes[f] = fork["options"][fork["chosen"]]
+        for o, v in fork["options"].items():
+            if o != fork["chosen"]:
+                del files[v["file"]]
+    return {**a, "nodes": nodes, "files": files, "forks": [], "imports": sorted(spec.imports(files))}, decisions
+
+
 def build(app_dir: Path, inline: bool, data: bool = True, *, origin: str | None = None) -> str:
     """The app's page. inline: the runtime is in it (an offline file), not served. data: its
     datasets are in it; without them, whoever opens it chooses them. Linked pages require
     their server's origin so the CSP can allow /_runtime/ without exposing other apps."""
     if not inline and not origin:
         raise ValueError("a linked page needs its server's origin")
-    a = spec.load(app_dir)
+    a, decisions = decided(spec.load(app_dir)) if inline else (spec.load(app_dir), None)
     pkgs = packages(a["imports"], {p.split("/")[0].removesuffix(".py") for p in a["files"]}, a["files"])
     library = {f"blocks/{f}": (PACKAGE / f).read_bytes() for f in LIBRARY}
     baseline = Path(app_dir) / "baseline.json"
@@ -149,7 +172,7 @@ def build(app_dir: Path, inline: bool, data: bool = True, *, origin: str | None 
         "data": {d: {"doc": v["doc"], "files": {p: b64(b) for p, b in v["files"].items()} if data else None}
                  for d, v in a["datasets"].items()},
         "baseline": json.loads(spec.inside(app_dir, baseline).read_text()) if baseline.exists() else None,
-        "runtime": None if inline else "/_runtime/",
+        "runtime": None if inline else "/_runtime/", "decisions": decisions,
     }
     csp = CSP.format(runtime="" if inline else f" {origin}/_runtime/")
     script = lambda type, body, attrs="": f'<script type="{type}"{attrs}>{body}</script>'

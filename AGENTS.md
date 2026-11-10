@@ -15,7 +15,7 @@ two are short enough to read whole, and they are the reference.
    re-record it after adding a node or an output key, or changing results on purpose; a
    change to a view alone needs none.
 4. `blocks verify APP` and `.venv/bin/python -m pytest -m "not browser"` must pass;
-   `blocks build APP` verifies the offline page too.
+   `blocks build APP` verifies the offline page too, once every fork is decided.
 
 The venv has none of the app's packages: check numbers natively with the standard library
 only (a `data/` script is the one thing to run natively). In the page, `window.blocks`
