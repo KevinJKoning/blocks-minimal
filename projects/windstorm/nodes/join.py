@@ -21,6 +21,19 @@ METRICS = {"policies": "policies", "policy_years": "policy-years", "claims": "cl
            "placed_by_nearest": "placed in the nearest territory", "thin_territories": "territories under 25 policy-years"}
 
 
+def place(points, polygons):
+    """Each point's polygon, by index: the one that contains it, else the nearest.
+
+    Returns that index for every point, and which points no polygon contained."""
+    tree = shapely.STRtree(polygons)
+    which = np.full(len(points), -1)
+    inside, polygon = tree.query(points, predicate="within")
+    which[inside] = polygon
+    outside = np.flatnonzero(which < 0)
+    which[outside] = tree.nearest(points[outside])
+    return which, outside
+
+
 def join(policies, territories, coast):
     table = csv.read_csv(policies)
     with open(territories) as f:
@@ -32,12 +45,7 @@ def join(policies, territories, coast):
     terrain = np.array([f["properties"]["terrain"] for f in features])
 
     points = shapely.points(table["x"].to_numpy(), table["y"].to_numpy())
-    tree = shapely.STRtree(polygons)
-    which = np.full(len(points), -1)
-    inside, territory = tree.query(points, predicate="within")
-    which[inside] = territory
-    outside = np.flatnonzero(which < 0)
-    which[outside] = tree.nearest(points[outside])
+    which, outside = place(points, polygons)
 
     exposure, claims = table["exposure"].to_numpy(), table["claims"].to_numpy()
     years = np.bincount(which, weights=exposure, minlength=len(ids))

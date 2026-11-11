@@ -14,10 +14,18 @@ from blocks import ui
 METRICS = {"rows": "rows calibrated"}
 
 
+def coefficients(coef, intercept, mu, sd):
+    """The curve as plain polynomial coefficients c0, c1, c2, … of the raw reading.
+
+    It was fitted on standardized powers, (r^k − mu_k) / sd_k: each weight is divided by its
+    power's sd, and the means go into the constant."""
+    w = np.asarray(coef) / sd
+    return np.concatenate([[intercept - float(w @ mu)], w])
+
+
 def calibrated(measurements, featurize, train, evaluate):
     reading, reference = np.array(duckdb.sql(f"SELECT reading, reference FROM read_parquet('{measurements}')").fetchall(), dtype=float).T
-    w = np.asarray(train["coef"]) / featurize["sd"]                    # per power of the raw reading
-    coef = np.concatenate([[train["intercept"] - float(w @ featurize["mu"])], w])
+    coef = coefficients(train["coef"], train["intercept"], featurize["mu"], featurize["sd"])
     value = np.polyval(coef[::-1], reading)
     return {"table": {"reading": reading, "reference": reference, "calibrated": value, "residual": value - reference},
             "coefficients": coef, "rows": len(reading),

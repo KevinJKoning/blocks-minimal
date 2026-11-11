@@ -21,36 +21,51 @@ import numpy as np
 
 from blocks import ui
 
-METRICS = {"within_interval": "coefficients inside their 95% interval",
-           "error_own": {"label": "territory error: own experience", "goal": "min"},
-           "error_glm": {"label": "territory error: GLM alone", "goal": "min"},
-           "error_credibility": {"label": "territory error: credibility", "goal": "min"}}
+METRICS = {"coefficients.inside": "coefficients inside their 95% interval",
+           "territories.error_own": {"label": "territory error: own experience", "goal": "min"},
+           "territories.error_glm": {"label": "territory error: GLM alone", "goal": "min"},
+           "territories.error_credibility": {"label": "territory error: credibility", "goal": "min"}}
+
+
+def coefficients(fitted, true):
+    """Each fitted coefficient beside the one the data was made with, and how many of the true
+    ones lie inside their 95% interval."""
+    rows = [{**c, "true": true[c["term"]]} for c in fitted]
+    return {"rows": rows, "inside": sum(r["low"] <= r["true"] <= r["high"] for r in rows)}
+
+
+def territories(table, log_effect):
+    """Three estimates of each territory's effect against the true one: its own experience, the
+    GLM alone (1 everywhere) and credibility.
+
+    Only territories with expected claims are scored. Each estimate, and the truth, is scaled to
+    average 1 over the expected claims; an estimate's error is its root-mean-square distance
+    from the truth."""
+    m = table["expected"].to_numpy()
+    seen = m > 0
+    norm = lambda v: v[seen] / np.average(v[seen], weights=m[seen])
+    true = norm(np.exp([log_effect[x] for x in table["territory"].to_pylist()]))
+    own, credibility = norm(table["ratio"].to_numpy()), norm(table["theta"].to_numpy())
+    error = lambda v: float(np.sqrt(np.mean((v - true) ** 2)))
+    return {"error_own": error(own), "error_glm": error(norm(np.ones_like(m))), "error_credibility": error(credibility),
+            "true": true, "own": own, "credibility": credibility}
 
 
 def recovery(glm, credibility, truth):
     with open(truth) as f:
         truth = json.load(f)
-    rows = [{**c, "true": truth["coefficients"][c["term"]]} for c in glm["coefficients"]]
-    t = credibility["table"]
-    m = t["expected"].to_numpy()
-    seen = m > 0
-    effect = np.exp([truth["territory_effect"][x] for x in t["territory"].to_pylist()])
-    norm = lambda v: v[seen] / np.average(v[seen], weights=m[seen])
-    true = norm(effect)
-    error = lambda v: float(np.sqrt(np.mean((norm(v) - true) ** 2)))
-    return {"coefficients": rows, "within_interval": sum(r["low"] <= r["true"] <= r["high"] for r in rows),
-            "error_own": error(t["ratio"].to_numpy()), "error_glm": error(np.ones_like(m)),
-            "error_credibility": error(t["theta"].to_numpy()),
-            "scatter": {"true": true, "own": norm(t["ratio"].to_numpy()), "credibility": norm(t["theta"].to_numpy())}}
+    return {"coefficients": coefficients(glm["coefficients"], truth["coefficients"]),
+            "territories": territories(credibility["table"], truth["territory_effect"])}
 
 
 def view(out):
-    s, terms = out["scatter"], out["coefficients"][1:]   # the intercept left out
+    s, rows = out["territories"], out["coefficients"]["rows"]
+    terms = rows[1:]   # the intercept left out
     order = np.argsort(s["true"])
     return [
         ui.metrics(),
-        ui.markdown(f"Root-mean-square error of each territory's effect: **{out['error_credibility']:.3f}** with credibility, "
-                    f"against {out['error_own']:.3f} from its own experience alone and {out['error_glm']:.3f} from the GLM "
+        ui.markdown(f"Root-mean-square error of each territory's effect: **{s['error_credibility']:.3f}** with credibility, "
+                    f"against {s['error_own']:.3f} from its own experience alone and {s['error_glm']:.3f} from the GLM "
                     "alone. Credibility beats both: it trusts big territories and lets small ones lean on the model."),
         ui.bars([r["term"] for r in terms], {"estimate": [r["estimate"] for r in terms], "truth": [r["true"] for r in terms]},
                 kind="dot", intervals={"estimate": ([r["low"] for r in terms], [r["high"] for r in terms])},
@@ -58,7 +73,7 @@ def view(out):
                 label="coefficient (log scale)"),
         ui.table([{"term": r["term"], "true": r["true"], "estimate": r["estimate"], "95% low": r["low"],
                    "95% high": r["high"], "inside": "yes" if r["low"] <= r["true"] <= r["high"] else "no"}
-                  for r in out["coefficients"]], title="Coefficients against the truth"),
+                  for r in rows], title="Coefficients against the truth"),
         ui.chart(s["true"][order], {"own experience": s["own"][order], "credibility": s["credibility"][order], "truth": s["true"][order]},
                  kind={"own experience": "scatter", "credibility": "scatter", "truth": "line"},
                  title="Territory effects against the truth", x_label="true effect"),

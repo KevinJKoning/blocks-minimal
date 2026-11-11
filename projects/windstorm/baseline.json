@@ -64,12 +64,12 @@
   "recovery": {
    "status": "done",
    "metrics": {
-    "within_interval": 5,
-    "error_own": 0.8103899491017968,
-    "error_glm": 0.2922132118709263,
-    "error_credibility": 0.257466579117166
+    "coefficients.inside": 5,
+    "territories.error_own": 0.8103899491017968,
+    "territories.error_glm": 0.2922132118709263,
+    "territories.error_credibility": 0.257466579117166
    },
-   "digest": "c2f8aebf773b2c84819e189cd7dd48f1e03f637c7e91fc39b40ddb9ca2eabd1f"
+   "digest": "bc2d22481b05071c7b59bdd9b9d5beb3a8499b70ba0286355599e520a2448884"
   }
  }
 }
