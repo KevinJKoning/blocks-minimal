@@ -63,18 +63,21 @@ def view(out):
     terms = rows[1:]   # the intercept left out
     order = np.argsort(s["true"])
     return [
-        ui.metrics(),
-        ui.markdown(f"Root-mean-square error of each territory's effect: **{s['error_credibility']:.3f}** with credibility, "
-                    f"against {s['error_own']:.3f} from its own experience alone and {s['error_glm']:.3f} from the GLM "
-                    "alone. Credibility beats both: it trusts big territories and lets small ones lean on the model."),
-        ui.bars([r["term"] for r in terms], {"estimate": [r["estimate"] for r in terms], "truth": [r["true"] for r in terms]},
-                kind="dot", intervals={"estimate": ([r["low"] for r in terms], [r["high"] for r in terms])},
-                reference=0, title="Coefficients against the truth, with 95% intervals (the intercept left out)",
-                label="coefficient (log scale)"),
-        ui.table([{"term": r["term"], "true": r["true"], "estimate": r["estimate"], "95% low": r["low"],
-                   "95% high": r["high"], "inside": "yes" if r["low"] <= r["true"] <= r["high"] else "no"}
-                  for r in rows], title="Coefficients against the truth"),
-        ui.chart(s["true"][order], {"own experience": s["own"][order], "credibility": s["credibility"][order], "truth": s["true"][order]},
-                 kind={"own experience": "scatter", "credibility": "scatter", "truth": "line"},
-                 title="Territory effects against the truth", x_label="true effect"),
+        ui.step(coefficients,
+                ui.metrics(under="coefficients"),
+                ui.bars([r["term"] for r in terms], {"estimate": [r["estimate"] for r in terms], "truth": [r["true"] for r in terms]},
+                        kind="dot", intervals={"estimate": ([r["low"] for r in terms], [r["high"] for r in terms])},
+                        reference=0, title="Coefficients against the truth, with 95% intervals (the intercept left out)",
+                        label="coefficient (log scale)"),
+                ui.table([{"term": r["term"], "true": r["true"], "estimate": r["estimate"], "95% low": r["low"],
+                           "95% high": r["high"], "inside": "yes" if r["low"] <= r["true"] <= r["high"] else "no"}
+                          for r in rows], title="Coefficients against the truth")),
+        ui.step(territories,
+                ui.metrics(under="territories"),
+                ui.markdown(f"**{s['error_credibility']:.3f}** with credibility, against {s['error_own']:.3f} from its own "
+                            f"experience alone and {s['error_glm']:.3f} from the GLM alone. Credibility beats both: it "
+                            "trusts big territories and lets small ones lean on the model."),
+                ui.chart(s["true"][order], {"own experience": s["own"][order], "credibility": s["credibility"][order], "truth": s["true"][order]},
+                         kind={"own experience": "scatter", "credibility": "scatter", "truth": "line"},
+                         title="Territory effects against the truth", x_label="true effect")),
     ]

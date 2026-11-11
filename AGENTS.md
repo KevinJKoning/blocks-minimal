@@ -28,8 +28,10 @@ only (a `data/` script is the one thing to run natively). In the page, `window.b
   first, since what a node hands over is usually what its reader came for.
 - A part of a node's work that has a name of its own (a noun, one sentence, a result worth
   checking) is a step: a function at the top of the file with a docstring, its result in the
-  output under its name where a reader would check it. Most nodes are one thought and have
-  none; don't cut a derivation into steps to have some. Adding a step changes no results.
+  output under its name. The view puts what shows that result in `ui.step(fn, ...)`, so the
+  step's text, blocks and code read as one; what the step's docstring says, the node's does
+  not repeat. Most nodes are one thought and have none; don't cut a derivation into steps to
+  have some. Adding a step changes no results.
 - To reuse a node's work under other inputs or settings, move it into a helper module and
   call it from both nodes; a node can't read another's settings but by sharing their name.
 
@@ -51,7 +53,7 @@ has the class `<name>`, and an optional `<name>.css` styles it, every rule under
   `records`, `S`) and `_kit.js` (`hue`, `ticks`, `logTicks`, `place`, `legend`).
 - A block's own classes never reuse the page's (`page/app.css`): `card`, `cards`,
   `card-label`, `setting`, `settings`, `button`, `crumb`, `dag`, `nodes`, `prose`, `status`,
-  `differs`, `step`, `secondary`, `dim`, `ok`, `about`, `title`; it may use `muted`, `small`, `note`
+  `differs`, `secondary`, `dim`, `ok`, `about`, `title`; it may use `muted`, `small`, `note`
   and `error` as the page does.
 - A helper stays in its block until a second block needs it; then it moves to `_kit.py`,
   `_kit.js` or `_kit.css`. Colours are the theme's variables (`--ink`, `--ramp-hi`,

@@ -48,10 +48,10 @@ projects/<app>/
   percent}}` labels the ones that matter, in order (`fit.shape` for `{"fit": {"shape": ...}}`);
   `goal: "min"` or `"max"` colours changes, `percent: True` marks a share.
 - **A step** is any other function at the top of a node's file with a docstring: a part of the
-  node's work worth naming. The page's Code shows each under its name and the docstring's first
-  paragraph. Where its result is one a reader would check, return it in the output under the
-  step's name, so its numbers are metrics like any other. A function without a docstring is
-  just a function.
+  node's work worth naming. `ui.step(fn, *blocks)` in the view shows it as one unit: its
+  docstring (Markdown), those blocks and its code, bound by a line down the side. Return its
+  result in the output under its name, and `ui.metrics(under="<name>")` is its numbers. A
+  function without a docstring is just a function; a step the view leaves out is only code.
 - **Packages** are found from the imports, and come from Pyodide, not the venv: the names
   they import as are in `.cache/pyodide/<version>/pyodide-lock.json`. Node code runs only in
   the page, never with native Python.
@@ -91,7 +91,7 @@ localhost, and native dependencies are pinned with hashes.
 | `blocks.ui` | draws |
 |---|---|
 | `markdown(text)` | Markdown |
-| `metrics()` | the node's metrics, with the change since the last run and the baseline's value |
+| `metrics(under=None)` | the node's metrics (or those under one key of the output), with the change since the last run and the baseline's value |
 | `table(rows, ...)` | a DataFrame, pyarrow Table, `{column: values}` or list of dicts |
 | `chart(x, series, ...)` | lines, steps or dots, with bands, error bars, reference lines, log axes |
 | `bars(categories, series, ...)` | a bar or dot per category, with intervals and a reference (a forest plot) |
@@ -100,6 +100,7 @@ localhost, and native dependencies are pinned with hashes.
 | `heatmap(rows, columns, values, ...)` | a value per row and column, shaded |
 | `map(shapes, values=None, ...)` | polygons and points shaded or named, in layers, over a grid, under lines |
 | `row(*blocks, title=None)` | blocks side by side |
+| `step(fn, *blocks)` | one of the node's steps: its docstring, these blocks and its code, as a unit |
 | `download(name, value, title=None)` | a file to take away: a table as `.csv`, `.json` or `.parquet`, text, bytes |
 
 Each one's parameters are its docstring, in `src/blocks/ui/<name>.py`; how it draws is

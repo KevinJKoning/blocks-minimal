@@ -61,10 +61,18 @@ def test_reads_the_graph_from_signatures(app):
 def test_a_step_is_a_function_that_says_what_it_is(app):
     (app / "nodes" / "count.py").write_text('def size(values):\n    """How many\n    there are.\n\n    More."""\n'
                                             '    return len(values)\n\n\ndef _quiet(x):\n    return x\n\n\n'
-                                            'def count(double):\n    return {"n": size(double["values"])}\n')
+                                            'def count(double):\n    return {"size": {"n": size(double["values"])}}\n\n\n'
+                                            'def view(out):\n    from blocks import ui\n'
+                                            '    return [ui.step(size, ui.metrics(under="size"))]\n')
     a = spec.load(app)
-    assert a["nodes"]["count"]["steps"] == [{"name": "size", "summary": "How many there are.", "lines": [1, 6]}]
+    assert a["nodes"]["count"]["steps"] == [{"name": "size", "doc": "How many\nthere are.\n\nMore.",
+                                             "code": "def size(values):\n    return len(values)"}]
     assert a["nodes"]["double"]["steps"] == []   # the node's function and its view are not steps
+    r = graph.Graph(str(app), graph_spec(a)).run({}, {})["count"]
+    assert r["metrics"] == {"size.n": 3}
+    assert r["blocks"] == [{"type": "step", "name": "size", "blocks": [{"type": "metrics", "under": "size"}]}]
+    with pytest.raises(ValueError, match="has a docstring"):
+        ui.step(lambda x: x)
 
 
 def test_a_nodes_summary_is_its_first_paragraph(app):

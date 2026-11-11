@@ -10,6 +10,7 @@ from .map import map  # noqa: A004 - ui.map reads best
 from .markdown import markdown
 from .metrics import metrics
 from .row import row
+from .step import step
 from .table import table
 
-__all__ = ["bars", "chart", "download", "figure", "heatmap", "histogram", "map", "markdown", "metrics", "row", "table"]
+__all__ = ["bars", "chart", "download", "figure", "heatmap", "histogram", "map", "markdown", "metrics", "row", "step", "table"]
