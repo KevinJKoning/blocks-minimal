@@ -53,6 +53,10 @@ def read_node(path: Path) -> dict:
         if not isinstance(m, str) and (not isinstance(m, dict) or set(m) - {"label", "goal", "percent"}):
             raise ValueError(f"{path}: METRICS[{k!r}] is a label, or a dict of label, goal (\"min\" or \"max\") and percent (True for a share)")
     doc = ast.get_docstring(tree) or ""
+    # A step: any other function at the top of the file that says what it is. Its lines are 1-based, both ends in.
+    steps = [{"name": f.name, "summary": " ".join(ast.get_docstring(f).split("\n\n")[0].split()),
+              "lines": [min([f.lineno, *(d.lineno for d in f.decorator_list)]), f.end_lineno]}
+             for f in fns.values() if f.name not in (name, "view") and ast.get_docstring(f)]
     return {
         "file": f"nodes/{path.name}",
         "doc": doc,
@@ -61,6 +65,7 @@ def read_node(path: Path) -> dict:
         "settings": {x.arg: _setting(x, d, f"{path}: {x.arg}") for x, d in zip(a.kwonlyargs, a.kw_defaults)},
         "metrics": [{"key": k, **({"label": m} if isinstance(m, str) else {"label": k, **m})} for k, m in metrics.items()],
         "view": "view" in fns,
+        "steps": steps,
     }
 
 

@@ -339,8 +339,22 @@ function nodePage(n) {
     h("section", {}, h("h2", {}, "Results"), results(n)),
     h("details", { class: "about" }, h("summary", {}, "Code"),
       h("p", { class: "muted" }, node.deps.length ? ["Reads ", sep(node.deps)] : "Reads nothing", readers.length ? [". Read by ", sep(readers), "."] : "."),
-      h("pre", {}, text(M.files[node.file]))),
+      code(node)),
   ];
+}
+
+// The node's file, top to bottom, with each step (spec.read_node's) under its name and what it says it is.
+function code(node) {
+  const lines = text(M.files[node.file]).replace(/\n$/, "").split("\n"), out = [];
+  const pre = (a, b) => { const t = lines.slice(a, b).join("\n"); if (t.trim()) out.push(h("pre", {}, t.replace(/^\n+|\s+$/g, ""))); };
+  let at = 0;
+  for (const s of node.steps) {
+    pre(at, s.lines[0] - 1);
+    out.push(h("p", { class: "step" }, h("code", {}, s.name), " ", s.summary));
+    pre(s.lines[0] - 1, at = s.lines[1]);
+  }
+  pre(at, lines.length);
+  return out;
 }
 
 function overview() {

@@ -47,6 +47,11 @@ projects/<app>/
   recorded, compared with the baseline, shown. `METRICS = {key: "label" | {label, goal,
   percent}}` labels the ones that matter, in order (`fit.shape` for `{"fit": {"shape": ...}}`);
   `goal: "min"` or `"max"` colours changes, `percent: True` marks a share.
+- **A step** is any other function at the top of a node's file with a docstring: a part of the
+  node's work worth naming. The page's Code shows each under its name and the docstring's first
+  paragraph. Where its result is one a reader would check, return it in the output under the
+  step's name, so its numbers are metrics like any other. A function without a docstring is
+  just a function.
 - **Packages** are found from the imports, and come from Pyodide, not the venv: the names
   they import as are in `.cache/pyodide/<version>/pyodide-lock.json`. Node code runs only in
   the page, never with native Python.
